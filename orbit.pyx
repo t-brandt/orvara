@@ -163,10 +163,6 @@ cdef class Data:
         self.epDec_H = t['epoch_dec_hip']
         self.epRA_G = t['epoch_ra_gaia']
         self.epDec_G = t['epoch_dec_gaia']
-        if refep is not None:
-            self.refep = refep
-        else:
-            self.refep = self.epochs[0]
         
         if not use_epoch_astrometry:
             self.nHip1 = self.nHip2 = self.nGaia = 6
@@ -198,6 +194,10 @@ cdef class Data:
             absasteps = np.asarray(list(epochs_Hip1) + list(epochs_Hip2) + list(epochs_Gaia))
             
         self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps))
+        if refep is not None:
+            self.refep = refep
+        else:
+            self.refep = self.epochs[0]
         self.nTot = len(self.epochs)
         
         eRA, eDec, corr = [1e-3*t['pmra_hip_error'], 1e-3*t['pmdec_hip_error'], t['pmra_pmdec_hip']]
