@@ -9,10 +9,10 @@ import orbit
 from htof.main import Astrometry
 
 # Number of MCMC steps per walker
-nstep = 20000
+nstep = 2000
 
 # Number of threads to use for parallelization.  
-nthreads = 4
+nthreads = 1
 
 ######################################################################
 #HIP = 95319
@@ -21,7 +21,7 @@ nthreads = 4
 HIP = 3850
 RVfile = 'HD4747_RV.dat'
 relAstfile = 'HD4747_relAST.txt'
-use_epoch_astrometry = True
+use_epoch_astrometry = False
 Gaia_intermediate_data = '/home/tbrandt/data/GaiaDR2IntermediateData/'
 Hip1_intermediate_data = '/home/tbrandt/data/hipparcosOriginalIntermediateData/'
 Hip2_intermediate_data = '/home/tbrandt/data/Hip2/IntermediateData/resrec/'
