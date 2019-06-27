@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import numpy as np
+import os
+import time
+import emcee
+from astropy.io import fits
+import orbit
+from htof.main import Astrometry
+
+# Number of MCMC steps per walker
+nstep = 20000
+
+# Number of threads to use for parallelization.  
+nthreads = 4
+
+######################################################################
+#HIP = 95319
+#RVfile = 'Gl758_RV.dat'
+#relAstfile = 'Gl758_relAST.txt'
+HIP = 3850
+RVfile = 'HD4747_RV.dat'
+relAstfile = 'HD4747_relAST.txt'
+use_epoch_astrometry = True
+Gaia_intermediate_data = '/home/tbrandt/data/GaiaDR2IntermediateData/'
+Hip1_intermediate_data = '/home/tbrandt/data/hipparcosOriginalIntermediateData/'
+Hip2_intermediate_data = '/home/tbrandt/data/Hip2/IntermediateData/resrec/'
+#startfile = 'HD4747_PTinititer1.fits'
+startfile = None
+nwalkers = 100
+ntemps = 5
+######################################################################
+
+######################################################################
+# Garbage initial guess
+######################################################################
+
+if startfile is None:
+    sau = 10
+    esino = 0.5
+    inc = 1
+    asc = 1
+    ecoso = 0.5
+    lam = 1
+    mpri = 1
+    msec = 0.1
+    jit = 0
+    
+    par0 = np.ones((5, 100, 9))
+    par0 *= np.asarray([sau, esino, inc, asc, ecoso, lam, mpri, msec, jit])
+    par0 += np.random.rand(np.prod(par0.shape)).reshape(par0.shape)*0.1
+
+else:
+
+    #################################################################
+    # read in the starting positions for the walkers. The next four
+    # lines remove parallax and RV zero point from the optimization,
+    # change semimajor axis from arcseconds to AU, and bring the
+    # number of temperatures used for parallel tempering down to
+    # ntemps.
+    #################################################################
+
+    par0 = fits.open(startfile)[0].data
+    par0[:, :, 8] = par0[:, :, 9]
+    par0[:, :, 9] = par0[:, :, 10]
+    par0[:, :, 0] /= par0[:, :, 9]
+    par0 = par0[:ntemps, :, :-2]
+
+ntemps = par0[:, 0, 0].size
+nwalkers = par0[0, :, 0].size
+ndim = par0[0, 0, :].size
+
+######################################################################
+# Load in data
+######################################################################
+
+data = orbit.Data(HIP, RVfile, relAstfile)
+
+if use_epoch_astrometry:
+    Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HIP), Gaia_intermediate_data,
+                             central_epoch_ra=data.epRA_G,
+                             central_epoch_dec=data.epDec_G,
+                             central_epoch_fmt='frac_year')
+    Hip2_fitter = Astrometry('Hip2', '%06d' % (HIP), Hip2_intermediate_data,
+                             central_epoch_ra=data.epRA_H,
+                             central_epoch_dec=data.epDec_H,
+                             central_epoch_fmt='frac_year')
+    Hip1_fitter = Astrometry('Hip1', '%06d' % (HIP), Hip1_intermediate_data,
+                             central_epoch_ra=data.epRA_H,
+                             central_epoch_dec=data.epDec_H,
+                             central_epoch_fmt='frac_year')
+    
+    H1f = orbit.AstrometricFitter(Hip1_fitter)
+    H2f = orbit.AstrometricFitter(Hip2_fitter)
+    Gf = orbit.AstrometricFitter(Gaia_fitter)
+
+    data = orbit.Data(HIP, RVfile, relAstfile, use_epoch_astrometry,
+                      epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
+                      epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
+                      epochs_Gaia=Gaia_fitter.data.julian_day_epoch())
+
+######################################################################
+# define likelihood function for joint parameters
+######################################################################
+ 
+def lnprob(theta):
+    params = orbit.Params(theta)
+    
+    if not np.isfinite(orbit.lnprior(params)):
+        return -np.inf
+
+    model = orbit.Model(data)
+    orbit.calc_EA_RPP(data, params, model)
+    orbit.calc_RV(data, params, model)
+    orbit.calc_offsets(data, params, model)
+
+    if use_epoch_astrometry:
+        orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
+    else:
+        orbit.calc_PMs_no_epoch_astrometry(data, model)
+    
+    return orbit.lnprior(params) + orbit.calcL(data, params, model)
+
+def return_one(theta):
+    return 1.
+
+######################################################################
+# Initialize and run sampler
+######################################################################
+
+from emcee import PTSampler
+kwargs = {'thin': 50 }
+start_time = time.time()
+
+sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, lnprob, return_one, threads=nthreads)
+sample0.run_mcmc(par0, nstep, **kwargs)
+
+print('Total Time: %.2f' % (time.time() - start_time))
+print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
+
+for i in range(1000):
+    filename = 'HIP%d_chain%03d.fits' % (HIP, i)
+    if not os.path.isfile(filename):
+        fits.writeto(filename, sample0.chain[0], overwrite=False)
+        exit()
