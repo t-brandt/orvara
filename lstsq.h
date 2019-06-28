@@ -1,3 +1,9 @@
+/*
+ * Solve the system of equations A*x = b for x using the singular
+ * value decomposition.  The matrix A should be structured as a 1-D
+ * array with steps, i.e., A[i*n + j] <-> A[i, j] with A m x n.  
+ */
+
 void lstsq_C(double A_in[], double b[], int m, int n, double coef[]);
 
 void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
@@ -29,7 +35,7 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
   
   for (i = 0; i < m; i++) 
     for (j = 0; j < n; j++) 
-      A[i*m + j] = A_in[i*m + j];
+      A[i*n + j] = A_in[i*n + j];
 
   /*
   ###############################################################
@@ -49,31 +55,31 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
     scale = 0.;
     if (i < m) {
       for (k = i; k < m; k++)
-	scale = scale + fabs(A[k*m + i]);
+	scale = scale + fabs(A[k*n + i]);
       if (scale != 0) {
 	for (k = i; k < m; k++) {
-	  A[k*m + i] = A[k*m + i]/scale;
-	  s = s + A[k*m + i]*A[k*m + i];
+	  A[k*n + i] = A[k*n + i]/scale;
+	  s = s + A[k*n + i]*A[k*n + i];
 	}
 
-	f = A[i*m + i];
+	f = A[i*n + i];
 	g = -1*sqrt(s);
 	if (f < 0)
 	  g = -1*g;
 	h = f*g - s;
-	A[i*m + i] = f - g;
+	A[i*n + i] = f - g;
 	if (i != n - 1) {
 	  for (j = l; j < n; j++) {
 	    s = 0;
 	    for (k = i; k < m; k++)
-	      s = s + A[k*m + i]*A[k*m + j];
+	      s = s + A[k*n + i]*A[k*n + j];
 	    f = s/h;
 	    for (k = i; k < m; k++)
-	      A[k*m + j] = A[k*m + j] + f*A[k*m + i];
+	      A[k*n + j] = A[k*n + j] + f*A[k*n + i];
 	  }
 	}
 	for (k = i; k < m; k++) 
-	  A[k*m + i] = A[k*m + i]*scale;
+	  A[k*n + i] = A[k*n + i]*scale;
       }
     }
     w[i] = scale*g;
@@ -82,31 +88,31 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
     scale = 0.;
     if (i < m && i != n - 1) {
       for (k = l; k < n; k++)
-	scale = scale + fabs(A[i*m + k]);
+	scale = scale + fabs(A[i*n + k]);
       if (scale != 0) {
 	for (k = l; k < n; k++) {
-	  A[i*m + k] = A[i*m + k]/scale;
-	  s = s + A[i*m + k]*A[i*m + k];
+	  A[i*n + k] = A[i*n + k]/scale;
+	  s = s + A[i*n + k]*A[i*n + k];
 	}
-	f = A[i*m + l];
+	f = A[i*n + l];
 	g = -1*sqrt(s);
 	if (f < 0) 
 	  g = -1*g;
 	h = f*g - s;
-	A[i*m + l] = f - g;
+	A[i*n + l] = f - g;
 	for (k = l; k < n; k++) 
-	  rv1[k] = A[i*m + k]/h;
+	  rv1[k] = A[i*n + k]/h;
 	if (i != m - 1) {
 	  for (j = l; j < m; j++) {
 	    s = 0;
 	    for (k = l; k < n; k++)
-		s = s + A[j*m + k]*A[i*m + k];
+		s = s + A[j*n + k]*A[i*n + k];
 	    for (k = l; k < n; k++)
-		A[j*m + k] = A[j*m + k] + s*rv1[k];
+		A[j*n + k] = A[j*n + k] + s*rv1[k];
 	  }
 	}
 	for (k = l; k < n; k++) 
-	  A[i*m + k] = A[i*m + k]*scale;
+	  A[i*n + k] = A[i*n + k]*scale;
       }
     }
     if (fabs(w[i]) + fabs(rv1[i]) > anorm)
@@ -116,11 +122,11 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
     if (i < n - 1) {
       if (g != 0) {
 	for (j = l; j < n; j++)
-	  v[j*n + i] = A[i*m + j]/A[i*m + l]/g;
+	  v[j*n + i] = A[i*n + j]/A[i*n + l]/g;
 	for (j = l; j < n; j++) {
 	  s = 0;
 	  for (k = l; k < n; k++)
-	    s = s + A[i*m + k]*v[k*n + j];
+	    s = s + A[i*n + k]*v[k*n + j];
 	  for (k = l; k < n; k++)
 	    v[k*n + j] = v[k*n + j] + s*v[k*n + i];
 	}
@@ -140,26 +146,26 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
     g = w[i];
     if (i < n - 1) 
       for (j = l; j < n; j++) 
-	A[i*m + j] = 0.;
+	A[i*n + j] = 0.;
     if (g != 0) {
       g = 1./g;
       if (i != n - 1) {
 	for (j = l; j < n; j++) {
 	  s = 0;
 	  for (k = l; k < m; k++) 
-	    s = s + A[k*m + i]*A[k*m + j];
-	  f = (s/A[i*m + i])*g;
+	    s = s + A[k*n + i]*A[k*n + j];
+	  f = (s/A[i*n + i])*g;
 	  for (k = i; k < m; k++) 
-	    A[k*m + j] = A[k*m + j] + f*A[k*m + i];
+	    A[k*n + j] = A[k*n + j] + f*A[k*n + i];
 	}
       }
       for (j = i; j < m; j++) 
-	A[j*m + i] = A[j*m + i]*g;
+	A[j*n + i] = A[j*n + i]*g;
     } else {
       for (j = i; j < m; j++) 
-	A[j*m + i] = 0.;
+	A[j*n + i] = 0.;
     }
-    A[i*m + i] = A[i*m + i] + 1.;
+    A[i*n + i] = A[i*n + i] + 1.;
   }
   for (k = n - 1; k > -1; k--) {
     for (its = 0; its < 30; its++) {
@@ -186,10 +192,10 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
 	    c = g*h;
 	    s = -1.*f*h;
 	    for (j = 0; j < m; j++) {
-	      y = A[j*m + nm];
-	      z = A[j*m + i];
-	      A[j*m + nm] = y*c + z*s;
-	      A[j*m + i] = z*c - y*s;
+	      y = A[j*n + nm];
+	      z = A[j*n + i];
+	      A[j*n + nm] = y*c + z*s;
+	      A[j*n + i] = z*c - y*s;
 	    }
 	  }
 	}
@@ -253,10 +259,10 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
 	f = c*g + s*y;
 	x = c*y - s*g;
 	for (jj = 0; jj < m; jj++) {
-	  y = A[jj*m + j];
-	  z = A[jj*m + i];
-	  A[jj*m + j] = y*c + z*s;
-	  A[jj*m + i] = z*c - y*s;
+	  y = A[jj*n + j];
+	  z = A[jj*n + i];
+	  A[jj*n + j] = y*c + z*s;
+	  A[jj*n + i] = z*c - y*s;
 	}
       }
       rv1[l] = 0.;
@@ -275,7 +281,7 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
     for (i = inc; i < n; i++) {
       sw = w[i];
       for (k = 0; k < m; k++)
-	su[k] = A[k*m + i];
+	su[k] = A[k*n + i];
       for (k = 0; k < n; k++)
 	sv[k] = v[k*n + i];
       j = i;
@@ -283,7 +289,7 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
       while (w[j - inc] < sw) {
 	w[j] = w[j - inc];
 	for (k = 0; k < m; k++) 
-	  A[k*m + j] = A[k*m + j - inc];
+	  A[k*n + j] = A[k*n + j - inc];
 	for (k = 0; k < n; k++)
 	  v[k*n + j] = v[k*n + j - inc];
 	j = j - inc;
@@ -292,7 +298,7 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
       }
       w[j] = sw;
       for (k = 0; k < m; k++)
-	A[k*m + j] = su[k];
+	A[k*n + j] = su[k];
       for (k = 0; k < n; k++)
 	v[k*n + j] = sv[k];
     }
@@ -303,14 +309,14 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
   for (k = 0; k < n; k++) {
     jj = 0;
     for (i = 0; i < m; i++) 
-      if (A[i*m + k] < 0)
+      if (A[i*n + k] < 0)
 	jj = jj + 1;
     for (j = 0; j < n; j++)
       if (v[j*n + k] < 0)
 	jj = jj + 1;
     if (jj > (m + n)/2) {
       for (i = 0; i < m; i++)
-	A[i*m + k] = -1.*A[i*m + k];
+	A[i*n + k] = -1.*A[i*n + k];
       for (j = 0; j < n; j++)
 	v[j*n + k] = -1.*v[j*n + k];
     }
@@ -322,7 +328,7 @@ void lstsq_C(double A_in[], double b[], int m, int n, double coef[]) {
     s = 0.;
     if (w[j] > tsh) {
       for (i = 0; i < m; i++)
-	s = s + A[i*m + j]*b[i];
+	s = s + A[i*n + j]*b[i];
       s = s/w[j];
     }
     tmparr[j] = s*1.;
