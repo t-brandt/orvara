@@ -443,12 +443,19 @@ def calc_EA_RPP(Data data, Params par, Model model):
             
             # Second order approximation.
             
-            dEA = num*denom/(denom**2 + 0.5*sinEA*num)
+            #dEA = num*denom/(denom**2 + 0.5*sinEA*num)
 
             # This brings the scheme to third order.
         
-            dEA = num/(denom + dEA*(0.5*sinEA + one_sixth*cosEA*dEA))
-                    
+            #dEA = num/(denom + dEA*(0.5*sinEA + one_sixth*cosEA*dEA))
+
+            # Replaced the preceding two lines with the following,
+            # which requires only one division (this is Householder's
+            # third order formula)
+            
+            dEA = num*(denom**2 + 0.5*num*sinEA)
+            dEA /= denom*denom**2 + num*(denom*sinEA + one_sixth*num*cosEA)
+            
             dEAsq_d6 = dEA*dEA*one_sixth
         
             #############################################################
