@@ -240,18 +240,28 @@ cdef class Model:
         self.EA = <double *> PyMem_Malloc(self.nEA * sizeof(double))
         self.sinEA = <double *> PyMem_Malloc(self.nEA * sizeof(double))
         self.cosEA = <double *> PyMem_Malloc(self.nEA * sizeof(double))
-
+        if not self.EA or not self.sinEA or not self.cosEA:
+            raise MemoryError()
+        
         self.RV = <double *> PyMem_Malloc(self.nRV * sizeof(double))
         
         self.relsep = <double *> PyMem_Malloc(self.nAst * sizeof(double))
         self.PA = <double *> PyMem_Malloc(self.nAst * sizeof(double))
-
+        if not self.RV or not self.relsep or not self.PA:
+            raise MemoryError()
+        
         self.dRA_H1 = <double *> PyMem_Malloc(self.nHip1 * sizeof(double))
         self.dDec_H1 = <double *> PyMem_Malloc(self.nHip1 * sizeof(double))
+        if not self.dRA_H1 or not self.dDec_H1:
+            raise MemoryError()
         self.dRA_H2 = <double *> PyMem_Malloc(self.nHip2 * sizeof(double))
         self.dDec_H2 = <double *> PyMem_Malloc(self.nHip2 * sizeof(double))
+        if not self.dRA_H2 or not self.dDec_H2:
+            raise MemoryError()
         self.dRA_G = <double *> PyMem_Malloc(self.nGaia * sizeof(double))      
         self.dDec_G = <double *> PyMem_Malloc(self.nGaia * sizeof(double))
+        if not self.dRA_G or not self.dDec_G:
+            raise MemoryError()
 
         
 @cython.boundscheck(False)
@@ -271,7 +281,9 @@ def calc_EA_RPP(Data data, Params par, Model model):
 
     cdef double *EA_tab = <double *> PyMem_Malloc(6*13 * sizeof(double))
     cdef double *bounds = <double *> PyMem_Malloc(13 * sizeof(double))
-
+    if not EA_tab or not bounds:
+        raise MemoryError()
+    
     getbounds(bounds, EA_tab, par.ecc)
     
     cdef double pi = 3.14159265358979323846264338327950288
@@ -547,14 +559,20 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     cdef double *b_Hip1 = <double *> PyMem_Malloc(Hip1.npar * sizeof(double))
     cdef double *b_Hip2 = <double *> PyMem_Malloc(Hip2.npar * sizeof(double))
     cdef double *b_Gaia = <double *> PyMem_Malloc(Gaia.npar * sizeof(double))
-
+    if not b_Hip1 or not b_Hip2 or not b_Gaia:
+        raise MemoryError()
+    
     cdef double *res_Hip1 = <double *> PyMem_Malloc(Hip1.npar * sizeof(double))
     cdef double *res_Hip2 = <double *> PyMem_Malloc(Hip2.npar * sizeof(double))
     cdef double *res_Gaia = <double *> PyMem_Malloc(Gaia.npar * sizeof(double))
-
+    if not res_Hip1 or not res_Hip2 or not res_Gaia:
+        raise MemoryError()
+    
     cdef double *chi2mat_Hip1 = <double *> PyMem_Malloc(Hip1.npar*Hip1.npar * sizeof(double))
     cdef double *chi2mat_Hip2 = <double *> PyMem_Malloc(Hip2.npar*Hip2.npar * sizeof(double))
     cdef double *chi2mat_Gaia = <double *> PyMem_Malloc(Gaia.npar*Gaia.npar * sizeof(double))
+    if not chi2mat_Gaia or not chi2mat_Hip1 or not chi2mat_Hip2:
+        raise MemoryError()
     
     cdef int i, j
     cdef double x
