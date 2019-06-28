@@ -78,7 +78,7 @@ cdef class Data:
     def __init__(self, Hip, RVfile, relAstfile,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
-                 refep=None): #2455197.5000):
+                 refep=2455197.5000):
         try:
             rvdat = np.genfromtxt(RVfile)
             rvep = rvdat[:, 0]
