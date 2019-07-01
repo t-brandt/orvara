@@ -138,8 +138,10 @@ sample0.run_mcmc(par0, nstep, **kwargs)
 print('Total Time: %.2f' % (time.time() - start_time))
 print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
 
+out = fits.HDUList(fits.PrimaryHDU(sample0.chain[0].astype(np.float32)))
+out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
 for i in range(1000):
     filename = 'HIP%d_chain%03d.fits' % (HIP, i)
     if not os.path.isfile(filename):
-        fits.writeto(filename, sample0.chain[0], overwrite=False)
+        out.writeto(filename, overwrite=False)
         exit()
