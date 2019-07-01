@@ -158,18 +158,18 @@ void getbounds(double bounds[], double EA_tab[], double ecc) {
   EA_tab[68] = -0.5*g2s_e/((1. + g2c_e)*(1. + g2c_e)*(1. + g2c_e));
   EA_tab[74] = 0;
   
-  double B0, B1, B2, dx;
+  double b0, b1, b2, dx;
   int i, k;
   for (i = 0; i < 12; i++) {
     dx = bounds[i + 1] - bounds[i];
     k = 6*i;
     EA_tab[k] = i*pi_d_12;
-    B0 = (pi_d_12 - EA_tab[k + 1]*dx - EA_tab[k + 2]*dx*dx)/(dx*dx*dx);
-    B1 = (EA_tab[k + 7] - EA_tab[k + 1] - 2*EA_tab[k + 2]*dx)/(3*dx*dx);
-    B2 = (EA_tab[k + 8] - EA_tab[k + 2])/(3*dx);
-    EA_tab[k + 3] = 3*B2 - 12*B1 + 10*B0;
-    EA_tab[k + 4] = (-6*B2 + 21*B1 - 15*B0)/dx;
-    EA_tab[k + 5] = (3*B2 - 9*B1 + 6*B0)/(dx*dx);
+    b0 = (pi_d_12 - EA_tab[k + 1]*dx - EA_tab[k + 2]*dx*dx)/(dx*dx*dx);
+    b1 = (EA_tab[k + 7] - EA_tab[k + 1] - 2*EA_tab[k + 2]*dx)/(3*dx*dx);
+    b2 = (EA_tab[k + 8] - EA_tab[k + 2])/(3*dx);
+    EA_tab[k + 3] = 3*b2 - 12*b1 + 10*b0;
+    EA_tab[k + 4] = (-6*b2 + 21*b1 - 15*b0)/dx;
+    EA_tab[k + 5] = (3*b2 - 9*b1 + 6*b0)/(dx*dx);
   }
   
   return;
