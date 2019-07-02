@@ -11,7 +11,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 cdef class Params:
     cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit
-    cdef public double ecc, per, arg
+    cdef public double ecc, per, arg, sqrt1pe, sqrt1me
     
     def __init__(self, par):
 
@@ -19,15 +19,16 @@ cdef class Params:
             double atan2(double x, double y)
             double sqrt(double x)
         
-        self.sau = par[0]
-        self.esino = par[1]
-        self.inc = par[2]
-        self.asc = par[3]
-        self.ecoso = par[4]
-        self.lam = par[5]
-        self.mpri = par[6]
-        self.msec = par[7]
-        self.jit = par[8]
+        self.jit = par[0]
+        self.mpri = par[1]
+        self.msec = par[2]        
+        self.sau = par[3]
+        self.esino = par[4]
+        self.ecoso = par[5]
+        self.inc = par[6]
+        self.asc = par[7]
+        self.lam = par[8]
+
         self.ecc = self.ecoso**2 + self.esino**2
         self.per = sqrt(self.sau*self.sau*self.sau/(self.mpri + self.msec))*365.25
         self.arg = atan2(self.esino, self.ecoso)
@@ -106,6 +107,8 @@ cdef class Data:
         try:
             reldat = np.genfromtxt(relAstfile,
                                    usecols=(1,2,3,4,5), skip_header=1)
+            if len(reldat.shape) == 1:
+                reldat = np.reshape(reldat, (1, -1))
             relep = (reldat[:, 0] - 2000)*365.25 + 2451544.5
             self.relsep = reldat[:, 1]
             self.relsep_err = reldat[:, 2]
@@ -263,7 +266,6 @@ cdef class Model:
         if not self.dRA_G or not self.dDec_G:
             raise MemoryError()
 
-        
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
@@ -712,14 +714,15 @@ def calc_RV(Data data, Params par, Model model):
     cdef double pi = 3.14159265358979323846264338327950288
     cdef double pi_d_2 = pi/2.
     
-    cdef double ecccosarg = par.ecc*cos(par.arg)
     cdef double sqrt1pe = sqrt(1 + par.ecc)
     cdef double sqrt1me = sqrt(1 - par.ecc)
-    cdef double RVampl = 2*pi*par.sau*sin(par.inc)/par.per/sqrt(1 - par.ecc**2)*1731458.33*par.msec/(par.mpri + par.msec)
+    cdef double RVampl = 2*pi*par.sau*sin(par.inc)/(par.per*sqrt1pe*sqrt1me)
+    RVampl *= 1731458.33*par.msec/(par.mpri + par.msec)
 
     cdef double cosarg = cos(par.arg)
     cdef double sinarg = sin(par.arg)
-    cdef double sqrt1pe_div_sqrt1me = sqrt((1 + par.ecc)/(1 - par.ecc))
+    cdef double ecccosarg = par.ecc*cosarg
+    cdef double sqrt1pe_div_sqrt1me = sqrt1pe/sqrt1me
     cdef double TA, ratio, fac, tanEAd2
     
     cdef int i

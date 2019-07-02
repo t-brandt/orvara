@@ -9,7 +9,7 @@ import orbit
 from htof.main import Astrometry
 
 # Number of MCMC steps per walker
-nstep = 2000
+nstep = 20000
 
 # Number of threads to use for parallelization.  
 nthreads = 1
@@ -18,9 +18,12 @@ nthreads = 1
 #HIP = 95319
 #RVfile = 'Gl758_RV.dat'
 #relAstfile = 'Gl758_relAST.txt'
-HIP = 3850
-RVfile = 'HD4747_RV.dat'
-relAstfile = 'HD4747_relAST.txt'
+#HIP = 3850
+#RVfile = 'HD4747_RV.dat'
+#relAstfile = 'HD4747_relAST.txt'
+HIP = 116250
+RVfile = 'HD221420_AAT.vels'
+relAstfile ='foo.ast'
 use_epoch_astrometry = False
 Gaia_intermediate_data = '/home/tbrandt/data/GaiaDR2IntermediateData/'
 Hip1_intermediate_data = '/home/tbrandt/data/hipparcosOriginalIntermediateData/'
@@ -47,7 +50,7 @@ if startfile is None:
     jit = 0
     
     par0 = np.ones((5, 100, 9))
-    par0 *= np.asarray([sau, esino, inc, asc, ecoso, lam, mpri, msec, jit])
+    par0 *= np.asarray([jit, mpri, msec, sau, esino, ecoso, inc, asc, lam])
     par0 += np.random.rand(np.prod(par0.shape)).reshape(par0.shape)*0.1
 
 else:
@@ -118,7 +121,7 @@ def lnprob(theta):
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
     else:
         orbit.calc_PMs_no_epoch_astrometry(data, model)
-    
+        
     return orbit.lnprior(params) + orbit.calcL(data, params, model)
 
 def return_one(theta):
