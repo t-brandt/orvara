@@ -49,7 +49,7 @@ to the root directory of orbit3d, then run the following
 
 .. code-block:: bash
 
-    python orbit3d/orbitfit_3d.py --output-dir ~/Downloads --nsteps 100 --config-file orbit3d/tests/config.txt
+    python orbit3d/orbitfit_3d.py --output-dir ~/Downloads --nstep 100 --config-file orbit3d/tests/config.txt
 
 This will create a .fits file in the downloads folder. The MCMC should terminate in less than
 one second because of the short number of steps.
