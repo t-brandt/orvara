@@ -13,21 +13,28 @@ cdef class Params:
     cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit
     cdef public double ecc, per, arg, sqrt1pe, sqrt1me
     
-    def __init__(self, par):
+    def __init__(self, par, int iplanet=0, int nplanets=1):
 
         cdef extern from "math.h":
             double atan2(double x, double y)
             double sqrt(double x)
+
+        cdef int i
         
         self.jit = par[0]
         self.mpri = par[1]
-        self.msec = par[2]        
-        self.sau = par[3]
-        self.esino = par[4]
-        self.ecoso = par[5]
-        self.inc = par[6]
-        self.asc = par[7]
-        self.lam = par[8]
+        self.msec = par[2 + 7*iplanet]        
+        self.sau = par[3 + 7*iplanet]
+
+        for i in range(nplanets):
+            if self.sau > par[3 + 7*i]:
+                self.mpri += par[2 + 7*i]
+        
+        self.esino = par[4 + 7*iplanet]
+        self.ecoso = par[5 + 7*iplanet]
+        self.inc = par[6 + 7*iplanet]
+        self.asc = par[7 + 7*iplanet]
+        self.lam = par[8 + 7*iplanet]
 
         self.ecc = self.ecoso**2 + self.esino**2
         self.per = sqrt(self.sau*self.sau*self.sau/(self.mpri + self.msec))*365.25
@@ -66,6 +73,7 @@ cdef class Data:
     cdef double [:] PA
     cdef double [:] relsep_err
     cdef double [:] PA_err
+    cdef int [:] ast_planetID
     cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
     cdef public double plx, plx_err
@@ -105,8 +113,12 @@ cdef class Data:
             self.nInst = 1
 
         try:
-            reldat = np.genfromtxt(relAstfile,
-                                   usecols=(1,2,3,4,5), skip_header=1)
+            try:
+                reldat = np.genfromtxt(relAstfile,
+                                       usecols=(1,2,3,4,5,6), skip_header=1)
+            except:
+                reldat = np.genfromtxt(relAstfile,
+                                       usecols=(1,2,3,4,5), skip_header=1)
             if len(reldat.shape) == 1:
                 reldat = np.reshape(reldat, (1, -1))
             relep = (reldat[:, 0] - 2000)*365.25 + 2451544.5
@@ -115,6 +127,14 @@ cdef class Data:
             self.PA = reldat[:, 3]*np.pi/180
             self.PA_err = reldat[:, 4]*np.pi/180
             self.nAst = reldat.shape[0]
+            try:
+                self.ast_planetID = (reldat[:, 5]).astype(np.int32)
+                assert np.all(self.ast_planetID == reldat[:, 5])
+                print("Loading astrometric data for %d planets" % (np.amax(self.ast_planetID) + 1))
+            except:
+                self.ast_planetID = (reldat[:, 0]*0).astype(np.int32)
+                print("Loading astrometric data for 1 planet")
+                
             print("Loaded %d relative astrometric data points from file " % (self.nAst) + relAstfile)
         except:
             print("Unable to load relative astrometry data from file " + relAstfile)
@@ -239,32 +259,74 @@ cdef class Model:
         self.nHip1 = data.nHip1
         self.nHip2 = data.nHip2
         self.nGaia = data.nGaia
+        self.pmra_H = self.pmra_HG = self.pmra_G = 0
+        self.pmdec_H = self.pmdec_HG = self.pmdec_G = 0
+        cdef int i
         
-        self.EA = <double *> PyMem_Malloc(self.nEA * sizeof(double))
-        self.sinEA = <double *> PyMem_Malloc(self.nEA * sizeof(double))
-        self.cosEA = <double *> PyMem_Malloc(self.nEA * sizeof(double))
+        self.EA = <double *> PyMem_Malloc((self.nEA+1) * sizeof(double))
+        self.sinEA = <double *> PyMem_Malloc((self.nEA+1) * sizeof(double))
+        self.cosEA = <double *> PyMem_Malloc((self.nEA+1) * sizeof(double))
         if not self.EA or not self.sinEA or not self.cosEA:
             raise MemoryError()
+        for i in range(self.nEA):
+            self.EA[i] = self.cosEA[i] = self.sinEA[i] = 0
         
-        self.RV = <double *> PyMem_Malloc(self.nRV * sizeof(double))
+        self.RV = <double *> PyMem_Malloc((self.nRV+1) * sizeof(double))
+        if not self.RV:
+            raise MemoryError()
+        for i in range(self.nRV):
+            self.RV[i] = 0
         
-        self.relsep = <double *> PyMem_Malloc(self.nAst * sizeof(double))
-        self.PA = <double *> PyMem_Malloc(self.nAst * sizeof(double))
+        self.relsep = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
+        self.PA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
         if not self.RV or not self.relsep or not self.PA:
             raise MemoryError()
+        for i in range(self.nAst):
+            self.relsep[i] = self.PA[i] = 0
         
-        self.dRA_H1 = <double *> PyMem_Malloc(self.nHip1 * sizeof(double))
-        self.dDec_H1 = <double *> PyMem_Malloc(self.nHip1 * sizeof(double))
+        self.dRA_H1 = <double *> PyMem_Malloc((self.nHip1+1) * sizeof(double))
+        self.dDec_H1 = <double *> PyMem_Malloc((self.nHip1+1) * sizeof(double))
         if not self.dRA_H1 or not self.dDec_H1:
             raise MemoryError()
-        self.dRA_H2 = <double *> PyMem_Malloc(self.nHip2 * sizeof(double))
-        self.dDec_H2 = <double *> PyMem_Malloc(self.nHip2 * sizeof(double))
+        for i in range(self.nHip1):
+            self.dRA_H1[i] = self.dDec_H1[i] = 0
+            
+        self.dRA_H2 = <double *> PyMem_Malloc((self.nHip2+1) * sizeof(double))
+        self.dDec_H2 = <double *> PyMem_Malloc((self.nHip2+1) * sizeof(double))
         if not self.dRA_H2 or not self.dDec_H2:
             raise MemoryError()
-        self.dRA_G = <double *> PyMem_Malloc(self.nGaia * sizeof(double))      
-        self.dDec_G = <double *> PyMem_Malloc(self.nGaia * sizeof(double))
+        for i in range(self.nHip2):
+            self.dRA_H2[i] = self.dDec_H2[i] = 0
+            
+        self.dRA_G = <double *> PyMem_Malloc((self.nGaia+1) * sizeof(double))
+        self.dDec_G = <double *> PyMem_Malloc((self.nGaia+1) * sizeof(double))
         if not self.dRA_G or not self.dDec_G:
             raise MemoryError()
+        for i in range(self.nGaia):
+            self.dRA_G[i] = self.dDec_G[i] = 0
+            
+    def free(self):
+        PyMem_Free(self.dRA_H1)
+        PyMem_Free(self.dDec_H1)
+        PyMem_Free(self.dRA_H2)
+        PyMem_Free(self.dDec_H2)
+        PyMem_Free(self.dRA_G)
+        PyMem_Free(self.dDec_G)
+        PyMem_Free(self.RV)
+        PyMem_Free(self.EA)
+        PyMem_Free(self.sinEA)
+        PyMem_Free(self.cosEA)
+        PyMem_Free(self.relsep)
+        PyMem_Free(self.PA)
+
+    
+cdef class Chisq_resids:
+    cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA
+    cdef public double plx_best, pmra_best, pmdec_best
+    def __init__(self):
+        self.chisq_H = self.chisq_HG = self.chisq_G = 0
+        self.chisq_sep = self.chisq_PA = 0
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -487,7 +549,7 @@ def calc_EA_RPP(Data data, Params par, Model model):
 # (for absolute astrometry) directly in the model structure.
 ######################################################################
 
-def calc_offsets(Data data, Params par, Model model):
+def calc_offsets(Data data, Params par, Model model, int iplanet=0):
 
     cdef extern from "math.h" nogil:
         double sin(double _x)
@@ -512,6 +574,8 @@ def calc_offsets(Data data, Params par, Model model):
     cdef double X, Y, dRA, dDec, sqonemeccsqr = sqrt(1 - par.ecc**2)
 
     for i in range(data.nAst):
+        if data.ast_planetID[i] != iplanet:
+            continue
         X = model.cosEA[i + data.nRV] - par.ecc
         Y = model.sinEA[i + data.nRV]*sqonemeccsqr
 
@@ -527,8 +591,8 @@ def calc_offsets(Data data, Params par, Model model):
         X = model.cosEA[i] - par.ecc
         Y = model.sinEA[i]*sqonemeccsqr
 
-        model.dRA_H1[i - i1] = B*X + G*Y
-        model.dDec_H1[i - i1] = A*X + F*Y
+        model.dRA_H1[i - i1] += B*X + G*Y
+        model.dDec_H1[i - i1] += A*X + F*Y
 
     i1 = i2
     i2 = i1 + data.nHip2
@@ -536,8 +600,8 @@ def calc_offsets(Data data, Params par, Model model):
         X = model.cosEA[i] - par.ecc
         Y = model.sinEA[i]*sqonemeccsqr
 
-        model.dRA_H2[i - i1] = B*X + G*Y
-        model.dDec_H2[i - i1] = A*X + F*Y
+        model.dRA_H2[i - i1] += B*X + G*Y
+        model.dDec_H2[i - i1] += A*X + F*Y
     
     i1 = i2
     i2 = i1 + data.nGaia
@@ -545,8 +609,8 @@ def calc_offsets(Data data, Params par, Model model):
         X = model.cosEA[i] - par.ecc
         Y = model.sinEA[i]*sqonemeccsqr
 
-        model.dRA_G[i - i1] = B*X + G*Y
-        model.dDec_G[i - i1] = A*X + F*Y
+        model.dRA_G[i - i1] += B*X + G*Y
+        model.dDec_G[i - i1] += A*X + F*Y
     
     return 
 
@@ -620,7 +684,6 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
         for j in range(Gaia.npar):
             chi2mat_Gaia[i*Gaia.npar + j] = Gaia.chi2_matrix[i, j]
             
-
     lstsq_C(chi2mat_Hip1, b_Hip1, Hip1.npar, Hip1.npar, res_Hip1)
     RA_H1 = res_Hip1[0]
     Dec_H1 = res_Hip1[1]
@@ -760,12 +823,12 @@ def calc_RV(Data data, Params par, Model model):
             
         ratio = sqrt1pe_div_sqrt1me*tanEAd2
         fac = 2/(1 + ratio**2)
-        model.RV[i] = RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
+        model.RV[i] += RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
 
     # Don't use the following: we do about 20 times better above.
     #for i in range(data.nRV):
     #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
-    #    model.RV[i] = RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
+    #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
 
     return
         
@@ -787,7 +850,8 @@ def calc_RV(Data data, Params par, Model model):
 # computational cost).
 ######################################################################
 
-def calcL(Data data, Params par, Model model, freemodel=True):
+def calcL(Data data, Params par, Model model, bint freemodel=True,
+          bint chisq_resids=False):
 
     cdef int i, j
     cdef double lnL, ivar, dRV
@@ -807,13 +871,9 @@ def calcL(Data data, Params par, Model model, freemodel=True):
     cdef double rv_ivar = 1
     
     cdef double *A = <double *> PyMem_Malloc(data.nInst * sizeof(double))
-    if not A:
-        raise MemoryError()
     cdef double *B = <double *> PyMem_Malloc(data.nInst * sizeof(double))
-    if not B:
-        raise MemoryError()
     cdef double *C = <double *> PyMem_Malloc(data.nInst * sizeof(double))
-    if not C:
+    if not A or not B or not C:
         raise MemoryError()
     
     for i in range(data.nInst):
@@ -858,26 +918,27 @@ def calcL(Data data, Params par, Model model, freemodel=True):
     ##################################################################
 
     cdef double *M = <double *> PyMem_Malloc(9 * sizeof(double))
-    if not M:
-        raise MemoryError()
     cdef double *b = <double *> PyMem_Malloc(3 * sizeof(double))
-    if not b:
-        raise MemoryError()
     cdef double *res = <double *> PyMem_Malloc(3 * sizeof(double))
-    if not res:
+    
+    if not M or not b or not res:
         raise MemoryError()
         
     for i in range(3):
         b[i] = res[i] = 0
         for j in range(3):
             M[i*3 + j] = 0
-    
+
+    cdef double chisq_PA, chisq_sep, chisq_H, chisq_HG, chisq_G, chisq_plx
+    chisq_PA = chisq_sep = chisq_H = chisq_HG = chisq_G = chisq_plx = 0
+            
     for i in range(data.nAst):
         M[0] += model.relsep[i]**2/data.relsep_err[i]**2
         b[0] += model.relsep[i]*data.relsep[i]/data.relsep_err[i]**2
-        lnL -= (atan2(sin(model.PA[i] - data.PA[i]),
-                      cos(model.PA[i] - data.PA[i])))**2/data.PA_err[i]**2
+        chisq_PA += (atan2(sin(model.PA[i] - data.PA[i]),
+                           cos(model.PA[i] - data.PA[i])))**2/data.PA_err[i]**2
 
+        
     M[0] += model.pmra_H**2*data.Cinv_H[0, 0]
     M[0] += 2*model.pmra_H*model.pmdec_H*data.Cinv_H[1, 0]
     M[0] += model.pmdec_H**2*data.Cinv_H[1, 1]
@@ -931,16 +992,19 @@ def calcL(Data data, Params par, Model model, freemodel=True):
     b[2] += data.pmdec_G*data.Cinv_G[1, 1] + data.pmra_G*data.Cinv_G[0, 1]
 
     cdef double plx_best, pmra_best, pmdec_best, deltaRA, deltaDec, detM
-    cdef double plx_best2, pmra_best2, pmdec_best2
-
+    
     ##################################################################
     # We will need the determinant of M later; M might be destroyed by
-    # the SVD.  Compute it now without numpy.
+    # the SVD.  Compute it now without numpy.  Guard against a
+    # singular matrix.
     ##################################################################
     
     detM = M[0*3 + 0]*(M[1*3 + 1]*M[2*3 + 2] - M[1*3 + 2]*M[2*3 + 1])
     detM -= M[0*3 + 1]*(M[1*3 + 0]*M[2*3 + 2] - M[1*3 + 2]*M[2*3 + 0])
     detM += M[0*3 + 2]*(M[1*3 + 0]*M[2*3 + 1] - M[1*3 + 1]*M[2*3 + 0])
+
+    if detM < 1e-15*M[0]*M[1*3 + 1]*M[2*3 + 2]:
+        detM = 1e-15*M[0]*M[1*3 + 1]*M[2*3 + 2]
 
     ##################################################################
     # Solve the matrix equation for the parallax, pmra, and pmdec.
@@ -959,47 +1023,47 @@ def calcL(Data data, Params par, Model model, freemodel=True):
     # Now take care of the rest of the log likelihood.
     ##################################################################
     
-    cdef double dlnL = 0
-    
     for i in range(data.nAst):
-        dlnL -= (model.relsep[i]*plx_best - data.relsep[i])**2/data.relsep_err[i]**2
+        chisq_sep += (model.relsep[i]*plx_best - data.relsep[i])**2/data.relsep_err[i]**2
         
     deltaRA = plx_best*model.pmra_H - data.pmra_H + pmra_best
     deltaDec = plx_best*model.pmdec_H - data.pmdec_H + pmdec_best
-    dlnL -= deltaRA**2*data.Cinv_H[0, 0]
-    dlnL -= deltaDec**2*data.Cinv_H[1, 1]
-    dlnL -= 2*deltaRA*deltaDec*data.Cinv_H[0, 1]
+    chisq_H += deltaRA**2*data.Cinv_H[0, 0]
+    chisq_H += deltaDec**2*data.Cinv_H[1, 1]
+    chisq_H += 2*deltaRA*deltaDec*data.Cinv_H[0, 1]
     
     deltaRA = plx_best*model.pmra_HG - data.pmra_HG + pmra_best
     deltaDec = plx_best*model.pmdec_HG - data.pmdec_HG + pmdec_best
-    dlnL -= deltaRA**2*data.Cinv_HG[0, 0]
-    dlnL -= deltaDec**2*data.Cinv_HG[1, 1]
-    dlnL -= 2*deltaRA*deltaDec*data.Cinv_HG[0, 1]
+    chisq_HG += deltaRA**2*data.Cinv_HG[0, 0]
+    chisq_HG += deltaDec**2*data.Cinv_HG[1, 1]
+    chisq_HG += 2*deltaRA*deltaDec*data.Cinv_HG[0, 1]
     
     deltaRA = plx_best*model.pmra_G - data.pmra_G + pmra_best
     deltaDec = plx_best*model.pmdec_G - data.pmdec_G + pmdec_best
-    dlnL -= deltaRA**2*data.Cinv_G[0, 0]
-    dlnL -= deltaDec**2*data.Cinv_G[1, 1]
-    dlnL -= 2*deltaRA*deltaDec*data.Cinv_G[0, 1]
-    
-    dlnL -= (data.plx - plx_best)**2/data.plx_err**2
-    
-    dlnL -= log(detM)
-    lnL += dlnL
+    chisq_G += deltaRA**2*data.Cinv_G[0, 0]
+    chisq_G += deltaDec**2*data.Cinv_G[1, 1]
+    chisq_G += 2*deltaRA*deltaDec*data.Cinv_G[0, 1]
 
-    if freemodel:
-        PyMem_Free(model.EA)
-        PyMem_Free(model.sinEA)
-        PyMem_Free(model.cosEA)
-        PyMem_Free(model.RV)
-        PyMem_Free(model.relsep)
-        PyMem_Free(model.PA)
-        PyMem_Free(model.dRA_H1)
-        PyMem_Free(model.dDec_H1)
-        PyMem_Free(model.dRA_H2)
-        PyMem_Free(model.dDec_H2)
-        PyMem_Free(model.dRA_G)
-        PyMem_Free(model.dDec_G)
+    chisq_plx = (data.plx - plx_best)**2/data.plx_err**2
+
+    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx
+    lnL -= log(detM)
+    
+    if chisq_resids:
+        chisq_struct = Chisq_resids()
+        chisq_struct.plx_best = plx_best
+        chisq_struct.pmra_best = pmra_best
+        chisq_struct.pmdec_best = pmdec_best
+        chisq_struct.chisq_PA = chisq_PA
+        chisq_struct.chisq_sep = chisq_sep
+        chisq_struct.chisq_H = chisq_H
+        chisq_struct.chisq_HG = chisq_HG
+        chisq_struct.chisq_G = chisq_G
+
+        model.free()
+        return chisq_struct
+    
+    model.free()
         
     return lnL/2
 
@@ -1024,6 +1088,8 @@ def lnprior(Params par):
     cdef double zeroprior = -np.inf
     
     if par.sau <= 0 or par.mpri <= 0 or par.msec < 1e-4 or par.ecc >= 1:
+        return zeroprior
+    if par.sau > 2e5 or par.mpri > 1e3 or par.msec > 1e3:
         return zeroprior
     if par.inc <= 0 or par.inc >= pi or par.asc < -pi or par.asc >= 3*pi:
         return zeroprior
