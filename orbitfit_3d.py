@@ -9,26 +9,25 @@ import orbit
 from htof.main import Astrometry
 
 # Number of MCMC steps per walker
-nstep = 20000
+nstep = 2000
 
 # Number of threads to use for parallelization.  
-nthreads = 1
+nthreads = 2
 
 ######################################################################
-#HIP = 95319
-#RVfile = 'Gl758_RV.dat'
-#relAstfile = 'Gl758_relAST.txt'
-HIP = 3850
-RVfile = 'HD4747_RV.dat'
-relAstfile = 'HD4747_relAST.txt'
+HIP = 95319
+RVfile = 'Gl758_RV.dat'
+relAstfile = 'Gl758_relAST.txt'
 use_epoch_astrometry = False
 Gaia_intermediate_data = '/home/tbrandt/data/GaiaDR2IntermediateData/'
 Hip1_intermediate_data = '/home/tbrandt/data/hipparcosOriginalIntermediateData/'
 Hip2_intermediate_data = '/home/tbrandt/data/Hip2/IntermediateData/resrec/'
-#startfile = 'HD4747_PTinititer1.fits'
+output_dir = '/home/tbrandt/chains/'
+#startfile = 'HD4747_PTinititer1.fits2'
 startfile = None
 nwalkers = 100
 ntemps = 5
+nplanets = 1
 ######################################################################
 
 ######################################################################
@@ -36,20 +35,23 @@ ntemps = 5
 ######################################################################
 
 if startfile is None:
+    mpri = 1
+    jit = 0.5
     sau = 10
     esino = 0.5
+    ecoso = 0.5
     inc = 1
     asc = 1
-    ecoso = 0.5
     lam = 1
-    mpri = 1
     msec = 0.1
-    jit = 0
     
-    par0 = np.ones((5, 100, 9))
-    par0 *= np.asarray([jit, mpri, msec, sau, esino, ecoso, inc, asc, lam])
-    par0 += np.random.rand(np.prod(par0.shape)).reshape(par0.shape)*0.1
-
+    par0 = np.ones((ntemps, 100, 2 + 7*nplanets))
+    init = [jit, mpri]
+    for i in range(nplanets):
+        init += [msec, sau, esino, ecoso, inc, asc, lam]
+    par0 *= np.asarray(init)
+    par0 *= 2**(np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
+    
 else:
 
     #################################################################
@@ -103,21 +105,28 @@ if use_epoch_astrometry:
 # define likelihood function for joint parameters
 ######################################################################
  
-def lnprob(theta):
-    params = orbit.Params(theta)
+def lnprob(theta, returninfo=False):
     
-    if not np.isfinite(orbit.lnprior(params)):
-        return -np.inf
-
     model = orbit.Model(data)
-    orbit.calc_EA_RPP(data, params, model)
-    orbit.calc_RV(data, params, model)
-    orbit.calc_offsets(data, params, model)
 
+    for i in range(nplanets):
+        params = orbit.Params(theta, i, nplanets)
+        
+        if not np.isfinite(orbit.lnprior(params)):
+            model.free()
+            return -np.inf
+
+        orbit.calc_EA_RPP(data, params, model)
+        orbit.calc_RV(data, params, model)
+        orbit.calc_offsets(data, params, model, i)
+    
     if use_epoch_astrometry:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
     else:
         orbit.calc_PMs_no_epoch_astrometry(data, model)
+
+    if returninfo:
+        return orbit.calcL(data, params, model, chisq_resids=True)
         
     return orbit.lnprior(params) + orbit.calcL(data, params, model)
 
@@ -138,10 +147,20 @@ sample0.run_mcmc(par0, nstep, **kwargs)
 print('Total Time: %.2f' % (time.time() - start_time))
 print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
 
+shape = sample0.lnprobability[0].shape
+parfit = np.zeros((shape[0], shape[1], 8))
+for i in range(shape[0]):
+    for j in range(shape[1]):
+        res = lnprob(sample0.chain[0][i, j], returninfo=True)
+        parfit[i, j] = [res.plx_best, res.pmra_best, res.pmdec_best,
+                        res.chisq_sep, res.chisq_PA,
+                        res.chisq_H, res.chisq_HG, res.chisq_G]
+
 out = fits.HDUList(fits.PrimaryHDU(sample0.chain[0].astype(np.float32)))
 out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
+out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
 for i in range(1000):
-    filename = 'HIP%d_chain%03d.fits' % (HIP, i)
+    filename = os.path.join(output_dir, 'HIP%d_chain%03d.fits' % (HIP, i))
     if not os.path.isfile(filename):
         out.writeto(filename, overwrite=False)
         exit()
