@@ -1,4 +1,4 @@
-htof
+orbit3d
 ===============
 
 This repo contains orbit3d, the package for fitting orbits of exoplanets.
@@ -7,7 +7,9 @@ This repo contains orbit3d, the package for fitting orbits of exoplanets.
 Installation
 ------------
 orbit3d is built by running :code:`python setup.py build_ext --inplace` or :code:`pip install -e .`
-while in the the root directory of this repo. The :code:`-e` flag builds the Cython modules.
+while in the the root directory of this repo. The :code:`-e` flag builds the Cython modules. HTOF is a requirement
+for this package. Install it using :code:`pip install git+https://www.github.com/gmbrandt/HTOF` or by following
+the installation directions for that repo.
 
 Configuration
 -------------
