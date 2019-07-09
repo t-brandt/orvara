@@ -1,0 +1,4 @@
+#compiled files
+*.c
+*.so
+build/**
