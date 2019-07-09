@@ -16,7 +16,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Fit an orbit. Required arguments are shown without [].')
 parser.add_argument("--nstep", required=False, default=2000, metavar='', type=int,
                     help="Number of MCMC steps per walker")
-parser.add_argument("--nthreads", required=False, default=2, metavar='', type=int,
+parser.add_argument("--nthreads", required=False, default=1, metavar='', type=int,
                     help="Number of threads to use for parallelization")
 parser.add_argument("-a", "--use-epoch-astrometry", action="store_true",
                     required=False, default=False,
@@ -147,7 +147,6 @@ def return_one(theta):
 # Initialize and run sampler
 ######################################################################
 
-from emcee import PTSampler
 kwargs = {'thin': 50}
 start_time = time.time()
 
