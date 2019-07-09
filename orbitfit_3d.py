@@ -5,36 +5,44 @@ import os
 import time
 import emcee
 from astropy.io import fits
-import orbit
 from htof.main import Astrometry
 
-# Number of MCMC steps per walker
-nstep = 2000
+import orbit
+from config import HipID, RVFile, AstrometryFile, GaiaDataDir, Hip2DataDir, Hip1DataDir
 
-# Number of threads to use for parallelization.  
-nthreads = 2
+import argparse
 
-######################################################################
-HIP = 95319
-RVfile = 'Gl758_RV.dat'
-relAstfile = 'Gl758_relAST.txt'
-use_epoch_astrometry = False
-Gaia_intermediate_data = '/home/tbrandt/data/GaiaDR2IntermediateData/'
-Hip1_intermediate_data = '/home/tbrandt/data/hipparcosOriginalIntermediateData/'
-Hip2_intermediate_data = '/home/tbrandt/data/Hip2/IntermediateData/resrec/'
-output_dir = '/home/tbrandt/chains/'
-#startfile = 'HD4747_PTinititer1.fits2'
-startfile = None
-nwalkers = 100
-ntemps = 5
-nplanets = 1
-######################################################################
+# parse command line arguments
+parser = argparse.ArgumentParser(description='Fit an orbit. Required arguments are shown without [].')
+parser.add_argument("--nstep", required=False, default=2000, metavar='', type=int,
+                    help="Number of MCMC steps per walker")
+parser.add_argument("--nthreads", required=False, default=2, metavar='', type=int,
+                    help="Number of threads to use for parallelization")
+parser.add_argument("-a", "--use-epoch-astrometry", action="store_true",
+                    required=False, default=False,
+                    help="Whether or not to use intermediate astrometry data")
+parser.add_argument("--output-dir", required=True,
+                    help="Directory within which to save the MCMC results.")
+parser.add_argument("--ntemps", required=False, default=5, metavar='', type=int,
+                    help="number of MCMC temperatures.")
+parser.add_argument("--nwalkers", required=False, default=100, metavar='', type=int,
+                    help="number of MCMC walkers.")
+parser.add_argument("--nplanets", required=False, default=1, metavar='', type=int,
+                    help="Assumed number of planets in the system.")
+parser.add_argument("--start-file", required=False, default=None, metavar='',
+                    help="Filepath for the orbit initial conditions.")
+args = parser.parse_args()
+
+# initialize the following from the command line. They are overwritten later if start_file is not None.
+nwalkers = args.nwalkers
+ntemps = args.ntemps
+nplanets = args.nplanets
 
 ######################################################################
 # Garbage initial guess
 ######################################################################
 
-if startfile is None:
+if args.start_file is None:
     mpri = 1
     jit = 0.5
     sau = 10
@@ -62,7 +70,7 @@ else:
     # ntemps.
     #################################################################
 
-    par0 = fits.open(startfile)[0].data
+    par0 = fits.open(args.start_file)[0].data
     par0[:, :, 8] = par0[:, :, 9]
     par0[:, :, 9] = par0[:, :, 10]
     par0[:, :, 0] /= par0[:, :, 9]
@@ -76,18 +84,18 @@ ndim = par0[0, 0, :].size
 # Load in data
 ######################################################################
 
-data = orbit.Data(HIP, RVfile, relAstfile)
+data = orbit.Data(HipID, RVFile, AstrometryFile)
 
-if use_epoch_astrometry:
-    Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HIP), Gaia_intermediate_data,
+if args.use_epoch_astrometry:
+    Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HipID), GaiaDataDir,
                              central_epoch_ra=data.epRA_G,
                              central_epoch_dec=data.epDec_G,
                              central_epoch_fmt='frac_year')
-    Hip2_fitter = Astrometry('Hip2', '%06d' % (HIP), Hip2_intermediate_data,
+    Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
                              central_epoch_ra=data.epRA_H,
                              central_epoch_dec=data.epDec_H,
                              central_epoch_fmt='frac_year')
-    Hip1_fitter = Astrometry('Hip1', '%06d' % (HIP), Hip1_intermediate_data,
+    Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
                              central_epoch_ra=data.epRA_H,
                              central_epoch_dec=data.epDec_H,
                              central_epoch_fmt='frac_year')
@@ -96,7 +104,7 @@ if use_epoch_astrometry:
     H2f = orbit.AstrometricFitter(Hip2_fitter)
     Gf = orbit.AstrometricFitter(Gaia_fitter)
 
-    data = orbit.Data(HIP, RVfile, relAstfile, use_epoch_astrometry,
+    data = orbit.Data(HipID, RVFile, AstrometryFile, args.use_epoch_astrometry,
                       epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                       epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                       epochs_Gaia=Gaia_fitter.data.julian_day_epoch())
@@ -104,7 +112,8 @@ if use_epoch_astrometry:
 ######################################################################
 # define likelihood function for joint parameters
 ######################################################################
- 
+
+
 def lnprob(theta, returninfo=False):
     
     model = orbit.Model(data)
@@ -120,7 +129,7 @@ def lnprob(theta, returninfo=False):
         orbit.calc_RV(data, params, model)
         orbit.calc_offsets(data, params, model, i)
     
-    if use_epoch_astrometry:
+    if args.use_epoch_astrometry:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
     else:
         orbit.calc_PMs_no_epoch_astrometry(data, model)
@@ -130,6 +139,7 @@ def lnprob(theta, returninfo=False):
         
     return orbit.lnprior(params) + orbit.calcL(data, params, model)
 
+
 def return_one(theta):
     return 1.
 
@@ -138,11 +148,11 @@ def return_one(theta):
 ######################################################################
 
 from emcee import PTSampler
-kwargs = {'thin': 50 }
+kwargs = {'thin': 50}
 start_time = time.time()
 
-sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, lnprob, return_one, threads=nthreads)
-sample0.run_mcmc(par0, nstep, **kwargs)
+sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, lnprob, return_one, threads=args.nthreads)
+sample0.run_mcmc(par0, args.nstep, **kwargs)
 
 print('Total Time: %.2f' % (time.time() - start_time))
 print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
@@ -160,7 +170,8 @@ out = fits.HDUList(fits.PrimaryHDU(sample0.chain[0].astype(np.float32)))
 out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
 out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
 for i in range(1000):
-    filename = os.path.join(output_dir, 'HIP%d_chain%03d.fits' % (HIP, i))
+    filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
     if not os.path.isfile(filename):
+        print('Writing output to {0}'.format(filename))
         out.writeto(filename, overwrite=False)
         exit()
