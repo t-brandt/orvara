@@ -6,7 +6,7 @@ This repo contains orbit3d, the package for fitting orbits of exoplanets.
 
 Installation
 ------------
-orbit3d can be installed by running :code:`pip install .` while in the the root directory of this repo.
+orbit3d is built by running :code:`python setup.py build_ext --inplace` while in the the root directory of this repo.
 
 Configuration
 -------------
@@ -20,14 +20,14 @@ After setting paths in the config.py file, you fit an orbit by running the follo
 
 .. code-block:: python
 
-    fit_orbit -output-dir /path/to/output
+    python orbitfit_3d.py -output-dir /path/to/output
 
 The number of MCMC (markov-chain monte-carlo) walkers, temperatures, and steps can be set with the appropriate arguments.
 For example:
 
 .. code-block:: python
 
-    fit_orbit --ntemps 10 --nwalkers 10 --nplanets 1 --nthreads 2
+    python orbitfit_3d.py --ntemps 10 --nwalkers 10 --nplanets 1 --nthreads 2
 
 We have also specified the number of planets in the star-system and the number of threads to
 parallelize to via the nthreads and nplanets keywords. Not that the built-in parallelization is poor. It is better
@@ -36,7 +36,7 @@ with the --help flag.
 
 .. code-block:: python
 
-    fit_orbit --help
+    python orbitfit_3d.py --help
 
 License
 -------
