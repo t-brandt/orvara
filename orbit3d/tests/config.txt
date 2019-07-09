@@ -1,0 +1,6 @@
+HipID=95319
+RVFile=orbit3d/tests/data/Gl758_RV.dat
+AstrometryFile=orbit3d/tests/data/Gl758_relAST.txt
+GaiaDataDir=/path/to/GaiaDR2IntermediateData/
+Hip1DataDir=/path/to/hipparcosOriginalIntermediateData/
+Hip2DataDir=/path/to/Hip2/IntermediateData/resrec/

@@ -142,7 +142,7 @@ cdef class Data:
             relep = []
 
         try:
-            t = fits.open('HGCA_vDR2_corrected.fits')[1].data
+            t = fits.open('orbit3d/HGCA_vDR2_corrected.fits')[1].data
             t = t[np.where(t['hip_id'] == Hip)]
             assert len(t) > 0
             print("Loading absolute astrometry data for Hip %d" % (Hip))

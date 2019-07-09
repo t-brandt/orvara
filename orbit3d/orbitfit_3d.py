@@ -7,14 +7,14 @@ import emcee
 from astropy.io import fits
 from htof.main import Astrometry
 
-import orbit
-from config import HipID, RVFile, AstrometryFile, GaiaDataDir, Hip2DataDir, Hip1DataDir
+from orbit3d import orbit
+from orbit3d.config import parse_config
 
 import argparse
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description='Fit an orbit. Required arguments are shown without [].')
-parser.add_argument("--nstep", required=False, default=2000, metavar='', type=int,
+parser.add_argument("--nstep", required=False, default=100, metavar='', type=int,
                     help="Number of MCMC steps per walker")
 parser.add_argument("--nthreads", required=False, default=1, metavar='', type=int,
                     help="Number of threads to use for parallelization")
@@ -23,6 +23,8 @@ parser.add_argument("-a", "--use-epoch-astrometry", action="store_true",
                     help="Whether or not to use intermediate astrometry data")
 parser.add_argument("--output-dir", required=True,
                     help="Directory within which to save the MCMC results.")
+parser.add_argument("--config-file", required=True,
+                    help="Path to the planet-specific configuration file.")
 parser.add_argument("--ntemps", required=False, default=5, metavar='', type=int,
                     help="number of MCMC temperatures.")
 parser.add_argument("--nwalkers", required=False, default=100, metavar='', type=int,
@@ -33,7 +35,12 @@ parser.add_argument("--start-file", required=False, default=None, metavar='',
                     help="Filepath for the orbit initial conditions.")
 args = parser.parse_args()
 
-# initialize the following from the command line. They are overwritten later if start_file is not None.
+# parsing the config file
+params = parse_config(args.config_file)
+HipID, RVFile, AstrometryFile, GaiaDataDir, Hip2DataDir, Hip1DataDir = [params.get(k) for k in ['HipID', 'RVFile', 'AstrometryFile',
+                                                                 'GaiaDataDir', 'Hip2DataDir', 'Hip1DataDir']]
+HipID = int(HipID)
+# set other MCMC params from the command line arguments
 nwalkers = args.nwalkers
 ntemps = args.ntemps
 nplanets = args.nplanets

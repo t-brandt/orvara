@@ -1,4 +1,6 @@
-#compiled files
+# compiled files
 *.c
 *.so
 build/**
+# outputs of pip install -e
+*.egg-info*/**
