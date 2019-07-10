@@ -10,4 +10,5 @@ setup(name='orbit3d',
       version='0.1.0',
       python_requires='>=3.5',
       install_requires=['numpy>=1.13', 'htof', 'emcee',
-                        'Cython', 'pandas', 'astropy', 'pytest'])
+                        'Cython', 'pandas', 'astropy', 'pytest'],
+      entry_points={'console_scripts': ['fit_orbit=orbit3d.main:run']})

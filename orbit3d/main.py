@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Orbit fitting code. The run function is the console entry point,
-accessed by orbit3d_run after install.
+accessed by calling fit_orbit from the command line.
 """
 
 from __future__ import print_function

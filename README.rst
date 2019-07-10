@@ -20,11 +20,12 @@ to the intermediate data for GaiaDR2, the original Hipparcos data reduction, and
 
 Usage
 -----
-After setting paths and MCMC (markov-chain monte-carlo)  settings in a config.ini file, you fit an orbit by running the following from the command line
+After setting paths and MCMC (markov-chain monte-carlo)  settings in a config.ini file,
+you fit an orbit by running the following from the command line (while in the root directory of the repo).
 
 .. code-block:: bash
 
-    python main.py --output-dir /path/to/output --config-file path/to/config.ini
+    fit_orbit --output-dir /path/to/output --config-file path/to/config.ini
 
 One can set the number of threads in the config.ini file via :code:`nthreads`. Note that the built-in parallelization
 is poor. It is better to set nthreads to 1 then simply run multiple instances of orbit3d
@@ -33,7 +34,7 @@ You can access the help menu with the --help flag as follows.
 
 .. code-block:: bash
 
-    python main.py --help
+    fit_orbit --help
 
 Examples
 --------
@@ -42,7 +43,7 @@ to the root directory of orbit3d, then run the following
 
 .. code-block:: bash
 
-    python orbit3d/main.py --output-dir ~/Downloads --config-file orbit3d/tests/config.ini
+    fit_orbit --output-dir ~/Downloads --config-file orbit3d/tests/config.ini
 
 This will create a .fits file in the downloads folder. The MCMC should terminate in less than
 one second because of the short number of steps indicated in the example config file.
