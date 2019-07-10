@@ -13,30 +13,23 @@ the installation directions for that repo.
 
 Configuration
 -------------
-First, assign the appropriate file directories inside of a config.txt file. See the example config.txt file in
-:code:`orbit3d/tests/data/config.txt`. If you are using relative astrometry, you must
+First, assign the appropriate file directories and settings inside of a config.ini file. See the example config.ini file in
+:code:`orbit3d/tests/data/config.ini`. If you are using relative astrometry, you must
 give paths for :code:`GaiaDataDir`, :code:`Hip1DataDir`, and :code:`Hip2DataDir`. Those are the paths
 to the intermediate data for GaiaDR2, the original Hipparcos data reduction, and the second Hipparcos data reduction.
 
 Usage
 -----
-After setting paths in a config.txt file, you fit an orbit by running the following from the command line
+After setting paths and MCMC (markov-chain monte-carlo)  settings in a config.ini file, you fit an orbit by running the following from the command line
 
 .. code-block:: bash
 
-    python orbitfit_3d.py --output-dir /path/to/output --config-file path/to/config.txt
+    python orbitfit_3d.py --output-dir /path/to/output --config-file path/to/config.ini
 
-The number of MCMC (markov-chain monte-carlo) walkers, temperatures, and steps can be set with the appropriate arguments.
-For example:
-
-.. code-block:: bash
-
-    python orbitfit_3d.py --ntemps 10 --nstep 10 --nwalkers 10 --nplanets 1 --nthreads 2  --config-file path/to/config.txt --output-dir /path/to/output
-
-We have also specified the number of planets in the star-system and the number of threads to
-parallelize to via the nthreads and nplanets keywords. Not that the built-in parallelization is poor. It is better
-to set nthreads to 1 then simply run multiple instances of orbit3d on separate cores. You can access the help menu
-with the --help flag.
+One can set the number of threads in the config.ini file via :code:`nthreads`. Note that the built-in parallelization
+is poor. It is better to set nthreads to 1 then simply run multiple instances of orbit3d
+on separate cores. One can set the initial conditions of the orbit via the config.ini file.
+You can access the help menu with the --help flag as follows.
 
 .. code-block:: bash
 
@@ -49,10 +42,10 @@ to the root directory of orbit3d, then run the following
 
 .. code-block:: bash
 
-    python orbit3d/orbitfit_3d.py --output-dir ~/Downloads --nstep 100 --config-file orbit3d/tests/config.txt
+    python orbit3d/orbitfit_3d.py --output-dir ~/Downloads --config-file orbit3d/tests/config.ini
 
 This will create a .fits file in the downloads folder. The MCMC should terminate in less than
-one second because of the short number of steps.
+one second because of the short number of steps indicated in the example config file.
 
 License
 -------
