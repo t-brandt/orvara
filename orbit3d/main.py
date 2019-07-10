@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Orbit fitting code. The run function is the console entry point, accessed by orbit3d_run after install.
+Orbit fitting code. The run function is the console entry point,
+accessed by orbit3d_run after install.
 """
 
 from __future__ import print_function
@@ -16,14 +17,7 @@ from orbit3d import orbit
 from orbit3d.config import parse_args
 
 
-def update_mcmc_params(initial_params):
-    ntemps = initial_params[:, 0, 0].size
-    nwalkers = initial_params[0, :, 0].size
-    ndim = initial_params[0, 0, :].size
-    return ntemps, nwalkers, ndim
-
-
-def set_initial_parameters(start_file, ntemps, nplanets):
+def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
         mpri = 1
         jit = 0.5
@@ -35,7 +29,7 @@ def set_initial_parameters(start_file, ntemps, nplanets):
         lam = 1
         msec = 0.1
 
-        par0 = np.ones((ntemps, 100, 2 + 7 * nplanets))
+        par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
         init = [jit, mpri]
         for i in range(nplanets):
             init += [msec, sau, esino, ecoso, inc, asc, lam]
@@ -163,15 +157,17 @@ def run():
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     start_file = config.get('data_paths', 'start_file', fallback='none')
 
-
-    par0 = set_initial_parameters(start_file, ntemps, nplanets)
-    ntemps, nwalkers, ndim = update_mcmc_params(par0)
+    # set initial conditions
+    par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers)
+    ndim = par0[0, 0, :].size
     data, H1f, H2f, Gf = initialize_data(config)
 
+    # set arguments for emcee PTSampler
     samplekwargs = {'thin': 50}
     loglkwargs = {'returninfo': False, 'use_epoch_astrometry': use_epoch_astrometry,
               'data': data, 'nplanets': 1, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf}
 
+    # run sampler
     sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, lnprob, return_one, threads=nthreads,
                               loglkwargs=loglkwargs)
     sample0.run_mcmc(par0, nstep, **samplekwargs)
@@ -179,6 +175,7 @@ def run():
     print('Total Time: %.2f' % (time.time() - start_time))
     print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
 
+    # save data
     shape = sample0.lnprobability[0].shape
     parfit = np.zeros((shape[0], shape[1], 8))
     for i in range(shape[0]):
