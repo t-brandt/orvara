@@ -174,13 +174,13 @@ def run():
 
     print('Total Time: %.2f' % (time.time() - start_time))
     print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
-
     # save data
     shape = sample0.lnprobability[0].shape
     parfit = np.zeros((shape[0], shape[1], 8))
+    loglkwargs['returninfo'] = True
     for i in range(shape[0]):
         for j in range(shape[1]):
-            res = lnprob(sample0.chain[0][i, j], returninfo=True)
+            res = lnprob(sample0.chain[0][i, j], **loglkwargs)
             parfit[i, j] = [res.plx_best, res.pmra_best, res.pmdec_best,
                             res.chisq_sep, res.chisq_PA,
                             res.chisq_H, res.chisq_HG, res.chisq_G]
