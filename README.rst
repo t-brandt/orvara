@@ -39,12 +39,17 @@ You can access the help menu with the --help flag as follows.
 The output of the MCMC is a .fits file and is contained within your given output directory. The output file
 contains three .fits extensions with all the MCMC parameters sampled every 50 steps.
 That output file is formatted as follows:
+
 HDU0: Parameters. 3d-array of shape (nwalkers,  nsteps/50, nparameters) with nparameters=2+7*nplanets. E.g.
 HDU0[10, 40, :] will be the parameters of walker 10 at step 2000 (50 * 40).
+
 HDU1: Log likelyhood. 2d-array of shape (nwalkers,  nsteps/50) which is the log likelyhood for each set
 of parameters. E.g. HDU1[10, 40] will be the log likelyhood for the paremeters given
 by HDU0[10, 40, :]. Note that this likelyhood includes matrix determinants; it isn't just chisq.
-HDU2: ?? containing the following 8 best-fit values (in order) along the 3rd axis:
+
+HDU2: ?? containing the following 8 best-fit values (in the following order) along the 3rd axis:
+
+::
 
     1. best-fit parallax
     2. best-fit center-of-mass RA proper motion
