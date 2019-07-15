@@ -6,8 +6,8 @@ This repo contains orbit3d, the package for fitting orbits of exoplanets.
 
 Installation
 ------------
-orbit3d is built by running :code:`python setup.py build_ext --inplace` or :code:`pip install -e .`
-while in the the root directory of this repo. The :code:`-e` flag builds the Cython modules. HTOF is a requirement
+orbit3d is built by running :code:`pip install -e .` while in the the root directory
+of this repo. The :code:`-e` flag builds the Cython modules. HTOF is a requirement
 for this package. Install it using :code:`pip install git+https://www.github.com/gmbrandt/HTOF` or by following
 the installation directions for that repo.
 
@@ -35,6 +35,28 @@ You can access the help menu with the --help flag as follows.
 .. code-block:: bash
 
     fit_orbit --help
+
+The output of the MCMC is a .fits file and is contained within your given output directory. The output file
+contains three .fits extensions with all the MCMC parameters sampled every 50 steps.
+That output file is formatted as follows:
+HDU0: Parameters. 3d-array of shape (nwalkers,  nsteps/50, nparameters) with nparameters=2+7*nplanets. E.g.
+HDU0[10, 40, :] will be the parameters of walker 10 at step 2000 (50 * 40).
+HDU1: Log likelyhood. 2d-array of shape (nwalkers,  nsteps/50) which is the log likelyhood for each set
+of parameters. E.g. HDU1[10, 40] will be the log likelyhood for the paremeters given
+by HDU0[10, 40, :]. Note that this likelyhood includes matrix determinants; it isn't just chisq.
+HDU2: ?? containing the following 8 best-fit values (in order) along the 3rd axis:
+
+    1. best-fit parallax
+    2. best-fit center-of-mass RA proper motion
+    3. best-fit center-of-mass Dec proper motion
+    4. chi squared of relative separations
+    5. chi squared of position angles
+    6. chi squared of Hipparcos proper motions
+    7. chi squared of Hipparcos-> Gaia mean proper motions
+    8. chi squared of Gaia proper motions
+
+If you want an overall astrometric chi squared, you would add the values from items (6), (7), and (8) above.
+There are effectively four measurements since the mean proper motion of the system was fit (values (2) and (3)).
 
 Examples
 --------
