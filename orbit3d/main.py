@@ -165,7 +165,7 @@ def run():
     # set arguments for emcee PTSampler
     samplekwargs = {'thin': 50}
     loglkwargs = {'returninfo': False, 'use_epoch_astrometry': use_epoch_astrometry,
-              'data': data, 'nplanets': 1, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf}
+                  'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf}
 
     # run sampler
     sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, lnprob, return_one, threads=nthreads,
@@ -173,7 +173,7 @@ def run():
     sample0.run_mcmc(par0, nstep, **samplekwargs)
 
     print('Total Time: %.2f' % (time.time() - start_time))
-    print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0,:])))
+    print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0, :])))
     # save data
     shape = sample0.lnprobability[0].shape
     parfit = np.zeros((shape[0], shape[1], 8))
@@ -193,7 +193,7 @@ def run():
         if not os.path.isfile(filename):
             print('Writing output to {0}'.format(filename))
             out.writeto(filename, overwrite=False)
-            exit()
+            break
 
 
 if __name__ == "__main__":

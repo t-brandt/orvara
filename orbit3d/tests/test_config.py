@@ -6,5 +6,5 @@ def test_example_config_file():
     parser.read('orbit3d/tests/config.ini')
     assert len(parser.items('data_paths')) == 7
     assert len(parser.items('mcmc_settings')) == 6
-    assert parser.getint('mcmc_settings', 'nthreads') == 1
+    assert parser.getint('mcmc_settings', 'nthreads') == 2
     assert not parser.getboolean('mcmc_settings', 'use_epoch_astrometry')
