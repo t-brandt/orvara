@@ -4,3 +4,5 @@
 build/**
 # outputs of pip install -e
 *.egg-info*/**
+# pytest
+**/__pycache__/**
