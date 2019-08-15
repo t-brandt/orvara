@@ -16,6 +16,8 @@ from htof.main import Astrometry
 from orbit3d import orbit
 from orbit3d.config import parse_args
 
+_loglkwargs = {}
+
 
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
@@ -136,11 +138,16 @@ def return_one(theta):
     return 1.
 
 
+def avoid_pickle_lnprob(theta):
+    global _loglkwargs
+    return lnprob(theta, **_loglkwargs)
+
+
 def run():
     """
     Initialize and run the MCMC sampler.
     """
-
+    global _loglkwargs
     start_time = time.time()
 
     args = parse_args()
@@ -161,15 +168,13 @@ def run():
     par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers)
     ndim = par0[0, 0, :].size
     data, H1f, H2f, Gf = initialize_data(config)
-
-    # set arguments for emcee PTSampler
+    # set arguments for emcee PTSampler and the log-likelyhood (lnprob)
     samplekwargs = {'thin': 50}
     loglkwargs = {'returninfo': False, 'use_epoch_astrometry': use_epoch_astrometry,
                   'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf}
-
-    # run sampler
-    sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, lnprob, return_one, threads=nthreads,
-                              loglkwargs=loglkwargs)
+    _loglkwargs = loglkwargs
+    # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
+    sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
     sample0.run_mcmc(par0, nstep, **samplekwargs)
 
     print('Total Time: %.2f' % (time.time() - start_time))

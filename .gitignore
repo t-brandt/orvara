@@ -6,3 +6,4 @@ build/**
 *.egg-info*/**
 # pytest
 **/__pycache__/**
+.idea/*
