@@ -76,6 +76,17 @@ to the root directory of orbit3d, then run the following
 This will create a .fits file in the downloads folder. The MCMC should terminate in less than
 one second because of the short number of steps indicated in the example config file.
 
+The end-to-end tests in test_e2e check that the code is converging to previously accepted
+values for HIP3850. If you wanted to run the code yourself on this test case and
+check the results yourself against those in misc/Diagnostic_plots.ipynb, you can run:
+
+.. code-block:: bash
+
+    fit_orbit --output-dir ~/Downloads --config-file orbit3d/tests/diagnostic_config.ini
+
+The diagnostic_config.ini has the same parameters as those used to create the plots in
+Diagnostic_plots.ipynb
+
 License
 -------
 
