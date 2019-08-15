@@ -42,6 +42,7 @@ That output file is formatted as follows:
 
 HDU0: Parameters. 3d-array of shape (nwalkers,  nsteps/50, nparameters) with nparameters=2+7*nplanets. E.g.
 HDU0[10, 40, :] will be the parameters of walker 10 at step 2000 (50 * 40).
+Parameters are in order of 0, 1, 2,...: (RV_jitter, ...)
 
 HDU1: Log likelyhood. 2d-array of shape (nwalkers,  nsteps/50) which is the log likelyhood for each set
 of parameters. E.g. HDU1[10, 40] will be the log likelyhood for the paremeters given
