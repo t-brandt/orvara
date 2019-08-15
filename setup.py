@@ -7,8 +7,8 @@ modules = [Extension("orbit3d.orbit", source_files, extra_compile_args=['-O3'])]
 
 setup(name='orbit3d',
       ext_modules=cythonize(modules),
-      version='0.1.0',
+      version='0.1.1',
       python_requires='>=3.5',
-      install_requires=['numpy>=1.13', 'htof', 'emcee',
+      install_requires=['numpy>=1.13', 'htof>=0.1.1', 'emcee',
                         'Cython', 'pandas', 'astropy', 'pytest'],
       entry_points={'console_scripts': ['fit_orbit=orbit3d.main:run']})
