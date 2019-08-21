@@ -233,6 +233,14 @@ cdef class Data:
         self.Cinv_H = np.linalg.inv(C_H.reshape(2, 2)).astype(float)
         self.Cinv_HG = np.linalg.inv(C_HG.reshape(2, 2)).astype(float)
         self.Cinv_G = np.linalg.inv(C_G.reshape(2, 2)).astype(float)
+
+    def custom_epochs(self, epochs, refep=2455197.5000, iplanet=0):
+
+        self.nRV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
+        self.nTot = 5*self.nRV
+        self.epochs = np.asarray(list(epochs)*5)
+        self.refep = refep
+        self.ast_planetID = np.ones(len(epochs))*iplanet.astype(np.int32)
         
 
 cdef class Model:
