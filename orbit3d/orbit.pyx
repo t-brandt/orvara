@@ -240,7 +240,7 @@ cdef class Data:
         self.nTot = 5*self.nRV
         self.epochs = np.asarray(list(epochs)*5)
         self.refep = refep
-        self.ast_planetID = np.ones(len(epochs))*iplanet.astype(np.int32)
+        self.ast_planetID = (np.ones(len(epochs))*iplanet).astype(np.int32)
         
 
 cdef class Model:
