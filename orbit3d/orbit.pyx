@@ -142,7 +142,7 @@ cdef class Data:
             relep = []
 
         try:
-            t = fits.open('orbit3d/HGCA_vDR2_corrected.fits')[1].data
+            t = fits.open('HGCA_vDR2_corrected.fits')[1].data
             t = t[np.where(t['hip_id'] == Hip)]
             assert len(t) > 0
             print("Loading absolute astrometry data for Hip %d" % (Hip))
@@ -233,16 +233,17 @@ cdef class Data:
         self.Cinv_H = np.linalg.inv(C_H.reshape(2, 2)).astype(float)
         self.Cinv_HG = np.linalg.inv(C_HG.reshape(2, 2)).astype(float)
         self.Cinv_G = np.linalg.inv(C_G.reshape(2, 2)).astype(float)
-
+    
+ 
     def custom_epochs(self, epochs, refep=2455197.5000, iplanet=0):
-
+	
         self.nRV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
         self.nTot = 5*self.nRV
         self.epochs = np.asarray(list(epochs)*5)
         self.refep = refep
         self.ast_planetID = (np.ones(len(epochs))*iplanet).astype(np.int32)
-        
 
+       
 cdef class Model:
 
     cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
@@ -312,6 +313,23 @@ cdef class Model:
             raise MemoryError()
         for i in range(self.nGaia):
             self.dRA_G[i] = self.dDec_G[i] = 0
+
+    def return_RVs(self):
+        cdef int i
+        RVs = np.empty(self.nRV)
+        for i in range(self.nRV):
+            RVs[i] = self.RV[i]
+        return RVs
+
+    def return_dRA_dDec(self):
+        cdef int i, j
+        dRAs = np.empty(self.nAst)
+        dDecs = np.empty(self.nAst)
+        for i in range(self.nAst):
+            dRAs[i] = self.dRA_G[i]
+        for j in range(self.nAst):
+            dDecs[j] = self.dDec_G[j]
+        return dRAs, dDecs
             
     def free(self):
         PyMem_Free(self.dRA_H1)
@@ -326,7 +344,6 @@ cdef class Model:
         PyMem_Free(self.cosEA)
         PyMem_Free(self.relsep)
         PyMem_Free(self.PA)
-
     
 cdef class Chisq_resids:
     cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA
@@ -1104,4 +1121,4 @@ def lnprior(Params par):
     if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > 20:
         return zeroprior
 
-    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))
+    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))- 1/2.*(par.mpri - 0.8)**2/0.05**2
