@@ -15,9 +15,9 @@ nstep = 100
 nthreads = 2
 
 ######################################################################
-HIP = 49699
-RVfile = './data_keck_20A_proposal/RV_Ast_data/HIP49699/HD87883_RV.dat'
-relAstfile = ''
+HIP = 95319
+RVfile = './tests/Gl758_RV.dat'
+relAstfile = './tests/Gl758_relAST.txt'
 use_epoch_astrometry = False
 Gaia_intermediate_data = '/Users/Sophie/Dropbox/IntermediateAstrometricData/Gaia'
 Hip1_intermediate_data = '/Users/Sophie/Downloads/hipparcosOriginalIntermediateData/'
