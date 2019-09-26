@@ -347,13 +347,27 @@ cdef class Model:
             double sin(double _x)
             double cos(double _x)
             double sqrt(double _x)
-       
+            double atan2(double _y, double _x)
+
+        cdef double a_1 = -par.sau/(1. + par.mpri/par.msec)
+        cdef double cosarg = cos(par.arg)
+        cdef double sinarg = sin(par.arg)
+        cdef double cosasc = cos(par.asc)
+        cdef double sinasc = sin(par.asc)
+        cdef double cosinc = cos(par.inc)
+
+        cdef double A = a_1*(cosarg*cosasc - sinarg*sinasc*cosinc)
+        cdef double B = a_1*(cosarg*sinasc + sinarg*cosasc*cosinc)
+        cdef double F = a_1*(-sinarg*cosasc - cosarg*sinasc*cosinc)
+        cdef double G = a_1*(-sinarg*sinasc + cosarg*cosasc*cosinc)
+        
         dRA_dt = np.empty(self.nAst)
         dDec_dt = np.empty(self.nAst)
         
+        
         for i in range(self.nAst):
-            dRA_dt[i] = (- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])
-            dDec_dt[i] = sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])
+            dRA_dt[i] = B * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + G * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
+            dDec_dt[i] = A * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + F * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
         return dRA_dt, dDec_dt
             
     def free(self):
