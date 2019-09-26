@@ -18,7 +18,6 @@ from orbit3d.config import parse_args
 
 _loglkwargs = {}
 
-
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
         mpri = 1
@@ -97,7 +96,7 @@ def initialize_data(config):
 
 
 def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
-           data=None, nplanets=1, H1f=None, H2f=None, Gf=None):
+           data=None, nplanets=1, H1f=None, H2f=None, Gf=None, priors = None):
     """
     Log likelyhood function for the joint parameters
     :param theta:
@@ -130,8 +129,12 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
 
     if returninfo:
         return orbit.calcL(data, params, model, chisq_resids=True)
-        
-    return orbit.lnprior(params) + orbit.calcL(data, params, model)
+    
+    if priors is not None:
+        return orbit.lnprior(params) + orbit.calcL(data, params, model) - 1/2.*(params.mpri - priors['mpri'])**2/priors['mpri_sig']**2
+    else:
+        return orbit.lnprior(params) + orbit.calcL(data, params, model)
+
 
 
 def return_one(theta):
@@ -163,7 +166,12 @@ def run():
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     start_file = config.get('data_paths', 'start_file', fallback='none')
-
+    
+    #define priors
+    priors = {}
+    priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback = 1.)
+    priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback = np.inf)
+    
     # set initial conditions
     par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers)
     ndim = par0[0, 0, :].size
@@ -171,7 +179,7 @@ def run():
     # set arguments for emcee PTSampler and the log-likelyhood (lnprob)
     samplekwargs = {'thin': 50}
     loglkwargs = {'returninfo': False, 'use_epoch_astrometry': use_epoch_astrometry,
-                  'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf}
+        'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors}
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
     sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)

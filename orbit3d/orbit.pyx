@@ -323,13 +323,38 @@ cdef class Model:
 
     def return_dRA_dDec(self):
         cdef int i, j
-        dRAs = np.empty(self.nAst)
-        dDecs = np.empty(self.nAst)
+        dRAs_G = np.empty(self.nAst)
+        dDecs_G = np.empty(self.nAst)
+        dRAs_H1 = np.empty(self.nAst)
+        dDecs_H1 = np.empty(self.nAst)
+        dRAs_H2 = np.empty(self.nAst)
+        dDecs_H2 = np.empty(self.nAst)
+        
         for i in range(self.nAst):
-            dRAs[i] = self.dRA_G[i]
+            dRAs_G[i] = self.dRA_G[i]
+            dRAs_H1[i] = self.dRA_H1[i]
+            dRAs_H2[i] = self.dRA_H2[i]
         for j in range(self.nAst):
-            dDecs[j] = self.dDec_G[j]
-        return dRAs, dDecs
+            dDecs_G[j] = self.dDec_G[j]
+            dDecs_H1[j] = self.dDec_H1[j]
+            dDecs_H2[j] = self.dDec_H2[j]
+        return dRAs_G, dDecs_G, dRAs_H1, dDecs_H1, dRAs_H2,  dDecs_H2
+        
+    def return_proper_motions(self, Params par):
+        cdef int i
+        cdef double pi = 3.14159265358979323846264338327950288
+        cdef extern from "math.h" nogil:
+            double sin(double _x)
+            double cos(double _x)
+            double sqrt(double _x)
+       
+        dRA_dt = np.empty(self.nAst)
+        dDec_dt = np.empty(self.nAst)
+        
+        for i in range(self.nAst):
+            dRA_dt[i] = (- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])
+            dDec_dt[i] = sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])
+        return dRA_dt, dDec_dt
             
     def free(self):
         PyMem_Free(self.dRA_H1)
@@ -999,7 +1024,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     b[0] += (model.pmdec_G*data.pmra_G + model.pmra_G*data.pmdec_G)*data.Cinv_G[0, 1]
 
     b[0] += data.plx/data.plx_err**2
-    
+
     M[1*3] = M[1]
     M[2*3] = M[2]
 
@@ -1121,4 +1146,5 @@ def lnprior(Params par):
     if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > 20:
         return zeroprior
 
-    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))- 1/2.*(par.mpri - 0.8)**2/0.05**2
+    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))
+
