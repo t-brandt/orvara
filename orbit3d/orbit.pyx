@@ -364,12 +364,37 @@ cdef class Model:
         dRA_dt = np.empty(self.nAst)
         dDec_dt = np.empty(self.nAst)
         
-        
         for i in range(self.nAst):
             dRA_dt[i] = B * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + G * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
             dDec_dt[i] = A * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + F * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
         return dRA_dt, dDec_dt
-            
+        
+    def return_nodes(self, Params par):
+        cdef int i
+        cdef double pi = 3.14159265358979323846264338327950288
+        cdef extern from "math.h" nogil:
+            double sin(double _x)
+            double cos(double _x)
+            double sqrt(double _x)
+            double atan2(double _y, double _x)
+
+        cdef double a_1 = -par.sau
+        cdef double cosarg = cos(par.arg)
+        cdef double sinarg = sin(par.arg)
+        cdef double cosasc = cos(par.asc)
+        cdef double sinasc = sin(par.asc)
+        cdef double cosinc = cos(par.inc)
+
+        cdef double A = a_1*(cosarg*cosasc - sinarg*sinasc*cosinc)
+        cdef double B = a_1*(cosarg*sinasc + sinarg*cosasc*cosinc)
+
+        X = np.asarray([1., -1.]) - par.ecc
+        
+        dRA = X * B
+        dDec = X * A
+        
+        return dRA, dDec
+        
     def free(self):
         PyMem_Free(self.dRA_H1)
         PyMem_Free(self.dDec_H1)
