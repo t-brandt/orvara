@@ -171,6 +171,11 @@ def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
         orbit.calc_RV(data, params, model)
         mu_ra, mu_dec =  model.return_proper_motions(params)
         
+        if mu_RA_or_mu_Dec == 'mu_RA':
+            mu = mu_ra
+        else:
+            mu = mu_dec
+           
         for i in range(len(ep)):
             ep_jd[i] = JD_to_calendar(ep[i])
 
