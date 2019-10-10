@@ -179,7 +179,7 @@ def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
         df = pd.DataFrame(data=d)
         mid_pt = df[int(len(ep)/2):int(len(ep)/2)+1]['mu']
         
-        i_d = {'epoch': ep_jd, 'mu_dec': mu_dec*ratio}
+        i_d = {'epoch': ep_jd, 'mu': mu*ratio}
         i_df = pd.DataFrame(data=i_d)
         i_mid_pt = i_df[int(len(ep)/2):int(len(ep)/2)+1]['mu']
         
