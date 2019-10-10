@@ -174,6 +174,7 @@ def run():
                   'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf}
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
+    print('Running MCMC.')
     sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
     sample0.run_mcmc(par0, nstep, **samplekwargs)
 

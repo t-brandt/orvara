@@ -2,7 +2,10 @@ from __future__ import print_function
 import cython
 from astropy.io import fits
 import numpy as np
+import pkg_resources
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
+
+hgca_filepath = pkg_resources.resource_filename('orbit3d', 'data/HGCA_vDR2_corrected.fits')
 
 ######################################################################
 # Class to hold the parameters of the optimization, visible to both C
@@ -142,7 +145,7 @@ cdef class Data:
             relep = []
 
         try:
-            t = fits.open('orbit3d/HGCA_vDR2_corrected.fits')[1].data
+            t = fits.open(hgca_filepath)[1].data
             t = t[np.where(t['hip_id'] == Hip)]
             assert len(t) > 0
             print("Loading absolute astrometry data for Hip %d" % (Hip))
