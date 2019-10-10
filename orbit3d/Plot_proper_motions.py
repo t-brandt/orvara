@@ -181,12 +181,12 @@ def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
         
         i_d = {'epoch': ep_jd, 'mu_dec': mu_dec*ratio}
         i_df = pd.DataFrame(data=i_d)
-        i_mid_pt = i_df[int(len(ep)/2):int(len(ep)/2)+1]['mu_dec']
+        i_mid_pt = i_df[int(len(ep)/2):int(len(ep)/2)+1]['mu']
         
-        mu_offset = i_mid_pt[int(len(ep)/2)] - mid_pt[int(len(ep)/2)]
+        i_offset = i_mid_pt[int(len(ep)/2)] - mid_pt[int(len(ep)/2)]
         #define the colormap
         cmap = plt.cm.cubehelix
-        mu_y = mu*ratio - mu_offset
+        mu_y = mu*ratio - i_offset
         
         # plotting
         ax1.plot(ep_jd, mu_y, c= cmap((params.msec*1989/1.898 - 34.)/(42-34.)))
@@ -194,9 +194,9 @@ def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
         for j in range(len(ep)):
                 mu_y[j] -= (func(ep_jd[j])*ratio + offset_best)
         ax2.plot(ep_jd, mu_y, c =cmap((params.msec*1989/1.898 - 34.)/(42-34.)) , alpha=0.3)
-        ax2.scatter(x_Dec, y_Dec - (f_mu(x_Dec)*ratio + offset_best),zorder = 10000)
+        ax2.scatter(x, y - (func(x)*ratio + offset_best),zorder = 10000)
 
-    ax1.errorbar(x_Dec, y_Dec,yerr= y_Dec_err ,fmt='o', ecolor='k', capthick=3,capsize=4,zorder=1000)
+    ax1.errorbar(x, y, yerr= y_err ,fmt='o', ecolor='k', capthick=3,capsize=4,zorder=1000)
     ax1.set_ylabel(r'$\mathrm{\Delta \mu_{Dec} \, (mas \, yr^{-1})}$')
     ax1.set_xlim(np.min(ep_jd),np.max(ep_jd))
     ax1.minorticks_on()
