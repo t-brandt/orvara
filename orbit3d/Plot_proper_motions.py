@@ -150,7 +150,7 @@ def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
         offset_init_guess = 1.5
     
     # shift the best fit curve to fit the data and calculate the offset with scipy
-    optimize = op.minimize(chi_sqr, 1.53, args=(x_Dec, y_Dec, y_Dec_err))
+    optimize = op.minimize(chi_sqr, offset_init_guess, args=(x, y, y_err))
     offset_best = optimize['x']
     
     # plot the most likely proper motion curve
