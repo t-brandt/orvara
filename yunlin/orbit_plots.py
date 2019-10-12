@@ -325,6 +325,301 @@ class OrbitPlots:
         fig.savefig('astrometric_orbit_' + self.title)
 
 
-OPs = OrbitPlots('Gl758', 95319, (1900, 2100), 'msec')
-OPs.astrometry()
-plt.show()
+    ############### plot the RV orbits ###############
+
+    def RV(self):
+
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_subplot(111)
+
+        # plot the 50 randomly selected curves
+        for i in range(self.num_lines):
+            ax.plot(self.epoch, self.RV_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+
+        # plot the most likely one
+        ax.plot(self.epoch, self.RV_ml, color='black')
+
+        # plot the observed data points (RV & relAst)
+        try:
+            assert self.multi_instr
+            for i in range(self.nInst):
+                ax.plot(self.epoch_obs_dic[i], self.RV_obs_dic[i], self.color_list[i]+'o', markersize=2)
+        except:
+            ax.plot(self.epoch_obs, self.RV_obs, 'ro', markersize=2)
+
+        # manually change the x tick labels from JD to calendar years
+        epoch_ticks = np.linspace(self.start_epoch, self.end_epoch, 5)
+        epoch_label = np.zeros(len(epoch_ticks))
+        for i in range(len(epoch_ticks)):
+            epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+
+        ax.set_xlim(self.start_epoch, self.end_epoch)
+        ax.set_xticks(epoch_ticks)
+        ax.set_xticklabels([str(int(i)) for i in epoch_label])
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
+        ax.set_aspect((x1-x0)/(y1-y0))
+        fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref])
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+        ax.set_xlabel('Date (yr)')
+        ax.set_ylabel('RV (m/s)')
+        ax.set_title(self.title + ' RV Orbits')
+
+        fig.savefig('RV_orbit_' + self.title)
+
+
+    ############### plot the relative RV and O-C ###############
+
+    def relRV(self):
+
+        fig = plt.figure(figsize=(5, 6))
+        ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
+        ax2 = fig.add_axes((0.15, 0.1, 0.8, 0.15))
+
+        # plot the 50 randomly selected curves
+        self.f_RVml = interp1d(self.epoch, self.RV_ml)
+        RV_OC = self.RV_dic_vals
+
+        for i in range(self.num_lines):
+            ax1.plot(self.epoch, self.RV_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+            for j in range(len(self.epoch)):
+                RV_OC[i][j] -= self.f_RVml(self.epoch[j])
+            ax2.plot(self.epoch, RV_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+
+        # plot the most likely one
+        ax1.plot(self.epoch, self.RV_ml, color='black')
+        ax2.plot(self.epoch, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
+
+        # plot the observed data points
+        datOC_list = []
+        try:
+            assert self.multi_instr
+            for i in range(self.nInst):
+                ax1.errorbar(self.epoch_obs_dic[i], self.RV_obs_dic[i], yerr=self.RV_obs_err_dic[i], fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
+                ax1.scatter(self.epoch_obs_dic[i], self.RV_obs_dic[i], s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
+                for j in range(len(self.epoch_obs_dic[i])):
+                    OC = self.RV_obs_dic[i][j] - self.f_RVml(self.epoch_obs_dic[i][j])
+                    datOC_list.append(OC)
+                    ax2.errorbar(self.epoch_obs_dic[i][j], OC, yerr=self.RV_obs_err_dic[i][j], fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
+                    ax2.scatter(self.epoch_obs_dic[i][j], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
+        except:
+            ax1.errorbar(self.epoch_obs, self.RV_obs, yerr=self.RV_obs_err, fmt='bo', ecolor='black', capsize=3)
+            ax1.scatter(self.epoch_obs, self.RV_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+            for i in range(len(self.epoch_obs)):
+                OC = self.RV_obs[i] - self.f_RVml(self.epoch_obs[i])
+                datOC_list.append(OC)
+                ax2.errorbar(self.epoch_obs[i], OC, yerr=self.RV_obs_err[i], fmt='bo', ecolor='black', capsize=3)
+                ax2.scatter(self.epoch_obs[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+
+        # manually change the x tick labels from JD to calendar years
+        epoch_ticks = np.linspace(self.epoch_obs[0], self.epoch_obs[-1], 5)
+        epoch_label = np.zeros(len(epoch_ticks))
+        for i in range(len(epoch_ticks)):
+            epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+
+        range_ep_obs = max(self.epoch_obs) - min(self.epoch_obs)
+        range_RV_obs = max(self.RV_obs) - min(self.RV_obs)
+        ax1.set_xlim(min(self.epoch_obs) - range_ep_obs/20., max(self.epoch_obs) + range_ep_obs/20.)
+        ax1.set_ylim(min(self.RV_obs) - range_RV_obs/10., max(self.RV_obs) + range_RV_obs/10.)
+        ax1.xaxis.set_major_formatter(NullFormatter())
+        ax1.xaxis.set_minor_locator(AutoMinorLocator())
+        ax1.yaxis.set_minor_locator(AutoMinorLocator())
+        ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+        ax1.set_title(self.title)
+        ax1.set_ylabel('Relative RV (m/s)')
+
+        range_datOC = max(datOC_list) - min(datOC_list)
+        ax2.set_xlim(min(self.epoch_obs) - range_ep_obs/20., max(self.epoch_obs) + range_ep_obs/20.)
+        ax2.set_ylim(min(datOC_list) - range_datOC/5., max(datOC_list) + range_datOC/5.)
+        ax2.set_xticks(epoch_ticks)
+        ax2.set_xticklabels([str(int(i)) for i in epoch_label])
+        ax2.xaxis.set_minor_locator(AutoMinorLocator())
+        ax2.yaxis.set_minor_locator(AutoMinorLocator())
+        ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+        ax2.set_xlabel('Epoch (yr)')
+        ax2.set_ylabel('O-C')
+
+        plt.savefig('relRV_OC_' + self.title)
+
+
+    ############### plot the seperation and O-C ###############
+
+    def relsep(self):
+
+        try:
+            assert self.have_reldat == True
+            fig = plt.figure(figsize=(5, 6))
+            ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
+            ax2 = fig.add_axes((0.15, 0.1, 0.8, 0.15))
+
+            # plot the 50 randomly selected curves
+            relsep_OC = self.relsep_dic_vals
+
+            for i in range(self.num_lines):
+                ax1.plot(self.epoch, self.relsep_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                for j in range(len(self.epoch)):
+                    relsep_OC[i][j] -= self.f_relsepml(self.epoch[j])
+                ax2.plot(self.epoch, relsep_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+
+            # plot the most likely one
+            ax1.plot(self.epoch, self.relsep_ml, color='black')
+            ax2.plot(self.epoch, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
+
+            # plot the observed data points
+            datOC_list = []
+            ax1.errorbar(self.epochrA_obs, self.relsep_obs, yerr=self.relsep_obs_err, color='coral', fmt='o', ecolor='black', capsize=3)
+            ax1.scatter(self.epochrA_obs, self.relsep_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+            for i in range(len(self.epochrA_obs)):
+                dat_OC = self.relsep_obs[i] - self.f_relsepml(self.epochrA_obs[i])
+                datOC_list.append(dat_OC)
+                ax2.errorbar(self.epochrA_obs[i], dat_OC, yerr=self.relsep_obs_err[i], color='coral', fmt='o', ecolor='black', capsize=3)
+                ax2.scatter(self.epochrA_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+
+            # manually change the x tick labels from JD to calendar years
+            epoch_ticks = np.linspace(self.epochrA_obs[0], self.epochrA_obs[-1], 5)
+            epoch_label = np.zeros(len(epoch_ticks))
+            for i in range(len(epoch_ticks)):
+                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+
+            self.range_eprA_obs = max(self.epochrA_obs) - min(self.epochrA_obs)
+            range_relsep_obs = max(self.relsep_obs)  - min(self.relsep_obs)
+            ax1.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax1.set_ylim(min(self.relsep_obs) - range_relsep_obs/2., max(self.relsep_obs) + range_relsep_obs/2.)
+            ax1.xaxis.set_major_formatter(NullFormatter())
+            ax1.xaxis.set_minor_locator(AutoMinorLocator())
+            ax1.yaxis.set_minor_locator(AutoMinorLocator())
+            ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+            ax1.set_title(self.title)
+            ax1.set_ylabel('Seperation (arcsec)')
+
+            range_datOC = max(datOC_list) - min(datOC_list)
+            ax2.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax2.set_ylim(min(datOC_list) - range_datOC, max(datOC_list) + range_datOC)
+            ax2.set_xticks(epoch_ticks)
+            ax2.set_xticklabels([str(int(i)) for i in epoch_label])
+            ax2.xaxis.set_minor_locator(AutoMinorLocator())
+            ax2.yaxis.set_minor_locator(AutoMinorLocator())
+            ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+            ax2.set_xlabel('Epoch (yr)')
+            ax2.set_ylabel('O-C')
+
+        except:
+            fig = plt.figure(figsize=(5, 5))
+            ax = fig.add_axes((0.15, 0.1, 0.8, 0.8))
+
+            # plot the 50 randomly selected curves
+            for i in range(self.num_lines):
+                ax.plot(self.epoch, self.relsep_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+
+            # plot the most likely one
+            ax.plot(self.epoch, self.relsep_ml, color='black')
+
+            # manually change the x tick labels from JD to calendar years
+            epoch_ticks = np.linspace(self.start_epoch, self.end_epoch, 5)
+            epoch_label = np.zeros(len(epoch_ticks))
+            for i in range(len(epoch_ticks)):
+                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+
+            ax.set_xlim(self.start_epoch, self.end_epoch)
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.set_xticks(epoch_ticks)
+            ax.set_xticklabels([str(int(i)) for i in epoch_label])
+            ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+            ax.set_title(self.title)
+            ax.set_ylabel('Seperation (arcsec)')
+
+        plt.savefig('relsep_OC_' + self.title)
+
+
+    ############### plot the position angle and O-C ###############
+
+    def PA(self):
+
+        try:
+            assert self.have_reldat == True
+            fig = plt.figure(figsize=(5, 6))
+            ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
+            ax2 = fig.add_axes((0.15, 0.1, 0.8, 0.15))
+
+            # plot the 50 randomly selected curves
+            f_PAml = interp1d(self.epoch, self.PA_ml)
+            PA_OC = self.PA_dic_vals
+
+            for i in range(self.num_lines):
+                ax1.plot(self.epoch, self.PA_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                for j in range(len(self.epoch)):
+                    PA_OC[i][j] -= f_PAml(self.epoch[j])
+                ax2.plot(self.epoch, PA_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+
+            # plot the most likely one
+            ax1.plot(self.epoch, self.PA_ml, color='black')
+            ax2.plot(self.epoch, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
+
+            # plot the observed data points
+            datOC_list = []
+            ax1.errorbar(self.epochrA_obs, self.PA_obs, yerr=self.PA_obs_err, color='coral', fmt='o', ecolor='black', capsize=3)
+            ax1.scatter(self.epochrA_obs, self.PA_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+            for i in range(len(self.epochrA_obs)):
+                dat_OC = self.PA_obs[i] - f_PAml(self.epochrA_obs[i])
+                datOC_list.append(dat_OC)
+                ax2.errorbar(self.epochrA_obs[i], dat_OC, yerr=self.PA_obs_err[i], color='coral', fmt='o', ecolor='black', capsize=3)
+                ax2.scatter(self.epochrA_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+
+            # manually change the x tick labels from JD to calendar years
+            epoch_ticks = np.linspace(self.epochrA_obs[0], self.epochrA_obs[-1], 5)
+            epoch_label = np.zeros(len(epoch_ticks))
+            for i in range(len(epoch_ticks)):
+                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+
+            self.range_eprA_obs = max(self.epochrA_obs) - min(self.epochrA_obs)
+            range_PA_obs = max(self.PA_obs)  - min(self.PA_obs)
+            ax1.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax1.set_ylim(min(self.PA_obs) - range_PA_obs/5., max(self.PA_obs) + range_PA_obs/5.)
+            ax1.xaxis.set_major_formatter(NullFormatter())
+            ax1.xaxis.set_minor_locator(AutoMinorLocator())
+            ax1.yaxis.set_minor_locator(AutoMinorLocator())
+            ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+            ax1.set_title(self.title)
+            ax1.set_ylabel(r'Position Angle ($^{\circ}$)')
+
+            range_datOC = max(datOC_list) - min(datOC_list)
+            ax2.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax2.set_ylim(min(datOC_list) - range_datOC, max(datOC_list) + range_datOC)
+            ax2.set_xticks(epoch_ticks)
+            ax2.set_xticklabels([str(int(i)) for i in epoch_label])
+            ax2.xaxis.set_minor_locator(AutoMinorLocator())
+            ax2.yaxis.set_minor_locator(AutoMinorLocator())
+            ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+            ax2.set_xlabel('Epoch (yr)')
+            ax2.set_ylabel('O-C')
+
+        except:
+            fig = plt.figure(figsize=(5, 5))
+            ax = fig.add_axes((0.15, 0.1, 0.8, 0.8))
+
+            # plot the 50 randomly selected curves
+            for i in range(self.num_lines):
+                ax.plot(self.epoch, self.PA_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+
+            # plot the most likely one
+            ax.plot(self.epoch, self.PA_ml, color='black')
+
+            # manually change the x tick labels from JD to calendar years
+            epoch_ticks = np.linspace(self.start_epoch, self.end_epoch, 5)
+            epoch_label = np.zeros(len(epoch_ticks))
+            for i in range(len(epoch_ticks)):
+                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+
+            ax.set_xlim(self.start_epoch, self.end_epoch)
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.set_xticks(epoch_ticks)
+            ax.set_xticklabels([str(int(i)) for i in epoch_label])
+            ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+            ax.set_title(self.title)
+            ax.set_ylabel(r'Position Angle ($^{\circ}$)')
+
+        plt.savefig('PA_OC_' + self.title)
