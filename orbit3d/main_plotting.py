@@ -18,12 +18,15 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
+import matplotlib.patches as mpatches
+from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 from configparser import ConfigParser
 from htof.main import Astrometry
 from orbit3d import orbit
-from orbit3d.config import parse_args
-
+#from orbit3d.config import parse_args
+import argparse
+from configparser import ConfigParser
 
 def initialize_data(config):
     """
@@ -39,6 +42,8 @@ def initialize_data(config):
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
     data = orbit.Data(HipID, RVFile, AstrometryFile)
+    
+    
 
     if use_epoch_astrometry:
         Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HipID), GaiaDataDir,
@@ -67,6 +72,11 @@ def initialize_data(config):
 
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 
+
+
+#def  initialize_plot_options():
+    
+    
 ########## define some useful functions
 def JD_to_calendar(JD):
     """
@@ -117,6 +127,7 @@ def chi_sqr(offset, epoch, obs, obs_err):
     return chi_sqr
 
 # plot the proper motions
+
 def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
 
     rcParams['xtick.major.width']=1
@@ -211,6 +222,7 @@ def plot_proper_motions(number_orbits , mu_RA_or_mu_Dec):
     ax2.set_xlabel("Epoch")
     ax2.set_ylabel("O-C")
     ax2.minorticks_on()
+    plt.show()
     
 def run():
     """
@@ -219,9 +231,44 @@ def run():
     
     start_time = time.time()
     
+    # this following function should be in the config.py file
+    def parse_args():
+        parser = argparse.ArgumentParser(description='Plot astrometry or RV orbits and other relavant plots. Required arguments are shown with [].')
+        parser.add_argument("--output-dir", required=True,
+                            help="Directory within which to save the plots.")
+        parser.add_argument("--config-file", required=True,
+                            help="Path to the planet-specific configuration file.")
+        args = parser.parse_args()
+        return args
+    
     args = parse_args()
     config = ConfigParser()
     config.read(args.config_file)
+    
+    
+    
+    
+    #nplanets = config.getint('mcmc_settings', 'nplanets')
+    HipID = config.getint('data_paths', 'HipID', fallback=0)
+    use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
+   
+    #define plot settings
+    plot_settings = {}
+    plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
+    plot_rv = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
+    plot_astr = config.getboolean('plotting', 'Astrometry_orbits_plot', fallback=False)
+    plot_rel_sep = config.getboolean('plotting', 'Relative_separation', fallback=False)
+    plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
+    plot_colorbar = config.getboolean('plotting', 'colorbar', fallback=False)
+    #color_map = config.getboolean('plotting', 'colormap', fallback='plt.cm.cubehelix')
+    
+    #set arguments for plotting
+    
+  
+  
+    print(plot_corner)
+  
+    
     
     # initialize the data
     data, H1f, H2f, Gf = initialize_data(config)
@@ -229,7 +276,7 @@ def run():
     #read in the mcmc chains
     filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, 1))
     source = filename.split('_')[0]
-    tt, lnp, extras = [fits.open(path+file)[i].data for i in range(3)]
+    tt, lnp, extras = [fits.open(filename)[i].data for i in range(3)]
     nsteps = 50*tt.shape[1]
     beststep = np.where(lnp==lnp.max())
     
@@ -245,7 +292,7 @@ def run():
     
     mu_RA, mu_Dec =  model.return_proper_motions(params)
 
-    plot_proper_motions(50 , 'mu_Dec')
+    #plot_proper_motions(50 , 'mu_Dec')
     
     
 if __name__ == "__main__":
