@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from random import randrange
 import emcee, corner
@@ -12,12 +13,12 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
-import pandas as pd
-import os
+#import pandas as pd
+
 
 """
     Example:
-    OPs = orbit_plots.OrbitPlots(target, HipID, (start_ep, end_ep), cm_ref, num_orbits, color_map, MCMCFile, RVFile, AstrometryFile, use_epoch_astrometry)
+    OPs = orbit_plots.OrbitPlots(target, HipID, (start_ep, end_ep), cm_ref, num_orbits, color_map, MCMCFile, RVFile, AstrometryFile)
     OPs.plot_corner()
     OPs.astrometry()
     OPs.RV()
@@ -29,22 +30,20 @@ import os
 
 class OrbitPlots:
 
-    def __init__(self, title, Hip, epoch_interval, cmref, num_lines, cm_name, mcmcfile, RVfile, AstrometryFile, use_epoch_astrometry, outputdir):
+    def __init__(self, title, Hip, epoch_interval, cmref, num_lines, cm_name, mcmcfile, RVfile, AstrometryFile, outputdir):
 
         self.title = title
         self.Hip = Hip
-        self.outputdir = outputdir
         self.epoch_interval = epoch_interval
         self.cmref = cmref
         self.num_lines = num_lines
         self.cm_name = cm_name
-        self.cmlabel_dic = {'msec': r'$M_{comp} (M_\odot)$', 'ecc': 'eccentricity'}
-        self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
-
         self.RVfile = RVfile
         self.relAstfile = AstrometryFile
-        self.use_epoch_astrometry = use_epoch_astrometry
-
+        self.outputdir = outputdir
+        
+        self.cmlabel_dic = {'msec': r'$M_{comp} (M_\odot)$', 'ecc': 'eccentricity'}
+        self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
         self.steps = 1500
         self.start_epoch = self.calendar_to_JD(self.epoch_interval[0])
         self.end_epoch = self.calendar_to_JD(self.epoch_interval[1])
@@ -54,7 +53,7 @@ class OrbitPlots:
         for i in range(len(self.epoch_JD)):
             self.epoch_JD[i] = self.JD_to_calendar(self.epoch[i])
 
-        # load in mcmc's result
+        # load in mcmc chains
         source = mcmcfile.split('_')[0]
         tt, lnp, extras = [fits.open(mcmcfile)[i].data for i in range(3)]
         self.tt = tt
@@ -106,7 +105,7 @@ class OrbitPlots:
         ############### calculate RA, Dec, epoch and RV ###############
 
         # most likely RV & astrometric orbits
-        data = orbit.Data(Hip, self.RVfile, self.relAstfile, self.use_epoch_astrometry)
+        data = orbit.Data(Hip, self.RVfile, self.relAstfile) #, self.use_epoch_astrometry)
         par = orbit.Params(tt[beststep][0])
         self.params = par
         data.custom_epochs(self.epoch)
@@ -644,8 +643,8 @@ class OrbitPlots:
 
         plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title))
    
-    def plot_corner(self, burnin, title_fmt=".5f",**kwargs):
-        labels=[r'$\mathrm{M_{pri}}$', r'$\mathrm{M_{sec}}$', 'Sep', 'Ecc','Inc']
+    def plot_corner(self, burnin, title_fmt=".4f", **kwargs):
+        labels=[r'$\mathrm{M_{pri}}$', r'$\mathrm{M_{sec}}$', 'Sep', 'Ecc', 'Inc']
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 80.0
         rcParams["xtick.labelsize"] = 10.0
@@ -653,9 +652,9 @@ class OrbitPlots:
         
         tt = self.tt
         ndim = tt[:,burnin:,0].flatten().shape[0]
-        Mpri=tt[:,burnin:,1].flatten().reshape(ndim,1)
-        Msec=(tt[:,burnin:,2]*1989/1.898).flatten().reshape(ndim,1)
-        Sep=tt[:,burnin:,3].flatten().reshape(ndim,1)
+        Mpri=tt[:,burnin:,1].flatten().reshape(ndim,1)                      # in M_{\odot}
+        Msec=(tt[:,burnin:,2]*1989/1.898).flatten().reshape(ndim,1)         # in M_{jup}
+        Sep=tt[:,burnin:,3].flatten().reshape(ndim,1)                       # in AU
         Ecc=(tt[:,burnin:,4]**2 +tt[:,burnin:,5]**2).flatten().reshape(ndim,1)
         #Omega=(np.arctan2(tt[:,burnin:,4],tt[:,burnin:,5])).flatten().reshape(ndim,1)
         Inc=(tt[:,burnin:,6]*180/np.pi).flatten().reshape(ndim,1)

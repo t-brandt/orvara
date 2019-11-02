@@ -29,7 +29,7 @@ from matplotlib.ticker import AutoMinorLocator
 from configparser import ConfigParser
 from htof.main import Astrometry
 from orbit3d import orbit
-#from orbit3d.config import parse_args
+from orbit3d.config import parse_args_plotting
 import argparse
 from configparser import ConfigParser
 from orbit3d import orbit_plots          #import yunlin's plotting package
@@ -48,7 +48,6 @@ def initialize_plot_options(config):
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
-    use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
      
     # colorbar settings
     plot_colorbar = config.getboolean('plotting', 'colorbar', fallback=False)
@@ -62,54 +61,19 @@ def initialize_plot_options(config):
     num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
     cm_ref = config.get('plotting', 'reference')
     
-    # this following function should be in the config.py file
-    def parse_args():
-        parser = argparse.ArgumentParser(description='Plot astrometry or RV orbits and other relavant plots. Required arguments are shown with [].')
-        parser.add_argument("--output-dir", required=True,
-                            help="Directory within which to save the plots.")
-        parser.add_argument("--config-file", required=True,
-                            help="Path to the planet-specific configuration file.")
-        args = parser.parse_args()
-        return args
-    
-    args = parse_args()
+    args = parse_args_plotting()
 
     #read in the mcmc chains
-    MCMCFile = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, 1))
+    MCMCFile = config.get('plotting', 'McmcDataDir', fallback=None)
     source = MCMCFile.split('_')[0]
     tt, lnp, extras = [fits.open(MCMCFile)[i].data for i in range(3)]
     nsteps = 50*tt.shape[1]
     beststep = np.where(lnp==lnp.max())
    
     # initialize the OP object
-    OP = orbit_plots.OrbitPlots(target, HipID, (start_ep, end_ep), cm_ref, num_orbits, color_map, MCMCFile, RVFile, AstrometryFile, use_epoch_astrometry, args.output_dir)
+    OP = orbit_plots.OrbitPlots(target, HipID, (start_ep, end_ep), cm_ref, num_orbits, color_map, MCMCFile, RVFile, AstrometryFile, args.output_dir)
 
-    if use_epoch_astrometry:
-        Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HipID), GaiaDataDir,
-                                 central_epoch_ra=data.epRA_G,
-                                 central_epoch_dec=data.epDec_G,
-                                 central_epoch_fmt='frac_year')
-        Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
-                                 central_epoch_ra=data.epRA_H,
-                                 central_epoch_dec=data.epDec_H,
-                                 central_epoch_fmt='frac_year')
-        Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
-                                 central_epoch_ra=data.epRA_H,
-                                 central_epoch_dec=data.epDec_H,
-                                 central_epoch_fmt='frac_year')
-        # instantiate C versions of the astrometric fitter which are must faster than HTOF's Astrometry
-        hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
-        hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
-        gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
-
-        data = orbit.Data(HipID, RVFile, AstrometryFile, use_epoch_astrometry,
-                          epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
-                          epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
-                          epochs_Gaia=Gaia_fitter.data.julian_day_epoch())
-    else:
-        hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter = None, None, None
-
-    return OP , hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
+    return OP
 
 
 
@@ -119,23 +83,13 @@ def run():
     """
     
     start_time = time.time()
-    
-    # this following function should be in the config.py file
-    def parse_args():
-        parser = argparse.ArgumentParser(description='Plot astrometry or RV orbits and other relavant plots. Required arguments are shown with [].')
-        parser.add_argument("--output-dir", required=True,
-                            help="Directory within which to save the plots.")
-        parser.add_argument("--config-file", required=True,
-                            help="Path to the planet-specific configuration file.")
-        args = parser.parse_args()
-        return args
-    
-    args = parse_args()
+   
+    args = parse_args_plotting()
     config = ConfigParser()
     config.read(args.config_file)
     
     # initialize the OP class object
-    OPs, H1f, H2f, Gf = initialize_plot_options(config)
+    OPs = initialize_plot_options(config)
     
     # which plot
     plot_settings = {}
@@ -147,7 +101,6 @@ def run():
     plot_rel_sep = config.getboolean('plotting', 'Relative_separation_plot', fallback=False)
     plot_position_angle = config.getboolean('plotting', 'Position_angle_plot', fallback=False)
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
-
    
     if plot_corner is True:
         OPs.plot_corner(burnin)
@@ -156,7 +109,7 @@ def run():
         OPs.astrometry()
     
     if plot_rv is True:
-        Ops.RV()
+        OPs.RV()
     
     if plot_rel_rv is True:
         OPs.relRV()
