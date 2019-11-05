@@ -95,7 +95,7 @@ cdef class Data:
                  refep=2455197.5000):
 
         if relRVfile is not None:
-            rel_rvdat = np.genfromtxt(relRVfile)
+            rel_rvdat = np.genfromtxt(relRVfile).reshape(-1, 4)
             print("Loading RV data from file " + relRVfile)
             rel_RV_ep = rel_rvdat[:, 0] # epochs
             self.rel_RV = rel_rvdat[:, 1] # velocities
@@ -841,12 +841,12 @@ def calc_RV(Data data, Params par, Model model):
                                 cosarg, sinarg, ecccosarg, fabs(model.sinEA[i]), fabs(model.EA[i]))
     # calculate the relative rv's
     cdef int i_rel_RV = data.nTot - data.n_rel_RV
+    cdef double conv = (par.msec - par.mpri) / par.msec # conversion factor from RV of the primary to delta RV = RVsecondary - RVprimary.
     for i in range(data.n_rel_RV):
         j = i + i_rel_RV
         model.rel_RV[i] += _calc_RV(model.sinEA[j], model.cosEA[j], model.EA[j], one_d_24,
-                                    one_d_240, pi, pi_d_2, tanEAd2, sqrt1pe_div_sqrt1me, RVampl,
+                                    one_d_240, pi, pi_d_2, tanEAd2, sqrt1pe_div_sqrt1me, RVampl * conv,
                                     cosarg, sinarg, ecccosarg, fabs(model.sinEA[j]), fabs(model.EA[j]))
-
     # Don't use the following: we do about 20 times better above.
     #for i in range(data.nRV):
     #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
