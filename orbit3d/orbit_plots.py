@@ -13,7 +13,7 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
-#import pandas as pd
+import pandas as pd
 
 
 """
@@ -107,7 +107,7 @@ class OrbitPlots:
         # most likely RV & astrometric orbits
         data = orbit.Data(Hip, self.RVfile, self.relAstfile) #, self.use_epoch_astrometry)
         par = orbit.Params(tt[beststep][0])
-        self.params = par
+        self.par = par
         data.custom_epochs(self.epoch)
         model = orbit.Model(data)
 
@@ -120,6 +120,7 @@ class OrbitPlots:
         self.RV_ml = model.return_RVs()
         #add proper motion
         self.mu_RA_ml, self.mu_Dec_ml =  model.return_proper_motions(par)
+        
 
         
         self.relsep_ml = model.return_relsep()*self.plx       # this is relative seperation in terms of arcsec
@@ -666,5 +667,95 @@ class OrbitPlots:
         plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title))
         
         
-    #def proper_motions(self):
-       
+    def proper_motions_Dec(self):
+    
+        # start_epoch = 1983.
+        # end_epoch = 2023.
+        
+        rcParams['xtick.major.width']=1
+        rcParams['xtick.major.size']=4
+        rcParams['xtick.minor.width']=0.5
+        rcParams['xtick.minor.size']=2
+        rcParams['xtick.direction'] = "in"
+        rcParams['ytick.direction'] = "in"
+
+        fig = plt.figure(figsize=(5, 6))
+        ax1 = fig.add_axes((0.15, 0.3, 0.7, 0.5))
+        ax2 = fig.add_axes((0.15, 0.1, 0.7, 0.15))
+
+        ratio = (1. + self.par.mpri/self.par.msec)*1000.
+
+        x_Dec = [1991.25 , 2015.75]
+        y_Dec = [1.41, -0.90]
+        y_Dec_err = [0.40, 0.01]
+        
+        #ep = np.linspace(self.calendar_to_JD(1983), self.calendar_to_JD(2023) , 1000)
+        #ep_jd = np.zeros(len(ep))
+        #for i in range(len(ep)):
+        #    ep_jd[i] = self.JD_to_calendar(ep[i])
+        
+        
+        f_mu = interp1d(self.epoch_JD, self.mu_Dec_ml, fill_value = "extrapolate")
+        
+        #result = op.minimize(self.chi_sqr, 1.53, args=(f_mu, x_Dec, y_Dec, y_Dec_err))
+        #offset = result['x']
+        offset = 2.05
+        
+        ax1.plot(self.epoch_JD, self.mu_Dec_ml*ratio + offset,color= 'k', linewidth = 2,zorder = 100)
+        
+        for i in range(self.num_lines):
+
+            # get parameters from one single step of the mcmc chain
+            walker_idx = randrange(self.tt.shape[0])
+            step_idx = randrange(1000, self.tt.shape[1])
+            params = orbit.Params(self.tt[walker_idx, step_idx])
+            par = params.msec*1989/1.898 # or ecc
+
+            # calculate and assign variables
+            data = orbit.Data(self.Hip, self.RVfile, self.relAstfile)
+            data.custom_epochs(self.epoch)
+            model = orbit.Model(data)
+
+            orbit.calc_EA_RPP(data, params, model)
+            orbit.calc_offsets(data, params, model, 0)
+            orbit.calc_RV(data, params, model)
+            mu_ra, mu_dec =  model.return_proper_motions(params)
+            
+            
+            import pandas as pd
+            d = {'ep_calendar': self.epoch_JD, 'mu_Dec': self.mu_Dec_ml}
+            df = pd.DataFrame(data=d)
+            mid_pt = df[int(len(self.epoch_JD)/2):int(len(self.epoch_JD)/2)+1]['mu_Dec']
+            
+            di = {'ep_calendar': self.epoch_JD, 'mu_dec': mu_dec*ratio}
+            dfi = pd.DataFrame(data=di)
+            mid_pti = dfi[int(len(self.epoch_JD)/2):int(len(self.epoch_JD)/2)+1]['mu_dec']
+            
+            mu_offset = mid_pti[int(len(self.epoch_JD)/2)] - mid_pt[int(len(self.epoch_JD)/2)]
+            #print(mid_pt[int(len(ep)/2)],mid_pti[int(len(ep)/2)],mu_offset)
+            cmap = plt.cm.cubehelix
+            mu_y = mu_dec*ratio - mu_offset
+            ax1.plot(self.epoch_JD, mu_y, c= cmap((params.msec*1989/1.898 - 34.)/(42-34.)))
+            
+            ax2.plot(self.epoch_JD, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
+            for j in range(len(self.epoch_JD)):
+                    mu_y[j] -= (f_mu(self.epoch_JD[j])*ratio + offset)
+            ax2.plot(self.epoch_JD, mu_y, c =cmap((params.msec*1989/1.898 - 34.)/(42-34.)) , alpha=0.3)
+            ax2.scatter(x_Dec, y_Dec - (f_mu(x_Dec)*ratio + offset),zorder = 10000)
+
+            
+        """plt.xlabel("Epoch")
+        plt.ylabel("del_mu_RA")
+        """
+        ax1.errorbar(x_Dec, y_Dec,yerr= y_Dec_err ,fmt='o', ecolor='k', capthick=3,capsize=4,zorder=1000)
+        ax1.set_xlim(np.min(self.epoch_JD),2023)
+        ax2.set_xlim(np.min(self.epoch_JD),2023)
+        ax2.set_ylim(-2,2)
+        ax1.set_ylabel(r'$\mathrm{\Delta \mu_{Dec} \, (mas \, yr^{-1})}$')
+        ax2.set_xlabel("Epoch")
+        ax2.set_ylabel("O-C")
+        ax1.minorticks_on()
+        ax2.minorticks_on()
+        ax1.text(2010,1.5,'Gl 758B', fontsize =16)
+
+        plt.savefig(os.path.join(self.outputdir, 'muDec_' + self.title))

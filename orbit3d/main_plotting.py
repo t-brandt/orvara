@@ -121,7 +121,7 @@ def run():
         OPs.PA()
     
     if plot_proper_motions is True:
-        OPs.proper_motions()
+        OPs.proper_motions_Dec()
     
 if __name__ == "__main__":
     run()
