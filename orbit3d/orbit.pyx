@@ -71,13 +71,15 @@ cdef class Data:
     cdef double [:] epochs
     cdef double [:] RV
     cdef double [:] RV_err
+    cdef double [:] rel_RV
+    cdef double [:] rel_RV_err
     cdef int [:] RVinst
     cdef double [:] relsep
     cdef double [:] PA
     cdef double [:] relsep_err
     cdef double [:] PA_err
     cdef int [:] ast_planetID
-    cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst
+    cdef public int n_rel_RV, nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
     cdef public double plx, plx_err
     cdef double [:, :] Cinv_H
@@ -87,10 +89,22 @@ cdef class Data:
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
 
-    def __init__(self, Hip, RVfile, relAstfile,
+    def __init__(self, Hip, RVfile, relAstfile, relRVfile=None,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
                  refep=2455197.5000):
+
+        if relRVfile is not None:
+            rel_rvdat = np.genfromtxt(relRVfile)
+            print("Loading RV data from file " + relRVfile)
+            rel_RV_ep = rel_rvdat[:, 0] # epochs
+            self.rel_RV = rel_rvdat[:, 1] # velocities
+            self.rel_RV_err = rel_rvdat[:, 2] # errors
+            self.n_rel_RV = rel_rvdat.shape[0] # number of points
+        else:
+            rel_RV_ep = []
+            self.n_rel_RV = 0
+
         try:
             rvdat = np.genfromtxt(RVfile)
             rvep = rvdat[:, 0]
@@ -153,7 +167,7 @@ cdef class Data:
         except:
             print("Unable to load absolute astrometry data for Hip %d" % (Hip))
             self.use_abs_ast = 0
-            self.epochs = np.asarray(list(rvep) + list(relep))
+            self.epochs = np.asarray(list(rvep) + list(relep) + list(rel_RV_ep))
             self.nTot = len(self.epochs)
 
             #########################################################
@@ -218,8 +232,10 @@ cdef class Data:
             self.nHip2 = epochs_Hip2.shape[0]
             self.nGaia = epochs_Gaia.shape[0]
             absasteps = np.asarray(list(epochs_Hip1) + list(epochs_Hip2) + list(epochs_Gaia))
-            
-        self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps))
+
+        # this order is very important. I.e. that rv_epochs, then relative_astrometry epochs, then
+        # absolute astrometry epochs, relative RV epochs.
+        self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps) + list(rel_RV_ep))
         if refep is not None:
             self.refep = refep
         else:
@@ -240,12 +256,13 @@ cdef class Data:
 
 cdef class Model:
 
-    cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
+    cdef public int nEA, nRV, n_rel_RV, nAst, nHip1, nHip2, nGaia
     cdef public double pmra_H, pmra_HG, pmra_G, pmdec_H, pmdec_HG, pmdec_G
     cdef double *EA
     cdef double *sinEA
     cdef double *cosEA
     cdef double *RV
+    cdef double *rel_RV
     cdef double *relsep
     cdef double *PA
     cdef double *dRA_H1
@@ -258,6 +275,7 @@ cdef class Model:
     def __init__(self, Data data):
         self.nEA = data.nTot
         self.nRV = data.nRV
+        self.n_rel_RV = data.n_rel_RV
         self.nAst = data.nAst
         self.nHip1 = data.nHip1
         self.nHip2 = data.nHip2
@@ -279,6 +297,12 @@ cdef class Model:
             raise MemoryError()
         for i in range(self.nRV):
             self.RV[i] = 0
+
+        self.rel_RV = <double *> PyMem_Malloc((self.n_rel_RV+1) * sizeof(double))
+        if not self.rel_RV:
+            raise MemoryError()
+        for i in range(self.n_rel_RV):
+            self.rel_RV[i] = 0
         
         self.relsep = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
         self.PA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
@@ -572,7 +596,7 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
     cdef double F = a_1*(-sinarg*cosasc - cosarg*sinasc*cosinc)
     cdef double G = a_1*(-sinarg*sinasc + cosarg*cosasc*cosinc)
     
-    cdef int n = data.nTot - data.nRV
+    cdef int n = data.nTot - data.nRV #TODO delete and see if works.
     cdef int i, i1, i2
     cdef double X, Y, dRA, dDec, sqonemeccsqr = sqrt(1 - par.ecc**2)
 
@@ -792,6 +816,7 @@ def calc_RV(Data data, Params par, Model model):
     cdef double TA, ratio, fac, tanEAd2
     
     cdef int i
+    cdef int j
 
     ##################################################################
     # Trickery with trig identities.  The code below is mathematically
@@ -809,24 +834,18 @@ def calc_RV(Data data, Params par, Model model):
 
     cdef double one_d_24 = 1./24
     cdef double one_d_240 = 1./240
-    
-    for i in range(data.nRV):
 
-        if fabs(model.sinEA[i]) > 1.5e-2:
-            tanEAd2 = (1 - model.cosEA[i])/model.sinEA[i]
-        elif model.EA[i] < -pi or model.EA[i] > pi:
-            raise ValueError("EA input to calc_RV must be betwen -pi and pi.")
-        elif fabs(model.EA[i]) < pi_d_2:
-            EA = model.EA[i]
-            tanEAd2 = EA*(0.5 + EA**2*(one_d_24 + one_d_240*EA**2))
-        elif model.sinEA[i] != 0:
-            tanEAd2 = (1 - model.cosEA[i])/model.sinEA[i]
-        else:
-            tanEAd2 = 1e100
-            
-        ratio = sqrt1pe_div_sqrt1me*tanEAd2
-        fac = 2/(1 + ratio**2)
-        model.RV[i] += RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
+    for i in range(data.nRV):
+        model.RV[i] += _calc_RV(model.sinEA[i], model.cosEA[i], model.EA[i], one_d_24,
+                                one_d_240, pi, pi_d_2, tanEAd2, sqrt1pe_div_sqrt1me, RVampl,
+                                cosarg, sinarg, ecccosarg, fabs(model.sinEA[i]), fabs(model.EA[i]))
+    # calculate the relative rv's
+    cdef int i_rel_RV = data.nTot - data.n_rel_RV
+    for i in range(data.n_rel_RV):
+        j = i + i_rel_RV
+        model.rel_RV[i] += _calc_RV(model.sinEA[j], model.cosEA[j], model.EA[j], one_d_24,
+                                    one_d_240, pi, pi_d_2, tanEAd2, sqrt1pe_div_sqrt1me, RVampl,
+                                    cosarg, sinarg, ecccosarg, fabs(model.sinEA[j]), fabs(model.EA[j]))
 
     # Don't use the following: we do about 20 times better above.
     #for i in range(data.nRV):
@@ -834,7 +853,31 @@ def calc_RV(Data data, Params par, Model model):
     #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
 
     return
-        
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+
+cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one_d_240,
+              double pi, double pi_d_2, double tanEAd2, double sqrt1pe_div_sqrt1me, double RVampl,
+              double cosarg, double sinarg, double ecccosarg, double abs_sinEA, double abs_EA):
+
+        if abs_sinEA > 1.5e-2:
+            tanEAd2 = (1 - cosEA)/sinEA
+        elif EA < -pi or EA > pi:
+            raise ValueError("EA input to calc_RV must be between -pi and pi.")
+        elif abs_EA < pi_d_2:
+            EA = EA
+            tanEAd2 = EA*(0.5 + EA**2*(one_d_24 + one_d_240*EA**2))
+        elif sinEA != 0:
+            tanEAd2 = (1 - cosEA)/sinEA
+        else:
+            tanEAd2 = 1e100
+
+        ratio = sqrt1pe_div_sqrt1me*tanEAd2
+        fac = 2/(1 + ratio**2)
+        return RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

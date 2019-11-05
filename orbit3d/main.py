@@ -60,6 +60,7 @@ def initialize_data(config):
     # load in items from the ConfigParser object
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     RVFile = config.get('data_paths', 'RVFile')
+    relRVFile = config.get('data_paths', 'relRVFile', fallback=None)
     AstrometryFile = config.get('data_paths', 'AstrometryFile')
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
@@ -67,7 +68,7 @@ def initialize_data(config):
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     #
 
-    data = orbit.Data(HipID, RVFile, AstrometryFile)
+    data = orbit.Data(HipID, RVFile, AstrometryFile, relRVfile=relRVFile)
     if use_epoch_astrometry:
         Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=data.epRA_G,
@@ -86,7 +87,9 @@ def initialize_data(config):
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
 
-        data = orbit.Data(HipID, RVFile, AstrometryFile, use_epoch_astrometry,
+        data = orbit.Data(HipID, RVFile, AstrometryFile,
+                          relRVfile=relRVFile,
+                          use_epoch_astrometry=use_epoch_astrometry,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                           epochs_Gaia=Gaia_fitter.data.julian_day_epoch())
