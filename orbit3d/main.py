@@ -31,9 +31,10 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
         msec = 0.1
 
         par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
-        init = [jit, mpri]
-        for i in range(nplanets):
-            init += [msec, sau, esino, ecoso, inc, asc, lam]
+        # init = [jit, mpri]
+        # for i in range(nplanets):
+        #     init += [msec, sau, esino, ecoso, inc, asc, lam]
+        init = [0.5, 0.1, 0.6, 22, -0.54, 0.49, 1.095, 2.028, 1, 0.005, 0.11, -0.223, -0.001, 1, 1, 1]
         par0 *= np.asarray(init)
         par0 *= 2 ** (np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
 
@@ -113,7 +114,7 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
 
     for i in range(nplanets):
         params = orbit.Params(theta, i, nplanets)
-        
+
         if not np.isfinite(orbit.lnprior(params)):
             model.free()
             return -np.inf
@@ -121,7 +122,7 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
         orbit.calc_EA_RPP(data, params, model)
         orbit.calc_RV(data, params, model)
         orbit.calc_offsets(data, params, model, i)
-    
+
     if use_epoch_astrometry:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
     else:
@@ -129,7 +130,7 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
 
     if returninfo:
         return orbit.calcL(data, params, model, chisq_resids=True)
-    
+
     if priors is not None:
         return orbit.lnprior(params) + orbit.calcL(data, params, model) - 1/2.*(params.mpri - priors['mpri'])**2/priors['mpri_sig']**2
     else:
@@ -166,12 +167,12 @@ def run():
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     start_file = config.get('data_paths', 'start_file', fallback='none')
-    
+
     #define priors
     priors = {}
     priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback = 1.)
     priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback = np.inf)
-    
+
     # set initial conditions
     par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers)
     ndim = par0[0, 0, :].size
