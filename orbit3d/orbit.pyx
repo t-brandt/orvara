@@ -841,7 +841,7 @@ def calc_RV(Data data, Params par, Model model):
                                 cosarg, sinarg, ecccosarg, fabs(model.sinEA[i]), fabs(model.EA[i]))
     # calculate the relative rv's
     cdef int i_rel_RV = data.nTot - data.n_rel_RV
-    cdef double conv = (par.msec - par.mpri) / par.msec # conversion factor from RV of the primary to delta RV = RVsecondary - RVprimary.
+    cdef double conv = -1. * (par.msec + par.mpri) / par.msec # conversion factor from RV of the primary to delta RV = RVsecondary - RVprimary.
     for i in range(data.n_rel_RV):
         j = i + i_rel_RV
         model.rel_RV[i] += _calc_RV(model.sinEA[j], model.cosEA[j], model.EA[j], one_d_24,
@@ -954,6 +954,15 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     PyMem_Free(A)
     PyMem_Free(B)
     PyMem_Free(C)
+
+    ##################################################################
+    # Add the log likelyhood of the relative RV data
+    ##################################################################
+    for i in range(data.n_rel_RV):
+        ivar = 1 / (data.rel_RV_err[i]**2 + jitsq)
+        lnL -= (data.rel_RV[i] - model.rel_RV[i]) ** 2 * ivar
+        lnL += log(ivar)
+        # factor of 1/2 is done at the very end of calcL .
 
     ##################################################################
     # Ok, tricky part below.  We will take care of the mean proper
