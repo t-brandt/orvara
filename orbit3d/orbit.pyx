@@ -122,7 +122,7 @@ cdef class Data:
             self.RVinst = (rvdat[:, 3]).astype(np.int32)
             # Check to see that the column we loaded was an integer
             assert np.all(self.RVinst == rvdat[:, 3])
-            self.nInst = np.amax(rvdat[:, 3]) + 1
+            self.nInst = len(set(rvdat[:, 3]))
             print("Loaded data from %d RV instruments." % (self.nInst))
         except:
             print("Unable to read RV instruments from fourth column.")
