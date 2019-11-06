@@ -32,7 +32,7 @@ from orbit3d import orbit
 from orbit3d.config import parse_args_plotting
 import argparse
 from configparser import ConfigParser
-from orbit3d import orbit_plots          #import yunlin's plotting package
+from orbit3d import orbit_plots          #import orbit_plots plotting package
 
 
 def initialize_plot_options(config):
@@ -64,6 +64,7 @@ def initialize_plot_options(config):
     args = parse_args_plotting()
 
     #read in the mcmc chains
+    burnin = config.getint('plotting', 'burnin', fallback=0)
     MCMCFile = config.get('plotting', 'McmcDataDir', fallback=None)
     source = MCMCFile.split('_')[0]
     tt, lnp, extras = [fits.open(MCMCFile)[i].data for i in range(3)]
@@ -71,7 +72,7 @@ def initialize_plot_options(config):
     beststep = np.where(lnp==lnp.max())
    
     # initialize the OP object
-    OP = orbit_plots.OrbitPlots(target, HipID, (start_ep, end_ep), cm_ref, num_orbits, color_map, MCMCFile, RVFile, AstrometryFile, args.output_dir)
+    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, burnin, MCMCFile, RVFile, AstrometryFile, args.output_dir)
 
     return OP
 
@@ -94,16 +95,15 @@ def run():
     # which plot
     plot_settings = {}
     burnin = config.getint('plotting', 'burnin', fallback=0)
-    plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
     plot_astr = config.getboolean('plotting', 'Astrometry_orbits_plot', fallback=False)
     plot_rv = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
     plot_rel_rv = config.getboolean('plotting', 'Relative_RV_plot', fallback=False)
     plot_rel_sep = config.getboolean('plotting', 'Relative_separation_plot', fallback=False)
     plot_position_angle = config.getboolean('plotting', 'Position_angle_plot', fallback=False)
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
-   
-    if plot_corner is True:
-        OPs.plot_corner(burnin)
+    plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
+    test_code = config.getboolean('plotting', 'test_code', fallback=False)
+
         
     if plot_astr is True:
         OPs.astrometry()
@@ -122,6 +122,12 @@ def run():
     
     if plot_proper_motions is True:
         OPs.proper_motions_Dec()
+    
+    if plot_corner is True:
+        OPs.plot_corner()
+        
+    if test_code is True:
+        OPs.test()
     
 if __name__ == "__main__":
     run()
