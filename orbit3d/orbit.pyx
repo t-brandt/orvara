@@ -96,12 +96,13 @@ cdef class Data:
 
         if relRVfile is not None:
             rel_rvdat = np.genfromtxt(relRVfile).reshape(-1, 4)
-            print("Loading RV data from file " + relRVfile)
+            print("Loading relative RV data from file " + relRVfile)
             rel_RV_ep = rel_rvdat[:, 0] # epochs
             self.rel_RV = rel_rvdat[:, 1] # velocities
             self.rel_RV_err = rel_rvdat[:, 2] # errors
             self.n_rel_RV = rel_rvdat.shape[0] # number of points
         else:
+            print("No relative RV data.")
             rel_RV_ep = []
             self.n_rel_RV = 0
 
