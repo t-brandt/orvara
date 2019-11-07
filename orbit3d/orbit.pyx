@@ -1134,7 +1134,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 # the quantity out.
 ######################################################################
 
-def lnprior(Params par):
+def lnprior(Params par, double max_jitter=20):
 
     cdef extern from "math.h" nogil:
         double sin(double _x)
@@ -1149,7 +1149,7 @@ def lnprior(Params par):
         return zeroprior
     if par.inc <= 0 or par.inc >= pi or par.asc < -pi or par.asc >= 3*pi:
         return zeroprior
-    if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > 20:
+    if par.lam < -pi or par.lam >= 3*pi or par.jit < -1.*max_jitter or par.jit > max_jitter:
         return zeroprior
 
     return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))

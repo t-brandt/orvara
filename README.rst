@@ -40,9 +40,28 @@ The output of the MCMC is a .fits file and is contained within your given output
 contains three .fits extensions with all the MCMC parameters sampled every 50 steps.
 That output file is formatted as follows:
 
-HDU0: Parameters. 3d-array of shape (nwalkers,  nsteps/50, nparameters) with nparameters=2+7*nplanets. E.g.
-HDU0[10, 40, :] will be the parameters of walker 10 at step 2000 (50 * 40).
-Parameters are in order of 0, 1, 2,...: (RV_jitter, ...)
+HDU0: Parameters. 3d-array of shape (nwalkers,  nsteps/50, nparameters) with nparameters (number of parameters)
+equal to 2 + 7 * nplanets (number of planets). E.g.
+HDU0[10, 40, :] will be the parameters of walker 10 at step 2000 (50 * 40). In general, HDU0[:, :, x] gives the value of
+every walker for every step for parameter x.
+The value of x (row along the last axis) to access each parameter are as follows:
+
+- 0 : j, such that the radial velocity jitter in meters per second is Sqrt(10^j).
+- 1 : mass of the primary (i.e. star) in solar masses.
+- 2 : mass of the secondary (i.e. planet) in solar masses.
+- 3 : The semi-major axis of the planet in A.U.
+- 4 : Sqrt(eccentricity) * sin(w) where w is the argument of periastron.
+- 5 : Sqrt(eccentricity) * cos(w) where w is the argument of periastron.
+- 6 : inclination of the orbit of the planet in radians
+- 7 : ?? longitude of the ascending node
+- 8 : ?? lam
+- 9 : mass of the third object (i.e. planet) if nplanets > 1.
+- 10: semi-major axis of the third planet in A.U.
+- and so forth, repeating parameters 2-8 (7 in total) but for each planet fit in order.
+
+For instance HDU[10, :, 1] gives the primary mass
+of walker 10 for every step. HDU[10, 40, 1] would be the primary mass described by walker 10 at step 20000 (50*40).
+HDU[10, :, 2] is the secondary mass at every step for walker 10.
 
 HDU1: Log likelyhood. 2d-array of shape (nwalkers,  nsteps/50) which is the log likelyhood for each set
 of parameters. E.g. HDU1[10, 40] will be the log likelyhood for the paremeters given
