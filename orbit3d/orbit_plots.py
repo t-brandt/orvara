@@ -389,12 +389,12 @@ class OrbitPlots:
     ############### plot astrometric orbit ###############
 
     def astrometry(self):
-        rcParams["axes.labelpad"] = 10.0
+        #rcParams["axes.labelpad"] = 10.0
         
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_subplot(111)
 
-        # plot the 50 randomly selected curves
+        # plot the num_lines randomly selected curves
         for i in range(self.num_lines):
             ax.plot(self.dras_dic_vals[i], self.ddecs_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
 
@@ -418,23 +418,69 @@ class OrbitPlots:
             pass
 
         # plot the 5 predicted positions of the companion star from 1990 to 2030
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
         epoch_int = []
         for year in self.epoch_JD:
             epoch_int.append(int(year))
+
+        text_x_max = 0
+        text_x_min = 0
+        text_y_max = 0
+        text_y_min = 0
         for year in [1990, 2000, 2010, 2020, 2030]:
             idx = epoch_int.index(year)
-            ax.scatter(self.dras_ml[idx], self.ddecs_ml[idx], s=55, facecolors='none', edgecolors='k', zorder=100)
-            ax.text(self.dras_ml[idx], self.ddecs_ml[idx], str(year), fontsize=10)
+            x = self.dras_ml[idx]
+            y = self.ddecs_ml[idx]
+            r = np.sqrt(x**2 + y**2)
+            ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)
 
-        # plot line of nodes and periastron
+            # avoid overlapping between text and plot
+            if x >= 0 and y >= 0:
+                text_x = x*(r + 0.12*(x1 - x0))/r
+                text_y = y*(r + 0.03*(y1 - y0))/r
+                ax.text(text_x, text_y, str(year), fontsize=10)
+            elif x >= 0 and y <= 0:
+                text_x = x*(r + 0.12*(x1 - x0))/r
+                text_y = y*(r + 0.05*(y1 - y0))/r
+                ax.text(text_x, text_y, str(year), fontsize=10)
+            elif x <= 0 and y >= 0:
+                text_x = x*(r + 0.03*(x1 - x0))/r
+                text_y = y*(r + 0.03*(y1 - y0))/r
+                ax.text(text_x, text_y, str(year), fontsize=10)
+            elif x <= 0 and y <= 0:
+                text_x = x*(r + 0.03*(x1 - x0))/r
+                text_y = y*(r + 0.05*(y1 - y0))/r
+                ax.text(text_x, text_y, str(year), fontsize=10)
+
+            if text_x > text_x_max:
+                text_x_max = text_x
+            if text_x < text_x_min:
+                text_x_min = text_x
+            if text_y > text_y_max:
+                text_y_max = text_y
+            if text_y < text_y_min:
+                text_y_min = text_y
+
+        # avoid the text exceeding the box
+        if abs(text_x_min - x0) < 0.05*(x1 - x0):
+            x0 -= 0.10*(x1 - x0)
+        if abs(text_x_max - x1) < 0.05*(x1 - x0):
+            x1 += 0.10*(x1 - x0)
+        if abs(text_y_min - y0) < 0.05*(y1 - y0):
+            y0 -= 0.05*(y1 - y0)
+        if abs(text_y_max - y1) < 0.05*(y1 - y0):
+            y1 += 0.05*(y1 - y0)
+
+        # plot line of nodes, periastron and the direction of motion of companion star, and label the host star
         ax.plot([self.node0[0], self.node1[0]], [self.node0[1], self.node1[1]], 'k--')
         ax.plot([0, self.pras[0]], [0, self.pras[1]], 'k:')
-
+        arrow = mpatches.FancyArrowPatch((self.dras_ml[self.idx_pras][0], self.ddecs_ml[self.idx_pras][0]), (self.dras_ml[self.idx_pras+1][0], self.ddecs_ml[self.idx_pras+1][0]), arrowstyle='->', mutation_scale=25, zorder=100)
+        ax.add_patch(arrow)
         ax.plot(0, 0, marker='*',  color='black')
-        #arrow = mpatches.FancyArrowPatch((self.dras_ml[self.idx_pras][0], self.ddecs_ml[self.idx_pras][0]), (self.dras_ml[self.idx_pras+1][0], self.ddecs_ml[self.idx_pras+1][0]), arrowstyle='->', mutation_scale=25, zorder=100)
-        #ax.add_patch(arrow)
-        x0, x1 = ax.get_xlim()
-        y0, y1 = ax.get_ylim()
+
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y0, y1)
         ax.set_aspect(abs((x1-x0)/(y1-y0)))
         fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref])
         ax.invert_xaxis()
