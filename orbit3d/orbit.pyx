@@ -67,7 +67,6 @@ cdef class AstrometricFitter:
 cdef class Data:
     cdef double [:] epochs
     cdef double [:] RV
-    cdef double [:] TA
     cdef double [:] RV_err
     cdef int [:] RVinst
     cdef double [:] relsep
@@ -75,7 +74,7 @@ cdef class Data:
     cdef double [:] relsep_err
     cdef double [:] PA_err
     cdef int [:] ast_planetID
-    cdef public int nRV, nTA, nAst, nHip1, nHip2, nGaia, nTot, nInst
+    cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
     cdef public double plx, plx_err
     cdef double [:, :] Cinv_H
@@ -238,7 +237,7 @@ cdef class Data:
 
     def custom_epochs(self, epochs, refep=2455197.5000, iplanet=0):
 
-        self.nRV = self.nTA = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
+        self.nRV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
         self.nTot = 5*self.nRV
         self.epochs = np.asarray(list(epochs)*5)
         self.refep = refep
@@ -247,13 +246,12 @@ cdef class Data:
 
 cdef class Model:
 
-    cdef public int nEA, nRV, nTA, nAst, nHip1, nHip2, nGaia
+    cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
     cdef public double pmra_H, pmra_HG, pmra_G, pmdec_H, pmdec_HG, pmdec_G
     cdef double *EA
     cdef double *sinEA
     cdef double *cosEA
     cdef double *RV
-    cdef double *TA
     cdef double *relsep
     cdef double *PA
     cdef double *dRA_H1
@@ -266,7 +264,6 @@ cdef class Model:
     def __init__(self, Data data):
         self.nEA = data.nTot
         self.nRV = data.nRV
-        self.nTA = data.nTA
         self.nAst = data.nAst
         self.nHip1 = data.nHip1
         self.nHip2 = data.nHip2
@@ -284,13 +281,10 @@ cdef class Model:
             self.EA[i] = self.cosEA[i] = self.sinEA[i] = 0
 
         self.RV = <double *> PyMem_Malloc((self.nRV+1) * sizeof(double))
-        self.TA = <double *> PyMem_Malloc((self.nTA+1) * sizeof(double))
         if not self.RV:
             raise MemoryError()
         for i in range(self.nRV):
             self.RV[i] = 0
-        for i in range(self.nTA):
-            self.TA[i] = 0
 
         self.relsep = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
         self.PA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
@@ -345,25 +339,33 @@ cdef class Model:
             dDecs_H1[j] = self.dDec_H1[j]
             dDecs_H2[j] = self.dDec_H2[j]
         return dRAs_G, dDecs_G, dRAs_H1, dDecs_H1, dRAs_H2,  dDecs_H2
-    
-    def return_TAs(self):
+
+    def return_TAs(self, Params par):
         cdef int i
-        TAs = np.empty(self.nTA)
-        for i in range(self.nTA):
-            TAs[i] = self.TA[i]
+        cdef extern from "math.h" nogil:
+            double sin(double _x)
+            double cos(double _x)
+            double sqrt(double _x)
+            double atan2(double _y, double _x)
+        cdef double sqrt1pe = sqrt(1 + par.ecc)
+        cdef double sqrt1me = sqrt(1 - par.ecc)
+
+        TAs = np.empty(self.nRV)
+        for i in range(self.nRV):
+            TAs[i] = 2*atan2(sqrt1pe*sin(self.EA[i]/2), sqrt1me*cos(self.EA[i]/2))
         return TAs
 
     def return_relsep(self):
         cdef int i
-        relsep = np.empty(self.nTA)
-        for i in range(self.nTA):
+        relsep = np.empty(self.nRV)
+        for i in range(self.nRV):
             relsep[i] = self.relsep[i]
         return relsep
 
     def return_PAs(self):
         cdef int i
-        PAs = np.empty(self.nTA)
-        for i in range(self.nTA):
+        PAs = np.empty(self.nRV)
+        for i in range(self.nRV):
             PAs[i] = self.PA[i]
         return PAs
 
@@ -863,7 +865,6 @@ def calc_RV(Data data, Params par, Model model):
         double cos(double _x)
         double fabs(double _x)
         double sqrt(double _x)
-        double atan2(double x, double y)
 
     cdef double pi = 3.14159265358979323846264338327950288
     cdef double pi_d_2 = pi/2.
@@ -916,11 +917,10 @@ def calc_RV(Data data, Params par, Model model):
         fac = 2/(1 + ratio**2)
         model.RV[i] += RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
 
-#    Don't use the following: we do about 20 times better above.
-    for i in range(data.nRV):
-        model.TA[i] = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
-#        TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
-#        model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
+    # Don't use the following: we do about 20 times better above.
+    #for i in range(data.nRV):
+    #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
+    #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
 
     return
 
@@ -1188,4 +1188,4 @@ def lnprior(Params par):
     if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > 20:
         return zeroprior
 
-    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri)) #- 1/2.*(par.mpri - 0.8)**2/0.05**2
+    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))

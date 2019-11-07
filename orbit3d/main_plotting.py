@@ -5,7 +5,7 @@ accessed by calling plot_orbit from the command line.
 
 Example:
 
-plot_orbit --output-dir ./orbit3d --config-file config.ini
+plot_orbit --output-dir ./Plots --config-file config_HD4747.ini
 
 """
 
@@ -32,7 +32,7 @@ from orbit3d import orbit
 from orbit3d.config import parse_args_plotting
 import argparse
 from configparser import ConfigParser
-from orbit3d import orbit_plots          #import orbit_plots plotting package
+from orbit3d import orbit_plots         #import orbit_plots plotting package
 
 
 def initialize_plot_options(config):
@@ -44,11 +44,12 @@ def initialize_plot_options(config):
     nplanets = config.getint('mcmc_settings', 'nplanets')
     RVFile = config.get('data_paths', 'RVFile')
     HipID = config.getint('data_paths', 'HipID', fallback=0)
-    AstrometryFile = config.get('data_paths', 'AstrometryFile')
+    AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback=None)
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
-     
+    HGCAFile = config.get('data_paths', 'HGCAFile', fallback=None)
+    
     # colorbar settings
     plot_colorbar = config.getboolean('plotting', 'colorbar', fallback=False)
     color_map = config.get('plotting', 'colormap', fallback= 'viridis')
@@ -72,10 +73,8 @@ def initialize_plot_options(config):
     beststep = np.where(lnp==lnp.max())
    
     # initialize the OP object
-    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, burnin, MCMCFile, RVFile, AstrometryFile, args.output_dir)
-
+    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, burnin, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir)
     return OP
-
 
 
 def run():
@@ -121,7 +120,7 @@ def run():
         OPs.PA()
     
     if plot_proper_motions is True:
-        OPs.proper_motions_Dec()
+        OPs.proper_motions()
     
     if plot_corner is True:
         OPs.plot_corner()
