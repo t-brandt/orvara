@@ -93,6 +93,7 @@ Plotting Examples
 You can access the help menu with the --help flag as follows.
 
 .. code-block:: bash
+
     plot_orbit --help
 
 To plot orbits, run the plot_orbit command from the root directory, for example
