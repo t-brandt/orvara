@@ -15,7 +15,6 @@ from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 import pandas as pd
 
-
 """
     Example:
     OPs = orbit_plots.OrbitPlots(title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, burnin, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir):
