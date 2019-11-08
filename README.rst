@@ -87,6 +87,12 @@ check the results yourself against those in misc/Diagnostic_plots.ipynb, you can
 The diagnostic_config.ini has the same parameters as those used to create the plots in
 Diagnostic_plots.ipynb
 
+To plot orbits, run the plot_orbit command from the root directory, for example
+
+.. code-block:: bash
+
+    fit_orbit --output-dir ./Plots --config-file config_HD4747.ini
+
 License
 -------
 
