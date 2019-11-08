@@ -87,11 +87,19 @@ check the results yourself against those in misc/Diagnostic_plots.ipynb, you can
 The diagnostic_config.ini has the same parameters as those used to create the plots in
 Diagnostic_plots.ipynb
 
+Plotting Examples
+-----------------
+
+You can access the help menu with the --help flag as follows.
+.. code-block:: bash
+
+    plot_orbit --help
+
 To plot orbits, run the plot_orbit command from the root directory, for example
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ./Plots --config-file config_HD4747.ini
+    plot_orbit --output-dir ./Plots --config-file config_HD4747.ini
 
 License
 -------
