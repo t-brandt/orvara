@@ -100,7 +100,7 @@ To plot orbits, run the plot_orbit command from the root directory, for example
 
 .. code-block:: bash
 
-    plot_orbit --output-dir ./Plots --config-file config_HD4747.ini
+    plot_orbit --output-dir ./plots --config-file orbit3d/tests/config_HD4747.ini
 
 License
 -------

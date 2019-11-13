@@ -13,7 +13,6 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
-import pandas as pd
 
 """
     Example:
@@ -45,48 +44,47 @@ class OrbitPlots:
         self.relAstfile = AstrometryFile
         self.HGCAFile = HGCAFile
         self.outputdir = outputdir
-        
-        
+
+
         self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_\odot)}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
-        
-        
+
+
         ################ load in data #####################
         # define epochs
-        self.epoch, self.epoch_JD = self.define_epochs()
+        self.epoch, self.epoch_cal = self.define_epochs()
         # load mcmc data
         self.tt, self.beststep, self.extras = self.load_mcmc_data()
         # load observed RV data
-        self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
+        self.ep_RV_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.ep_RV_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
         # load relative astrometry data:
-        self.epochrA_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err = self.load_relAst_data()
+        self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err = self.load_relAst_data()
         # load HGCA data:
         self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err = self.load_HGCA_data()
-        
+
         ############## calculate orbits ###################
-        # might be better to calculate the best fit orbit by passing an argument in the random_orbits(tt[beststep])
-        
-        # calcualte the best fit orbit
-        self.data, self.plx, self.dras_ml, self.ddecs_ml, self.RV_ml, self.mu_RA_ml, self.mu_Dec_ml, self.relsep_ml, self.mualp_ml, self.mudec_ml, self.f_RVml, self.f_relsepml, self.f_mualpml, self.f_mudecml, self.PA_ml, self.TA_ml, self.node0, self.node1, self.pras = self.bestfit_orbit()  # plx in units of arcsecs
+
+        # calcualte the most likely orbital parameters (_ml)
+        self.data, self.plx, self.dras_ml, self.ddecs_ml, self.RV_ml, self.relsep_ml, self.mualp_ml, self.mudec_ml, self.f_RVml, self.f_relsepml, self.f_mualpml, self.f_mudecml, self.PA_ml, self.TA_ml, self.node0, self.node1, self.pras, self.idx_pras = self.bestfit_orbit()  # plx in units of arcsecs
         # calculate more random orbits drawn from the mcmc chian
         self.RV_dic, self.dras_dic, self.ddecs_dic, self.relsep_dic, self.PA_dic, self.mualp_dic, self.mudec_dic, self.dic_keys, self.RV_dic_vals, self.dras_dic_vals, self.ddecs_dic_vals, self.relsep_dic_vals, self.PA_dic_vals, self.mualp_dic_vals, self.mudec_dic_vals = self.random_orbits()
-        
+
         ################ set colorbar #####################
         # setup the normalization and the colormap
         self.nValues = np.array(self.dic_keys)
         self.normalize = mcolors.Normalize(vmin=self.nValues.min(), vmax=self.nValues.max())
         self.colormap = getattr(cm, self.cm_name)
+
         # setup the colorbar
         self.sm = cm.ScalarMappable(norm=self.normalize, cmap=self.colormap)
         self.sm.set_array(self.nValues)
 
         print("Generating plots for target " + self.title)
 
-    ################################## Define Functions ########################################
+    ################################## Auxiliary Functions ########################################
+
+    # conversion from Julian day to calendar year
     def JD_to_calendar(self, JD):
-        """
-            Function to convert Julian Date to Calendar Date
-        """
         a = int(JD + 0.5)
         if a < 2299161:
             c = a + 1524
@@ -103,10 +101,8 @@ class OrbitPlots:
         year = Y + M/12. + D/365.25
         return year
 
+    # conversion from calendar year to Julian day
     def calendar_to_JD(self, year, M=1, D=1):
-        """
-            Function to convert Calendar Date to Julian Date
-        """
         if M <= 2:
             y = year - 1
             m = M + 12
@@ -121,43 +117,38 @@ class OrbitPlots:
         JD = int(365.25*y) + int(30.6001*(m+1)) + B + 1720996.5  + D + UT/24.
         return JD
 
-    def chi_sqr(self, offset, f, epoch_obs, data_obs, data_obs_err): #changed
-        """
-            A chi-square function for fitting
-        """
+    # minimize the chi_sqr function to find the offset between (RV) data points and curves
+    def chi_sqr(self, offset, f, ep_RV_obs, data_obs, data_obs_err):
         chi_sqr = 0
-        for i in range(len(epoch_obs)):
-            chi_sqr += (f(epoch_obs[i]) - data_obs[i] - offset)**2 / data_obs_err[i]**2
+        for i in range(len(ep_RV_obs)):
+            chi_sqr += (f(ep_RV_obs[i]) - data_obs[i] - offset)**2 / data_obs_err[i]**2
         return chi_sqr
 
-    def define_epochs(self): # need to switch self.epoch and self.epoch_JD
-        """
-            Function to define a custom range of epochs
-        """
+    # return two arrays of epoch, one in terms of JD and the other calendar year
+    def define_epochs(self):
         start_epoch = self.calendar_to_JD(self.start_epoch)
         end_epoch = self.calendar_to_JD(self.end_epoch)
         range_epoch = end_epoch - start_epoch
+        # in addition to the entered start_ep to end_ep, the calculation to some additionl
+        # range of epoch is also performed, to avoid fractured curves in the RV plot and also
+        # avoid broken orbits in the astrometry plot, as each curve has different period.
         epoch = np.linspace(start_epoch - 0.1*range_epoch, end_epoch + 0.5*range_epoch, 1500)
-        epoch_JD = np.zeros(len(epoch))
-        for i in range(len(epoch_JD)):
-            epoch_JD[i] = self.JD_to_calendar(epoch[i])
-        return epoch, epoch_JD
+        epoch_cal = np.zeros(len(epoch))
+        for i in range(len(epoch_cal)):
+            epoch_cal[i] = self.JD_to_calendar(epoch[i])
+        return epoch, epoch_cal    # because "epoch_JD" will appear so many times, so to avoid redundance, we just call it epoch instead of epoch_JD
 
+    # function to load in the mcmc chain from fit_orbit
     def load_mcmc_data(self):
-        """
-            Function to load in the MCMC chain from fit_orbit
-        """
         source = self.MCMCfile.split('_')[0]
         tt, lnp, extras = [fits.open(self.MCMCfile)[i].data for i in range(3)]
         beststep = np.where(lnp == lnp.max())
         return tt, beststep, extras
-        
+
+    # function to load in the observed RV data
     def load_obsRV_data(self):
-        """
-            Function to load in the observed RV data
-        """
         rvdat = np.genfromtxt(self.RVfile)
-        epoch_obs = rvdat[:, 0]
+        ep_RV_obs = rvdat[:, 0]
         RV_obs = rvdat[:, 1]
         RV_obs_err = rvdat[:, 2]
         try:
@@ -168,43 +159,38 @@ class OrbitPlots:
 
             self.multi_instr = True
             idx_dic = {}
-            epoch_obs_dic = {}
+            ep_RV_obs_dic = {}
             RV_obs_dic = {}
             RV_obs_err_dic = {}
-            
+
             for i in range(nInst):
                 idx_dic[i] = (np.where(RVinst == i)[0][0], np.where(RVinst == i)[0][-1])
-                epoch_obs_dic[i] = epoch_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
+                ep_RV_obs_dic[i] = ep_RV_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
                 RV_obs_dic[i] = RV_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
                 RV_obs_err_dic[i] = RV_obs_err[idx_dic[i][0]: idx_dic[i][-1] + 1]
         except:
             self.multi_instr = False
-        return epoch_obs, RV_obs, RV_obs_err, nInst, epoch_obs_dic, RV_obs_dic, RV_obs_err_dic
-        
+        return ep_RV_obs, RV_obs, RV_obs_err, nInst, ep_RV_obs_dic, RV_obs_dic, RV_obs_err_dic
 
+    # function to load in relative astrometry data
     def load_relAst_data(self):
-        """
-            Function to load in the relative astrometry data
-        """
         try:
             reldat = np.genfromtxt(self.relAstfile, usecols=(1,2,3,4,5), skip_header=1)
             self.have_reldat = True
-            
-            epochrA_obs = reldat[:, 0]
-            for i in range(len(epochrA_obs)):
-                epochrA_obs[i] = self.calendar_to_JD(epochrA_obs[i])
+
+            ep_relAst_obs = reldat[:, 0]
+            for i in range(len(ep_relAst_obs)):
+                ep_relAst_obs[i] = self.calendar_to_JD(ep_relAst_obs[i])
             relsep_obs = reldat[:, 1]
             relsep_obs_err = reldat[:, 2]
             PA_obs = reldat[:, 3]
             PA_obs_err = reldat[:, 4]
         except:
             self.have_reldat = False
-        return epochrA_obs, relsep_obs, relsep_obs_err, PA_obs, PA_obs_err
-    
+        return ep_relAst_obs, relsep_obs, relsep_obs_err, PA_obs, PA_obs_err
+
+    # function to load in absolute astrometry data
     def load_HGCA_data(self):
-        """
-            Function to load in the epoch astrometry data
-        """
         t = fits.open(self.HGCAFile)[1].data
         try:
             self.have_pmdat = True
@@ -221,11 +207,9 @@ class OrbitPlots:
         except:
             self.have_pmdat = False
         return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err
-    
+
+    # calculate the offset between observed RV data and theoretical RV curves
     def calc_RV_offset(self, f_RVml):
-        """
-            Function to calculate the offset of the observed RV data
-        """
         try:
             # calculate the differences of offsets (del_offset), and shift the data according to
             # del_offset, which normalizes the offset for different instruments.
@@ -233,21 +217,20 @@ class OrbitPlots:
             offset_dic = {}
             del_offset_dic = {}
             for i in range(self.nInst):
-                result = op.minimize(self.chi_sqr, 70, args=(f_RVml, self.epoch_obs_dic[i], self.RV_obs_dic[i], self.RV_obs_err_dic[i]))
+                result = op.minimize(self.chi_sqr, 70, args=(f_RVml, self.ep_RV_obs_dic[i], self.RV_obs_dic[i], self.RV_obs_err_dic[i]))
                 offset_dic[i] = result['x']
             offset = min(offset_dic.values())[0]
             for i in range(self.nInst):
                 del_offset_dic[i] = offset_dic[i] - offset
                 self.RV_obs_dic[i] += del_offset_dic[i]
         except:
-            result = op.minimize(self.chi_sqr, 70, args=(f_RVml, self.epoch_obs, self.RV_obs, self.RV_obs_err))   # 70 is initial guess
+            result = op.minimize(self.chi_sqr, 70, args=(f_RVml, self.ep_RV_obs, self.RV_obs, self.RV_obs_err))   # 70 is initial guess
             offset = result['x']
         return offset
-    
+
+    # calculate the most likely curves
     def bestfit_orbit(self):
-        """
-            Function to calculate the most likely orbit
-        """
+
         data = orbit.Data(self.Hip, self.RVfile, self.relAstfile)
         par = orbit.Params(self.tt[self.beststep][0]) # beststep is the best fit orbit
         data.custom_epochs(self.epoch)
@@ -256,38 +239,36 @@ class OrbitPlots:
         orbit.calc_EA_RPP(data, par, model)
         orbit.calc_offsets(data, par, model, 0)
         orbit.calc_RV(data, par, model)
-        
+
         # most likely orbit for delRA and delDec
         dRAs_G, dDecs_G, dRAs_H1, dDecs_H1, dRAs_H2, dDecs_H2 = model.return_dRA_dDec()
         ratio = -(1. + par.mpri/par.msec)*data.plx
-        dras_ml, ddecs_ml = ratio*dRAs_G, ratio*dDecs_G       #only considering Gaia
-        # most likely orbit for RV
+        dras_ml, ddecs_ml = ratio*dRAs_G, ratio*dDecs_G      # only considering Gaia
+        # most likely RV
         RV_ml = model.return_RVs()
-        # most likely orbit for proper motions
-        mu_RA_ml, mu_Dec_ml =  model.return_proper_motions(par)
-        # most likely orbit for relative separation
-        relsep_ml = model.return_relsep()*data.plx             # relsep in arcsec
-        # most likely orbit for position angle
+        # most likely relative separation
+        relsep_ml = model.return_relsep()*data.plx      # relsep in arcsec
+        # most likely position angle
         PA_ml = model.return_PAs()*180/np.pi
         for i in range(len(PA_ml)):
             if PA_ml[i] <= 0:
                 PA_ml[i] += 360
-        # most likely orbit for proper motions
+        # most likely proper motions
         mualp_ml, mudec_ml = model.return_proper_motions(par)
         mualp_ml, mudec_ml = 1e3*data.plx*365.25*mualp_ml, 1e3*data.plx*365.25*mudec_ml   # convert from arcsec/day to mas/yr
         mualp_ml += self.extras[self.beststep[0], self.beststep[1], 1]*1000
         mudec_ml += self.extras[self.beststep[0], self.beststep[1], 2]*1000
-        
+
         # interpolation
         f_RVml = interp1d(self.epoch, RV_ml, fill_value="extrapolate")
         f_relsepml = interp1d(self.epoch, relsep_ml, fill_value="extrapolate")
         f_mualpml = interp1d(self.epoch, mualp_ml, fill_value="extrapolate")
         f_mudecml = interp1d(self.epoch, mudec_ml, fill_value="extrapolate")
-        
-        # redefine RV_ml
+
+        # shift most likely RV towards data points
         offset = self.calc_RV_offset(f_RVml)
         RV_ml -= offset
-        
+
         # find the positions of nodes and periastron
         TA_ml = model.return_TAs(par)
         # When par.arg (omega) is negative, it means the periastron is below the plane
@@ -295,20 +276,21 @@ class OrbitPlots:
         # respect to the plane of the sky. Although this agnle doesn't mean anything, the
         # same algorithm below can be applied to locate the position of nodes.
         omega = abs(par.arg)
-        
         idx_node0 = np.where(abs(TA_ml - (np.pi - omega)) == min(abs(TA_ml - (np.pi - omega))))[0]
         idx_node1 = np.where(abs(TA_ml - (-omega)) == min(abs(TA_ml - (-omega))))[0]
         node0 = (dras_ml[idx_node0], ddecs_ml[idx_node0])
         node1 = (dras_ml[idx_node1], ddecs_ml[idx_node1])
+
         idx_pras = np.where(abs(TA_ml) == min(abs(TA_ml)))[0]
         pras = (dras_ml[idx_pras], ddecs_ml[idx_pras])
-        
-        return data, data.plx, dras_ml, ddecs_ml, RV_ml, mu_RA_ml, mu_Dec_ml, relsep_ml, mualp_ml, mudec_ml, f_RVml, f_relsepml, f_mualpml, f_mudecml, PA_ml, TA_ml, node0, node1, pras
 
+        return data, data.plx, dras_ml, ddecs_ml, RV_ml, relsep_ml, mualp_ml, mudec_ml, f_RVml, f_relsepml, f_mualpml, f_mudecml, PA_ml, TA_ml, node0, node1, pras, idx_pras
+
+    # Function to calculate num_orbits orbits with parameters randomly drawn from the mcmc chian
+    # This function sorts of the results in terms of the cmref (msec, ecc, etc.)
+    # num_orbits can be specified in the config.ini file
     def random_orbits(self):
-        """
-            Function to calculate more orbits with parameters randomly drawn from the mcmc chian, num_orbits can be specified in the config.ini file
-        """
+
         RV_dic = {}
         dras_dic = {}
         ddecs_dic = {}
@@ -316,7 +298,7 @@ class OrbitPlots:
         PA_dic = {}
         mualp_dic = {}
         mudec_dic = {}
-        
+
         for i in range(self.num_lines):
 
             # get parameters from one single step of the mcmc chain
@@ -343,9 +325,9 @@ class OrbitPlots:
                     PA[i] += 360
             mualp, mudec = model.return_proper_motions(par)
             mualp, mudec = 1e3*self.plx*365.25*mualp, 1e3*self.plx*365.25*mudec   # convert from arcsec/day to mas/yr
-            
+
             # shift the RV curve wrt data points
-            midep_RV_obs = (self.epoch_obs[0] + self.epoch_obs[-1])/2
+            midep_RV_obs = (self.ep_RV_obs[0] + self.ep_RV_obs[-1])/2
             RV_ref_val = self.f_RVml(midep_RV_obs)
             f_RV = interp1d(self.epoch, RV, fill_value="extrapolate")
             offset = self.calc_RV_offset(f_RV)
@@ -353,7 +335,7 @@ class OrbitPlots:
             # shift curves to the data points
             mualp += self.extras[walker_idx, step_idx, 1]*1000
             mudec += self.extras[walker_idx, step_idx, 2]*1000
-        
+
             cmref = getattr(par, self.cmref)
             RV_dic[cmref] = RV
             dras_dic[cmref] = dras
@@ -388,8 +370,7 @@ class OrbitPlots:
     ############### plot astrometric orbit ###############
 
     def astrometry(self):
-        #rcParams["axes.labelpad"] = 10.0
-        
+
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_subplot(111)
 
@@ -406,9 +387,9 @@ class OrbitPlots:
 
         try:
             assert self.have_reldat == True
-            for i in range(len(self.epochrA_obs)):
-                ra_exp, dec_exp = f_drasml(self.epochrA_obs[i]), f_ddecsml(self.epochrA_obs[i])
-                relsep_exp = self.f_relsepml(self.epochrA_obs[i])
+            for i in range(len(self.ep_relAst_obs)):
+                ra_exp, dec_exp = f_drasml(self.ep_relAst_obs[i]), f_ddecsml(self.ep_relAst_obs[i])
+                relsep_exp = self.f_relsepml(self.ep_relAst_obs[i])
                 ra_obs = ra_exp * self.relsep_obs[i] / relsep_exp    # similar triangles
                 dec_obs = dec_exp * self.relsep_obs[i] / relsep_exp
                 ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
@@ -420,7 +401,7 @@ class OrbitPlots:
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
         epoch_int = []
-        for year in self.epoch_JD:
+        for year in self.epoch_cal:
             epoch_int.append(int(year))
 
         text_x_max = 0
@@ -486,37 +467,38 @@ class OrbitPlots:
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-        ax.set_xlabel(r'$\Delta \alpha$ [arcsec]')
-        ax.set_ylabel(r'$\Delta \delta$ [arcsec]')
+        ax.set_xlabel(r'$\Delta \alpha$ (arcsec)')
+        ax.set_ylabel(r'$\Delta \delta$ (arcsec)')
         ax.set_title(self.title + ' Astrometric Orbits')
         plt.tight_layout()
-        print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
+        print("Plotting Astrometry orbits and save the plot in " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title))
 
 
     ############### plot the RV orbits ###############
+
     def RV(self):
 
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_subplot(111)
 
-        # plot the 50 randomly selected curves
+        # plot the num_lines randomly selected curves
         for i in range(self.num_lines):
-            ax.plot(self.epoch_JD, self.RV_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+            ax.plot(self.epoch_cal, self.RV_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
 
         # plot the most likely one
-        ax.plot(self.epoch_JD, self.RV_ml, color='black')
+        ax.plot(self.epoch_cal, self.RV_ml, color='black')
 
-        # plot the observed data points (RV & relAst)
+        # plot the observed data points
         try:
             assert self.multi_instr
             for i in range(self.nInst):
-                epoch_obs_Inst = np.zeros(len(self.epoch_obs_dic[i]))
-                for j in range(len(self.epoch_obs_dic[i])):
-                    epoch_obs_Inst[j] = self.JD_to_calendar(self.epoch_obs_dic[i][j])
-                ax.plot(epoch_obs_Inst, self.RV_obs_dic[i], self.color_list[i]+'o', markersize=2)
+                ep_RV_obs_cal = np.zeros(len(self.ep_RV_obs_dic[i]))
+                for j in range(len(self.ep_RV_obs_dic[i])):
+                    ep_RV_obs_cal[j] = self.JD_to_calendar(self.ep_RV_obs_dic[i][j])
+                ax.plot(ep_RV_obs_cal, self.RV_obs_dic[i], self.color_list[i]+'o', markersize=2)
         except:
-            ax.plot(self.JD_to_calendar(self.epoch_obs), self.RV_obs, 'ro', markersize=2)
+            ax.plot(self.JD_to_calendar(self.ep_RV_obs), self.RV_obs, 'ro', markersize=2)
 
         ax.set_xlim(self.start_epoch, self.end_epoch)
         x0, x1 = ax.get_xlim()
@@ -529,7 +511,7 @@ class OrbitPlots:
         ax.set_xlabel('Date (yr)')
         ax.set_ylabel('RV (m/s)')
         ax.set_title(self.title + ' RV Orbits')
-        print("Plotting RV orbits, your plot is generated at " + self.outputdir)
+        print("Plotting radial velocity and save the plot in " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title))
 
     ############### plot the relative RV and O-C ###############
@@ -540,7 +522,7 @@ class OrbitPlots:
         ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
         ax2 = fig.add_axes((0.15, 0.1, 0.8, 0.15))
 
-        # plot the 50 randomly selected curves
+        # plot the num_lines randomly selected curves
         self.f_RVml = interp1d(self.epoch, self.RV_ml)
         RV_OC = self.RV_dic_vals
 
@@ -559,31 +541,31 @@ class OrbitPlots:
         try:
             assert self.multi_instr
             for i in range(self.nInst):
-                ax1.errorbar(self.epoch_obs_dic[i], self.RV_obs_dic[i], yerr=self.RV_obs_err_dic[i], fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
-                ax1.scatter(self.epoch_obs_dic[i], self.RV_obs_dic[i], s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
-                for j in range(len(self.epoch_obs_dic[i])):
-                    OC = self.RV_obs_dic[i][j] - self.f_RVml(self.epoch_obs_dic[i][j])
+                ax1.errorbar(self.ep_RV_obs_dic[i], self.RV_obs_dic[i], yerr=self.RV_obs_err_dic[i], fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
+                ax1.scatter(self.ep_RV_obs_dic[i], self.RV_obs_dic[i], s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
+                for j in range(len(self.ep_RV_obs_dic[i])):
+                    OC = self.RV_obs_dic[i][j] - self.f_RVml(self.ep_RV_obs_dic[i][j])
                     datOC_list.append(OC)
-                    ax2.errorbar(self.epoch_obs_dic[i][j], OC, yerr=self.RV_obs_err_dic[i][j], fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
-                    ax2.scatter(self.epoch_obs_dic[i][j], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
+                    ax2.errorbar(self.ep_RV_obs_dic[i][j], OC, yerr=self.RV_obs_err_dic[i][j], fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
+                    ax2.scatter(self.ep_RV_obs_dic[i][j], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
         except:
-            ax1.errorbar(self.epoch_obs, self.RV_obs, yerr=self.RV_obs_err, fmt='bo', ecolor='black', capsize=3)
-            ax1.scatter(self.epoch_obs, self.RV_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
-            for i in range(len(self.epoch_obs)):
-                OC = self.RV_obs[i] - self.f_RVml(self.epoch_obs[i])
+            ax1.errorbar(self.ep_RV_obs, self.RV_obs, yerr=self.RV_obs_err, fmt='bo', ecolor='black', capsize=3)
+            ax1.scatter(self.ep_RV_obs, self.RV_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+            for i in range(len(self.ep_RV_obs)):
+                OC = self.RV_obs[i] - self.f_RVml(self.ep_RV_obs[i])
                 datOC_list.append(OC)
-                ax2.errorbar(self.epoch_obs[i], OC, yerr=self.RV_obs_err[i], fmt='bo', ecolor='black', capsize=3)
-                ax2.scatter(self.epoch_obs[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+                ax2.errorbar(self.ep_RV_obs[i], OC, yerr=self.RV_obs_err[i], fmt='bo', ecolor='black', capsize=3)
+                ax2.scatter(self.ep_RV_obs[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
 
         # manually change the x tick labels from JD to calendar years
-        epoch_ticks = np.linspace(self.epoch_obs[0], self.epoch_obs[-1], 5)
+        epoch_ticks = np.linspace(self.ep_RV_obs[0], self.ep_RV_obs[-1], 5)
         epoch_label = np.zeros(len(epoch_ticks))
         for i in range(len(epoch_ticks)):
             epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
 
-        range_ep_obs = max(self.epoch_obs) - min(self.epoch_obs)
+        range_ep_obs = max(self.ep_RV_obs) - min(self.ep_RV_obs)
         range_RV_obs = max(self.RV_obs) - min(self.RV_obs)
-        ax1.set_xlim(min(self.epoch_obs) - range_ep_obs/20., max(self.epoch_obs) + range_ep_obs/20.)
+        ax1.set_xlim(min(self.ep_RV_obs) - range_ep_obs/20., max(self.ep_RV_obs) + range_ep_obs/20.)
         ax1.set_ylim(min(self.RV_obs) - range_RV_obs/10., max(self.RV_obs) + range_RV_obs/10.)
         ax1.xaxis.set_major_formatter(NullFormatter())
         ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -593,7 +575,7 @@ class OrbitPlots:
         ax1.set_ylabel('Relative RV (m/s)')
 
         range_datOC = max(datOC_list) - min(datOC_list)
-        ax2.set_xlim(min(self.epoch_obs) - range_ep_obs/20., max(self.epoch_obs) + range_ep_obs/20.)
+        ax2.set_xlim(min(self.ep_RV_obs) - range_ep_obs/20., max(self.ep_RV_obs) + range_ep_obs/20.)
         ax2.set_ylim(min(datOC_list) - range_datOC/5., max(datOC_list) + range_datOC/5.)
         ax2.set_xticks(epoch_ticks)
         ax2.set_xticklabels([str(int(i)) for i in epoch_label])
@@ -602,8 +584,8 @@ class OrbitPlots:
         ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
         ax2.set_xlabel('Epoch (yr)')
         ax2.set_ylabel('O-C')
-        
-        print("Plotting relative RV, your plot is generated at " + self.outputdir)
+
+        print("Plotting relative RV and save the plot in " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'relRV_OC_' + self.title))
 
 
@@ -617,7 +599,7 @@ class OrbitPlots:
             ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
             ax2 = fig.add_axes((0.15, 0.1, 0.8, 0.15))
 
-            # plot the 50 randomly selected curves
+            # plot the num_lines randomly selected curves
             relsep_OC = self.relsep_dic_vals
 
             for i in range(self.num_lines):
@@ -632,24 +614,24 @@ class OrbitPlots:
 
             # plot the observed data points
             datOC_list = []
-            ax1.errorbar(self.epochrA_obs, self.relsep_obs, yerr=self.relsep_obs_err, color='coral', fmt='o', ecolor='black', capsize=3)
-            ax1.scatter(self.epochrA_obs, self.relsep_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
-            for i in range(len(self.epochrA_obs)):
-                dat_OC = self.relsep_obs[i] - self.f_relsepml(self.epochrA_obs[i])
+            ax1.errorbar(self.ep_relAst_obs, self.relsep_obs, yerr=self.relsep_obs_err, color='coral', fmt='o', ecolor='black', capsize=3)
+            ax1.scatter(self.ep_relAst_obs, self.relsep_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+            for i in range(len(self.ep_relAst_obs)):
+                dat_OC = self.relsep_obs[i] - self.f_relsepml(self.ep_relAst_obs[i])
                 datOC_list.append(dat_OC)
-                ax2.errorbar(self.epochrA_obs[i], dat_OC, yerr=self.relsep_obs_err[i], color='coral', fmt='o', ecolor='black', capsize=3)
-                ax2.scatter(self.epochrA_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+                ax2.errorbar(self.ep_relAst_obs[i], dat_OC, yerr=self.relsep_obs_err[i], color='coral', fmt='o', ecolor='black', capsize=3)
+                ax2.scatter(self.ep_relAst_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
 
             # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.epochrA_obs[0], self.epochrA_obs[-1], 5)
+            epoch_ticks = np.linspace(self.ep_relAst_obs[0], self.ep_relAst_obs[-1], 5)
             epoch_label = np.zeros(len(epoch_ticks))
             for i in range(len(epoch_ticks)):
                 epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
 
-            self.range_eprA_obs = max(self.epochrA_obs) - min(self.epochrA_obs)
+            self.range_eprA_obs = max(self.ep_relAst_obs) - min(self.ep_relAst_obs)
             range_relsep_obs = max(self.relsep_obs)  - min(self.relsep_obs)
-            ax1.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
-            ax1.set_ylim(min(self.relsep_obs) - range_relsep_obs/2., max(self.relsep_obs) + range_relsep_obs/2.)
+            ax1.set_xlim(min(self.ep_relAst_obs) - self.range_eprA_obs/8., max(self.ep_relAst_obs) + self.range_eprA_obs/8.)
+            ax1.set_ylim(min(self.relsep_obs) - range_relsep_obs/5., max(self.relsep_obs) + range_relsep_obs/5.)
             ax1.xaxis.set_major_formatter(NullFormatter())
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
             ax1.yaxis.set_minor_locator(AutoMinorLocator())
@@ -658,7 +640,7 @@ class OrbitPlots:
             ax1.set_ylabel('Seperation (arcsec)')
 
             range_datOC = max(datOC_list) - min(datOC_list)
-            ax2.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax2.set_xlim(min(self.ep_relAst_obs) - self.range_eprA_obs/8., max(self.ep_relAst_obs) + self.range_eprA_obs/8.)
             ax2.set_ylim(min(datOC_list) - range_datOC, max(datOC_list) + range_datOC)
             ax2.set_xticks(epoch_ticks)
             ax2.set_xticklabels([str(int(i)) for i in epoch_label])
@@ -672,7 +654,7 @@ class OrbitPlots:
             fig = plt.figure(figsize=(5, 5))
             ax = fig.add_axes((0.15, 0.1, 0.8, 0.8))
 
-            # plot the 50 randomly selected curves
+            # plot the num_lines randomly selected curves
             for i in range(self.num_lines):
                 ax.plot(self.epoch, self.relsep_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
 
@@ -693,8 +675,8 @@ class OrbitPlots:
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax.set_title(self.title)
             ax.set_ylabel('Seperation (arcsec)')
-        
-        print("Plotting Separation, your plot is generated at " + self.outputdir)
+
+        print("Plotting separation and save the plot in " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title))
 
 
@@ -708,7 +690,7 @@ class OrbitPlots:
             ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
             ax2 = fig.add_axes((0.15, 0.1, 0.8, 0.15))
 
-            # plot the 50 randomly selected curves
+            # plot the num_lines randomly selected curves
             f_PAml = interp1d(self.epoch, self.PA_ml)
             PA_OC = self.PA_dic_vals
 
@@ -724,23 +706,23 @@ class OrbitPlots:
 
             # plot the observed data points
             datOC_list = []
-            ax1.errorbar(self.epochrA_obs, self.PA_obs, yerr=self.PA_obs_err, color='coral', fmt='o', ecolor='black', capsize=3)
-            ax1.scatter(self.epochrA_obs, self.PA_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
-            for i in range(len(self.epochrA_obs)):
-                dat_OC = self.PA_obs[i] - f_PAml(self.epochrA_obs[i])
+            ax1.errorbar(self.ep_relAst_obs, self.PA_obs, yerr=self.PA_obs_err, color='coral', fmt='o', ecolor='black', capsize=3)
+            ax1.scatter(self.ep_relAst_obs, self.PA_obs, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+            for i in range(len(self.ep_relAst_obs)):
+                dat_OC = self.PA_obs[i] - f_PAml(self.ep_relAst_obs[i])
                 datOC_list.append(dat_OC)
-                ax2.errorbar(self.epochrA_obs[i], dat_OC, yerr=self.PA_obs_err[i], color='coral', fmt='o', ecolor='black', capsize=3)
-                ax2.scatter(self.epochrA_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
+                ax2.errorbar(self.ep_relAst_obs[i], dat_OC, yerr=self.PA_obs_err[i], color='coral', fmt='o', ecolor='black', capsize=3)
+                ax2.scatter(self.ep_relAst_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=1)
 
             # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.epochrA_obs[0], self.epochrA_obs[-1], 5)
+            epoch_ticks = np.linspace(self.ep_relAst_obs[0], self.ep_relAst_obs[-1], 5)
             epoch_label = np.zeros(len(epoch_ticks))
             for i in range(len(epoch_ticks)):
                 epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
 
-            self.range_eprA_obs = max(self.epochrA_obs) - min(self.epochrA_obs)
+            self.range_eprA_obs = max(self.ep_relAst_obs) - min(self.ep_relAst_obs)
             range_PA_obs = max(self.PA_obs)  - min(self.PA_obs)
-            ax1.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax1.set_xlim(min(self.ep_relAst_obs) - self.range_eprA_obs/8., max(self.ep_relAst_obs) + self.range_eprA_obs/8.)
             ax1.set_ylim(min(self.PA_obs) - range_PA_obs/5., max(self.PA_obs) + range_PA_obs/5.)
             ax1.xaxis.set_major_formatter(NullFormatter())
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -750,7 +732,7 @@ class OrbitPlots:
             ax1.set_ylabel(r'Position Angle ($^{\circ}$)')
 
             range_datOC = max(datOC_list) - min(datOC_list)
-            ax2.set_xlim(min(self.epochrA_obs) - self.range_eprA_obs/8., max(self.epochrA_obs) + self.range_eprA_obs/8.)
+            ax2.set_xlim(min(self.ep_relAst_obs) - self.range_eprA_obs/8., max(self.ep_relAst_obs) + self.range_eprA_obs/8.)
             ax2.set_ylim(min(datOC_list) - range_datOC, max(datOC_list) + range_datOC)
             ax2.set_xticks(epoch_ticks)
             ax2.set_xticklabels([str(int(i)) for i in epoch_label])
@@ -764,7 +746,7 @@ class OrbitPlots:
             fig = plt.figure(figsize=(5, 5))
             ax = fig.add_axes((0.15, 0.1, 0.8, 0.8))
 
-            # plot the 50 randomly selected curves
+            # plot the num_lines randomly selected curves
             for i in range(self.num_lines):
                 ax.plot(self.epoch, self.PA_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
 
@@ -786,34 +768,11 @@ class OrbitPlots:
             ax.set_title(self.title)
             ax.set_ylabel(r'Position Angle ($^{\circ}$)')
 
-        print("Plotting Position Angle, your plot is generated at " + self.outputdir)
+        print("Plotting position angle and save the plot in " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title))
-   
-    def plot_corner(self, title_fmt=".4f", **kwargs):
-        labels=[r'$\mathrm{M_{pri}}$', r'$\mathrm{M_{sec}}$', 'Sep', 'Ecc', 'Inc']
-        rcParams["lines.linewidth"] = 1.0
-        rcParams["axes.labelpad"] = 80.0
-        rcParams["xtick.labelsize"] = 10.0
-        rcParams["ytick.labelsize"] = 10.0
-        
-        burnin = self.burnin
-        tt = self.tt
-        ndim = tt[:,burnin:,0].flatten().shape[0]
-        Mpri = tt[:,burnin:,1].flatten().reshape(ndim,1)                      # in M_{\odot}
-        Msec = (tt[:,burnin:,2]*1989/1.898).flatten().reshape(ndim,1)         # in M_{jup}
-        Sep = tt[:,burnin:,3].flatten().reshape(ndim,1)                       # in AU
-        Ecc = (tt[:,burnin:,4]**2 +tt[:,burnin:,5]**2).flatten().reshape(ndim,1)
-        #Omega=(np.arctan2(tt[:,burnin:,4],tt[:,burnin:,5])).flatten().reshape(ndim,1)
-        Inc = (tt[:,burnin:,6]*180/np.pi).flatten().reshape(ndim,1)
-        
-        chain =np.hstack([Mpri,Msec,Sep,Ecc,Inc])
-        
-        figure = corner.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], verbose=False, show_titles=True, title_kwargs={"fontsize": 14}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":14}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5), title_fmt=title_fmt,**kwargs)
 
-        print("Plotting corner plot, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title))
-        
-        
+    ############### plot the proper motion and O-C ###############
+
     def proper_motions(self):
 
         try:
@@ -910,7 +869,7 @@ class OrbitPlots:
             ax4.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax4.set_xlabel('Epoch (yr)')
             ax4.set_ylabel('O-C')
-            
+
         except:
             fig = plt.figure(figsize=(11, 5))
             ax1 = fig.add_axes((0.10, 0.1, 0.35, 0.77))
@@ -950,7 +909,7 @@ class OrbitPlots:
             ax2.set_title(self.title)
             ax2.set_xlabel('date (yr)')
             ax2.set_ylabel(r'$\Delta \mu_{\delta}$ (mas/yr)')
-        print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
+        print("Plotting proper motions and save the plot in " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'ProperMotions_' + self.title))
 
         def properMotion_mualp(self):
@@ -959,14 +918,42 @@ class OrbitPlots:
         def properMotion_mudec(self):
             pass
 
+    ############### plot corner plot ###############
+
+    def plot_corner(self, title_fmt=".4f", **kwargs):
+
+        labels=[r'$\mathrm{M_{pri}}$', r'$\mathrm{M_{sec}}$', 'Sep', 'Ecc', 'Inc']
+        rcParams["lines.linewidth"] = 1.0
+        rcParams["axes.labelpad"] = 80.0
+        rcParams["xtick.labelsize"] = 10.0
+        rcParams["ytick.labelsize"] = 10.0
+
+        burnin = self.burnin
+        tt = self.tt
+        ndim = tt[:,burnin:,0].flatten().shape[0]
+        Mpri = tt[:,burnin:,1].flatten().reshape(ndim,1)                      # in M_{\odot}
+        Msec = (tt[:,burnin:,2]*1989/1.898).flatten().reshape(ndim,1)         # in M_{jup}
+        Sep = tt[:,burnin:,3].flatten().reshape(ndim,1)                       # in AU
+        Ecc = (tt[:,burnin:,4]**2 +tt[:,burnin:,5]**2).flatten().reshape(ndim,1)
+        #Omega=(np.arctan2(tt[:,burnin:,4],tt[:,burnin:,5])).flatten().reshape(ndim,1)
+        Inc = (tt[:,burnin:,6]*180/np.pi).flatten().reshape(ndim,1)
+
+        chain =np.hstack([Mpri,Msec,Sep,Ecc,Inc])
+
+        figure = corner.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], verbose=False, show_titles=True, title_kwargs={"fontsize": 14}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":14}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5), title_fmt=title_fmt,**kwargs)
+
+        print("Plotting corner plot and save the plot in " + self.outputdir)
+        plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title))
+
+    ############### test ###############
 
     def test(self):
+
         print("Testing code and debugging, test your code here")
-        #plt.plot(self.epoch_JD, self.RV_ml, color='black')
+        #plt.plot(self.epoch_cal, self.RV_ml, color='black')
         #plt.show()
-        #epoch_obs_each_ins = np.zeros(len(self.epoch_obs_dic[0]))
-        #for i in range(len(self.epoch_obs_dic[0])):
-        #    epoch_obs_each_ins[i] = self.JD_to_calendar(self.epoch_obs_dic[0][i])
-        
+        #ep_RV_obs_each_ins = np.zeros(len(self.ep_RV_obs_dic[0]))
+        #for i in range(len(self.ep_RV_obs_dic[0])):
+        #    ep_RV_obs_each_ins[i] = self.JD_to_calendar(self.ep_RV_obs_dic[0][i])
+
         print("exit")
-        
