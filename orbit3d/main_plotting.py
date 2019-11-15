@@ -17,7 +17,6 @@ import time
 import emcee, corner
 import scipy.optimize as op
 from random import randrange
-from scipy.interpolate import interp1d
 from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
