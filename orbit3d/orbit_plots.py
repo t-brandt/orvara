@@ -397,26 +397,26 @@ class OrbitPlots:
         # plot the most likely one
         ax.plot(self.dras_ml, self.ddecs_ml, color='black')
 
-        # plot the relAst data points
-        #f_drasml = interp1d(self.epoch, self.dras_ml)
-        #f_ddecsml = interp1d(self.epoch, self.ddecs_ml)
+        #plot the relAst data points
+        f_drasml = interp1d(self.epoch, self.dras_ml)
+        f_ddecsml = interp1d(self.epoch, self.ddecs_ml)
 
         try:
             assert self.have_reldat == True
         
-#            for i in range(len(self.ep_relAst_obs)):
-#                ra_exp, dec_exp = f_drasml(self.ep_relAst_obs[i]), f_ddecsml(self.ep_relAst_obs[i])
-#                relsep_exp = self.f_relsepml(self.ep_relAst_obs[i])
-#                ra_obs = ra_exp * self.relsep_obs[i] / relsep_exp    # similar triangles
-#                dec_obs = dec_exp * self.relsep_obs[i] / relsep_exp
-#                ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
-#                ra_obs = self.relsep_obs[i]
-#                ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
+            for i in range(len(self.ep_relAst_obs)):
+                ra_exp, dec_exp = f_drasml(self.ep_relAst_obs[i]), f_ddecsml(self.ep_relAst_obs[i])
+                relsep_exp = self.f_relsepml(self.ep_relAst_obs[i])
+                ra_obs = ra_exp * self.relsep_obs[i] / relsep_exp    # similar triangles
+                dec_obs = dec_exp * self.relsep_obs[i] / relsep_exp
+                ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
+                ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
                 
-            ra_obs = self.relsep_obs * self.PA_obs * np.sin(PA_obs*np.pi /180.)
-            dec_obs = self.relsep_obs * self.PA_obs * np.cos(PA_obs*np.pi /180.)
-            ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
-            ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
+            # Tim's suggestion
+            #ra_obs = self.relsep_obs * self.PA_obs * np.sin(PA_obs*np.pi /180.)
+            #dec_obs = self.relsep_obs * self.PA_obs * np.cos(PA_obs*np.pi /180.)
+            #ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
+            #ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
 
         except:
             pass
