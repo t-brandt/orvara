@@ -31,10 +31,9 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
         msec = 0.1
 
         par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
-        # init = [jit, mpri]
-        # for i in range(nplanets):
-        #     init += [msec, sau, esino, ecoso, inc, asc, lam]
-        init = [0.5, 0.1, 0.6, 22, -0.54, 0.49, 1.095, 2.028, 1, 0.005, 0.11, -0.223, -0.001, 1, 1, 1]
+        init = [jit, mpri]
+        for i in range(nplanets):
+             init += [msec, sau, esino, ecoso, inc, asc, lam]
         par0 *= np.asarray(init)
         par0 *= 2 ** (np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
 
@@ -65,7 +64,6 @@ def initialize_data(config):
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
-    #
 
     data = orbit.Data(HipID, RVFile, AstrometryFile)
     if use_epoch_astrometry:
@@ -96,7 +94,7 @@ def initialize_data(config):
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 
 
-def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
+def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
            data=None, nplanets=1, H1f=None, H2f=None, Gf=None, priors = None):
     """
     Log likelyhood function for the joint parameters
@@ -129,7 +127,7 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
         orbit.calc_PMs_no_epoch_astrometry(data, model)
 
     if returninfo:
-        return orbit.calcL(data, params, model, chisq_resids=True)
+        return orbit.calcL(data, params, model, chisq_resids=True, RVoffsets=RVoffsets)
 
     if priors is not None:
         return orbit.lnprior(params) + orbit.calcL(data, params, model) - 1/2.*(params.mpri - priors['mpri'])**2/priors['mpri_sig']**2
@@ -190,14 +188,17 @@ def run():
     print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0, :])))
     # save data
     shape = sample0.lnprobability[0].shape
-    parfit = np.zeros((shape[0], shape[1], 8))
+    parfit = np.zeros((shape[0], shape[1], 8 + data.nInst))
     loglkwargs['returninfo'] = True
+    loglkwargs['RVoffsets'] = True
     for i in range(shape[0]):
         for j in range(shape[1]):
-            res = lnprob(sample0.chain[0][i, j], **loglkwargs)
-            parfit[i, j] = [res.plx_best, res.pmra_best, res.pmdec_best,
-                            res.chisq_sep, res.chisq_PA,
-                            res.chisq_H, res.chisq_HG, res.chisq_G]
+            res, RVoffsets = lnprob(sample0.chain[0][i, j], **loglkwargs)
+            parfit[i, j, :8] = [res.plx_best, res.pmra_best, res.pmdec_best,
+                                res.chisq_sep, res.chisq_PA,
+                                res.chisq_H, res.chisq_HG, res.chisq_G]
+            if data.nInst > 0:
+                parfit[i, j, 8:] = RVoffsets
 
     out = fits.HDUList(fits.PrimaryHDU(sample0.chain[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
