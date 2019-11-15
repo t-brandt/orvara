@@ -943,7 +943,7 @@ def calc_RV(Data data, Params par, Model model):
 ######################################################################
 
 def calcL(Data data, Params par, Model model, bint freemodel=True,
-          bint chisq_resids=False):
+          bint chisq_resids=False, bint RVoffsets=False):
 
     cdef int i, j
     cdef double lnL, ivar, dRV
@@ -965,11 +965,12 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     cdef double *A = <double *> PyMem_Malloc(data.nInst * sizeof(double))
     cdef double *B = <double *> PyMem_Malloc(data.nInst * sizeof(double))
     cdef double *C = <double *> PyMem_Malloc(data.nInst * sizeof(double))
-    if not A or not B or not C:
+    cdef double *RVzero = <double *> PyMem_Malloc(data.nInst * sizeof(double))
+    if not A or not B or not C or not RVzero:
         raise MemoryError()
 
     for i in range(data.nInst):
-        A[i] = B[i] = C[i] = 0
+        A[i] = B[i] = C[i] = RVzero[i] = 0
 
     for i in range(data.nRV):
         ivar = 1./(data.RV_err[i]**2 + jitsq)
@@ -994,6 +995,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         if A[i] == 0:
             continue
         lnL -= -B[i]**2/(4*A[i]) + C[i] + log(A[i])
+        RVzero[i] = B[i]/(2*A[i])
 
     lnL += log(rv_ivar)
 
@@ -1151,10 +1153,19 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         chisq_struct.chisq_H = chisq_H
         chisq_struct.chisq_HG = chisq_HG
         chisq_struct.chisq_G = chisq_G
-
+        RVzero_np = np.zeros(data.nInst)
+        for i in range(data.nInst):
+            RVzero_np[i] = RVzero[i]
+        
+        PyMem_Free(RVzero)
         model.free()
-        return chisq_struct
 
+        if RVoffsets:
+            return chisq_struct, RVzero_np
+        else:
+            return chisq_struct
+
+    PyMem_Free(RVzero)
     model.free()
 
     return lnL/2
