@@ -52,14 +52,23 @@ def initialize_plot_options(config):
     # colorbar settings
     plot_colorbar = config.getboolean('plotting', 'colorbar', fallback=False)
     color_map = config.get('plotting', 'colormap', fallback= 'viridis')
-     
+    cm_ref = config.get('plotting', 'reference')
+
     # custom range of epochs
     start_ep = config.getfloat('plotting', 'start_epoch', fallback=0)
     end_ep = config.getfloat('plotting', 'end_epoch', fallback=0)
      
     # how many orbits
     num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
-    cm_ref = config.get('plotting', 'reference')
+    
+    # how many steps
+    num_steps = config.getint('plotting', 'num_steps', fallback = 1000)
+    
+    # plot axes settings
+    xmin = config.getfloat('plotting', 'xlim_lower', fallback=-3)
+    xmax = config.getfloat('plotting', 'xlim_upper', fallback=3)
+    ymin = config.getfloat('plotting', 'ylim_lower', fallback=-3)
+    ymax = config.getfloat('plotting', 'ylim_upper', fallback=3)
     
     args = parse_args_plotting()
 
@@ -72,7 +81,7 @@ def initialize_plot_options(config):
     beststep = np.where(lnp==lnp.max())
    
     # initialize the OP object
-    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, burnin, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir)
+    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, burnin, [xmin, xmax], [ymin, ymax], num_steps, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir)
     return OP
 
 

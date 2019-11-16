@@ -14,6 +14,9 @@ import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 import pandas as pd
+from geomdl import BSpline
+from geomdl import utilities
+from geomdl import operations
 
 """
     Example:
@@ -30,7 +33,7 @@ import pandas as pd
 class OrbitPlots:
 
     ############################## Initialize Class ############################################
-    def __init__(self, title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, burnin, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir):
+    def __init__(self, title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, burnin, user_xlim, user_ylim, steps, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir):
 
         self.title = title
         self.Hip = Hip
@@ -45,6 +48,9 @@ class OrbitPlots:
         self.relAstfile = AstrometryFile
         self.HGCAFile = HGCAFile
         self.outputdir = outputdir
+        self.user_xlim = user_xlim
+        self.user_ylim = user_ylim
+        self.steps = steps
         
         self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_\odot)}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
@@ -136,7 +142,7 @@ class OrbitPlots:
         start_epoch = self.calendar_to_JD(self.start_epoch)
         end_epoch = self.calendar_to_JD(self.end_epoch)
         range_epoch = end_epoch - start_epoch
-        epoch = np.linspace(start_epoch - 0.1*range_epoch, end_epoch + 0.5*range_epoch, 1500)
+        epoch = np.linspace(start_epoch - 0.1*range_epoch, end_epoch + 0.5*range_epoch, self.steps)
         epoch_calendar = np.zeros(len(epoch))
         for i in range(len(epoch_calendar)):
             epoch_calendar[i] = self.JD_to_calendar(epoch[i])
@@ -387,7 +393,7 @@ class OrbitPlots:
     def astrometry(self):
         #rcParams["axes.labelpad"] = 10.0
         
-        fig = plt.figure(figsize=(6, 6))
+        fig = plt.figure(figsize=(5, 5))
         ax = fig.add_subplot(111)
 
         # plot the num_lines randomly selected curves
@@ -412,11 +418,12 @@ class OrbitPlots:
                 ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
                 ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
                 
-            # Tim's suggestion
-            #ra_obs = self.relsep_obs * self.PA_obs * np.sin(PA_obs*np.pi /180.)
-            #dec_obs = self.relsep_obs * self.PA_obs * np.cos(PA_obs*np.pi /180.)
-            #ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
-            #ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
+#         try:
+#             assert self.have_reldat == True
+#             ra_obs = self.relsep_obs * self.PA_obs * np.sin(PA_obs*np.pi /180.)
+#             dec_obs = self.relsep_obs * self.PA_obs * np.cos(PA_obs*np.pi /180.)
+#             ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
+#             ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
 
         except:
             pass
@@ -424,70 +431,101 @@ class OrbitPlots:
         # plot the 5 predicted positions of the companion star from 1990 to 2030
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
+        
         epoch_int = []
         for year in self.epoch_calendar:
             epoch_int.append(int(year))
 
-        text_x_max = 0
-        text_x_min = 0
-        text_y_max = 0
-        text_y_min = 0
-        years = [1990, 2000, 2010, 2020, 2030]
+        years = [1990,2000,2010,2020,2030]  # NEED TO PUT THIS IN CONFIG.INI
         for year in years:
             idx = epoch_int.index(year)
             x = self.dras_ml[idx]
             y = self.ddecs_ml[idx]
             r = np.sqrt(x**2 + y**2)
+            
+            # new method to rotate the labels according to angel of normal to the curve tangent
+            # need to install the geomdl package to calculate the tangent line
+            def array_list(array_num):
+                num_list = array_num.tolist() # list
+                return num_list
+            data_list = array_list(np.hstack(([np.vstack(self.dras_ml),np.vstack(self.ddecs_ml)])))
+
+            # Create a BSpline curve instance
+            curve = BSpline.Curve()
+            curve.degree = 3
+            curve.ctrlpts = data_list
+            curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
+            curve.delta = 0.01
+            curve.evaluate()
+
+            # Evaluate curve tangent at idx/step
+            curvetan = []
+            ct = operations.tangent(curve, idx/self.steps, normalize=True)  # 1500 = self.steps
+            curvetan.append(ct)
+
+            ctrlpts = np.array(curve.ctrlpts)
+            ctarr = np.array(curvetan) # Convert tangent list into a NumPy array
             ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)
 
-            # avoid overlapping between text and plot
-            if x >= 0 and y >= 0:
-                text_x = x*(r + 0.12*(x1 - x0))/r
-                text_y = y*(r + 0.03*(y1 - y0))/r
-                ax.text(text_x, text_y, str(year), fontsize=10)
-            elif x >= 0 and y <= 0:
-                text_x = x*(r + 0.12*(x1 - x0))/r
-                text_y = y*(r + 0.05*(y1 - y0))/r
-                ax.text(text_x, text_y, str(year), fontsize=10)
-            elif x <= 0 and y >= 0:
-                text_x = x*(r + 0.03*(x1 - x0))/r
-                text_y = y*(r + 0.03*(y1 - y0))/r
-                ax.text(text_x, text_y, str(year), fontsize=10)
-            elif x <= 0 and y <= 0:
-                text_x = x*(r + 0.03*(x1 - x0))/r
-                text_y = y*(r + 0.05*(y1 - y0))/r
-                ax.text(text_x, text_y, str(year), fontsize=10)
+            x=[ctarr[:, 0, 0] ,ctarr[:, 0, 0]+ctarr[:, 1, 0] ]
+            y=[ctarr[:, 0, 1], ctarr[:, 0, 1]+ctarr[:, 1, 1] ]
 
-            if text_x > text_x_max:
-                text_x_max = text_x
-            if text_x < text_x_min:
-                text_x_min = text_x
-            if text_y > text_y_max:
-                text_y_max = text_y
-            if text_y < text_y_min:
-                text_y_min = text_y
+            def calc_linear(x,y):
+                x1, x2 = x[0], x[1]
+                y1, y2 = y[0], y[1]
+                m = (y1- y2)/(x1 - x2)
+                b = y1 - m*x1
+                return m,b
 
-        # avoid the text exceeding the box
-        if abs(text_x_min - x0) < 0.05*(x1 - x0):
-            x0 -= 0.10*(x1 - x0)
-        if abs(text_x_max - x1) < 0.05*(x1 - x0):
-            x1 += 0.10*(x1 - x0)
-        if abs(text_y_min - y0) < 0.05*(y1 - y0):
-            y0 -= 0.05*(y1 - y0)
-        if abs(text_y_max - y1) < 0.05*(y1 - y0):
-            y1 += 0.05*(y1 - y0)
+            m, b = calc_linear(x,y)
+            
+            #changed
+            x0, x1 = ax.get_xlim()
+            y0, y1 = ax.get_ylim()
+            xlim = [x0,x1]
+            ylim = [y0,y1]
+            ax.set_xlim(xlim)
+            ax.set_ylim(ylim)
+            
+            dd = self.ddecs_ml
+            dra = self.dras_ml
+
+            y_intercept = m*xlim[0]+b
+            x_intercept = (ylim[0]-b)/m
+            angle = np.arctan(np.abs(y_intercept - ylim[0])/np.abs(x_intercept - xlim[0]))*180./np.pi
+            angle -= 90
+
+            # calculate the line of semi-major axis
+            max_y = dd[(np.where(dra == max(dra)))[0][0]]
+            min_y = dd[(np.where(dra == min(dra)))[0][0]]
+            max_x = dra[(np.where(dd == max(dd)))[0][0]]
+            min_x = dra[(np.where(dd == min(dd)))[0][0]]
+
+            m_semimajor, b_semimajor = calc_linear([min_x,max_x],[min(dd),max(dd)])
+            m_semiminor, b_semiminor = calc_linear([min(dra),max(dra)],[min_y,max_y])
+            if dra[idx] < (dd[idx]-b_semimajor)/m_semimajor and dd[idx] > m_semiminor*dra[idx] + b_semiminor:
+                ax.annotate('  ' + str(year), xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'bottom', horizontalalignment = 'left',rotation = - angle[0])
+            if dra[idx] < (dd[idx]-b_semimajor)/m_semimajor and dd[idx] < m_semiminor*dra[idx] + b_semiminor:
+                ax.annotate('  ' + str(year), xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'top', horizontalalignment = 'left',rotation =  angle[0])
+            elif dra[idx] > (dd[idx]-b_semimajor)/m_semimajor and dd[idx] < m_semiminor*dra[idx] + b_semiminor:
+                ax.annotate(str(year)+'  ', xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'top', horizontalalignment = 'right',rotation = - angle[0])
+            elif dra[idx] > (dd[idx]-b_semimajor)/m_semimajor and dd[idx] > m_semiminor*dra[idx] + b_semiminor:
+                ax.annotate(str(year)+'  ', xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'bottom', horizontalalignment = 'right',rotation =  angle[0])
+
 
         # plot line of nodes, periastron and the direction of motion of companion star, and label the host star
         ax.plot([self.node0[0], self.node1[0]], [self.node0[1], self.node1[1]], 'k--')
         ax.plot([0, self.pras[0]], [0, self.pras[1]], 'k:')
-        #arrow = mpatches.FancyArrowPatch((self.dras_ml[self.idx_pras][0], self.ddecs_ml[self.idx_pras][0]), (self.dras_ml[self.idx_pras+1][0], self.ddecs_ml[self.idx_pras+1][0]), arrowstyle='->', mutation_scale=25, zorder=100)
-        #ax.add_patch(arrow)
+        # changed, self.idx_pras+1 maybe out of range, changed to -1
+        arrow = mpatches.FancyArrowPatch((self.dras_ml[self.idx_pras-1][0], self.ddecs_ml[self.idx_pras-1][0]),(self.dras_ml[self.idx_pras][0], self.ddecs_ml[self.idx_pras][0]),  arrowstyle='->', mutation_scale=25, zorder=100)
+        ax.add_patch(arrow)
         ax.plot(0, 0, marker='*',  color='black')
-
-        ax.set_xlim(x0, x1)
-        ax.set_ylim(y0, y1)
-        ax.set_aspect(abs((x1-x0)/(y1-y0)))
-        fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref] ,fraction=0.046, pad=0.04)
+        
+        ax.set_xlim(self.user_xlim)
+        ax.set_ylim(self.user_ylim)
+        ax.set_aspect(abs((self.user_xlim[1]-self.user_xlim[0])/(self.user_ylim[1]-self.user_ylim[0])))
+        
+        fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref],fraction=0.046, pad=0.04)
         ax.invert_xaxis()
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -495,8 +533,8 @@ class OrbitPlots:
         ax.set_xlabel(r'$\Delta \alpha$ [arcsec]')
         ax.set_ylabel(r'$\Delta \delta$ [arcsec]')
         ax.set_title(self.title + ' Astrometric Orbits')
-        plt.tight_layout()
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
+        plt.tight_layout()
         plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title))
 
 
