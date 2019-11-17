@@ -55,7 +55,7 @@ class OrbitPlots:
         self.colorbar_size = colorbar_size
         self.colorbar_pad = colorbar_pad
         
-        self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_\odot)}$', 'ecc': 'Eccentricity'}
+        self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_{Jup})}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
         
         
@@ -79,7 +79,7 @@ class OrbitPlots:
         
         ################################ set colorbar #####################
         # setup the normalization and the colormap
-        self.nValues = np.array(self.dic_keys)
+        self.nValues = np.array(self.dic_keys)*1989/1.898
         self.normalize = mcolors.Normalize(vmin=self.nValues.min(), vmax=self.nValues.max())
         self.colormap = getattr(cm, self.cm_name)
         self.sm = cm.ScalarMappable(norm=self.normalize, cmap=self.colormap)
@@ -185,7 +185,6 @@ class OrbitPlots:
         except:
             self.multi_instr = False
         return epoch_obs, RV_obs, RV_obs_err, nInst, epoch_obs_dic, RV_obs_dic, RV_obs_err_dic
-        
 
     def load_relAst_data(self):
         """
@@ -441,7 +440,7 @@ class OrbitPlots:
             y = self.ddecs_ml[idx]
             r = np.sqrt(x**2 + y**2)
             
-            # new method to rotate the labels according to angel of normal to the curve tangent
+            # new method to rotate the labels according to angle of normal to the curve tangent
             # need to install the geomdl package to calculate the tangent line
             def array_list(array_num):
                 num_list = array_num.tolist() # list
@@ -502,13 +501,13 @@ class OrbitPlots:
             m_semimajor, b_semimajor = calc_linear([min_x,max_x],[min(dd),max(dd)])
             m_semiminor, b_semiminor = calc_linear([min(dra),max(dra)],[min_y,max_y])
             if dra[idx] < (dd[idx]-b_semimajor)/m_semimajor and dd[idx] > m_semiminor*dra[idx] + b_semiminor:
-                ax.annotate('  ' + str(year), xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'bottom', horizontalalignment = 'left',rotation = - angle[0])
+                ax.annotate('  ' + str(year), xy=(ctarr[0][0][0], ctarr[0][0][1]), verticalalignment='bottom', horizontalalignment='left',rotation =-angle[0])
             if dra[idx] < (dd[idx]-b_semimajor)/m_semimajor and dd[idx] < m_semiminor*dra[idx] + b_semiminor:
-                ax.annotate('  ' + str(year), xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'top', horizontalalignment = 'left',rotation =  angle[0])
+                ax.annotate('  ' + str(year), xy=(ctarr[0][0][0], ctarr[0][0][1]), verticalalignment='top', horizontalalignment='left',rotation =angle[0])
             elif dra[idx] > (dd[idx]-b_semimajor)/m_semimajor and dd[idx] < m_semiminor*dra[idx] + b_semiminor:
-                ax.annotate(str(year)+'  ', xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'top', horizontalalignment = 'right',rotation = - angle[0])
+                ax.annotate(str(year)+'  ', xy=(ctarr[0][0][0], ctarr[0][0][1]), verticalalignment='top', horizontalalignment='right',rotation= -angle[0])
             elif dra[idx] > (dd[idx]-b_semimajor)/m_semimajor and dd[idx] > m_semiminor*dra[idx] + b_semiminor:
-                ax.annotate(str(year)+'  ', xy = (ctarr[0][0][0], ctarr[0][0][1]), verticalalignment = 'bottom', horizontalalignment = 'right',rotation =  angle[0])
+                ax.annotate(str(year)+'  ', xy=(ctarr[0][0][0], ctarr[0][0][1]), verticalalignment='bottom', horizontalalignment='right', rotation=angle[0])
 
 
         # plot line of nodes, periastron and the direction of motion of companion star, and label the host star
@@ -517,19 +516,22 @@ class OrbitPlots:
         # changed, self.idx_pras+1 maybe out of range, changed to -1
         arrow = mpatches.FancyArrowPatch((self.dras_ml[self.idx_pras-1][0], self.ddecs_ml[self.idx_pras-1][0]),(self.dras_ml[self.idx_pras][0], self.ddecs_ml[self.idx_pras][0]),  arrowstyle='->', mutation_scale=25, zorder=100)
         ax.add_patch(arrow)
-        ax.plot(0, 0, marker='*',  color='black', markersize = 10)
+        ax.plot(0, 0, marker='*',  color='black', markersize=10)
         
         ax.set_xlim(self.user_xlim)
         ax.set_ylim(self.user_ylim)
         ax.set_aspect(abs((self.user_xlim[1]-self.user_xlim[0])/(self.user_ylim[1]-self.user_ylim[0])))
         if self.usecolorbar is True:
-            fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref],fraction=self.colorbar_size, pad=self.colorbar_pad)
+            cbar = fig.colorbar(self.sm, ax=ax, fraction=self.colorbar_size, pad=self.colorbar_pad)
+            cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
+            cbar.ax.get_yaxis().labelpad=20
+                        
         ax.invert_xaxis()
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-        ax.set_xlabel(r'$\Delta \alpha$ [arcsec]')
-        ax.set_ylabel(r'$\Delta \delta$ [arcsec]')
+        ax.set_xlabel(r'$\Delta \alpha$ [arcsec]', fontsize=14)
+        ax.set_ylabel(r'$\Delta \delta$ [arcsec]', fontsize=14)
         ax.set_title(self.title + ' Astrometric Orbits')
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
         plt.tight_layout()
