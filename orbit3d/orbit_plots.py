@@ -168,7 +168,7 @@ class OrbitPlots:
         try:
             RVinst = (rvdat[:, 3]).astype(np.int32)
             # Check to see that the column we loaded was an integer
-            assert np.all(RVinst == rvdat[:, 3])
+            # assert np.all(RVinst == rvdat[:, 3])
             nInst = int(np.amax(rvdat[:, 3]) + 1)
 
             self.multi_instr = True
@@ -397,7 +397,7 @@ class OrbitPlots:
 
         # plot the num_lines randomly selected curves
         for i in range(self.num_lines):
-            ax.plot(self.dras_dic_vals[i], self.ddecs_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+            ax.plot(self.dras_dic_vals[i], self.ddecs_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.4,linewidth = 0.8)
 
         # plot the most likely one
         ax.plot(self.dras_ml, self.ddecs_ml, color='black')
@@ -530,8 +530,8 @@ class OrbitPlots:
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-        ax.set_xlabel(r'$\Delta \alpha$ [arcsec]', fontsize=14)
-        ax.set_ylabel(r'$\Delta \delta$ [arcsec]', fontsize=14)
+        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (arcsec)', fontsize=14)
+        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
         ax.set_title(self.title + ' Astrometric Orbits')
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
         plt.tight_layout()
