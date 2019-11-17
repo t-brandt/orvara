@@ -33,7 +33,7 @@ from geomdl import operations
 class OrbitPlots:
 
     ############################## Initialize Class ############################################
-    def __init__(self, title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, burnin, user_xlim, user_ylim, steps, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir):
+    def __init__(self, title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, usecolorbar, colorbar_size, colorbar_pad, burnin, user_xlim, user_ylim, steps, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir):
 
         self.title = title
         self.Hip = Hip
@@ -51,12 +51,15 @@ class OrbitPlots:
         self.user_xlim = user_xlim
         self.user_ylim = user_ylim
         self.steps = steps
+        self.usecolorbar = usecolorbar
+        self.colorbar_size = colorbar_size
+        self.colorbar_pad = colorbar_pad
         
         self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_\odot)}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
         
         
-        ################ load in data #####################
+        ############################### load in data #####################
         # define epochs
         self.epoch, self.epoch_calendar = self.define_epochs()
         # load mcmc data
@@ -68,26 +71,23 @@ class OrbitPlots:
         # load HGCA data:
         self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err = self.load_HGCA_data()
         
-        ############## calculate orbits ###################
-        # might be better to calculate the best fit orbit by passing an argument in the random_orbits(chain[beststep])
-        
+        ############################## calculate orbits ###################
         # calcualte the best fit orbit
         self.data, self.dras_ml, self.ddecs_ml, self.RV_ml, self.mu_RA_ml, self.mu_Dec_ml, self.relsep_ml, self.mualp_ml, self.mudec_ml, self.f_RVml, self.f_relsepml, self.f_mualpml, self.f_mudecml, self.PA_ml, self.TA_ml, self.node0, self.node1, self.idx_pras, self.pras = self.bestfit_orbit()  # plx in units of arcsecs
         # calculate more random orbits drawn from the mcmc chian
         self.RV_dic, self.dras_dic, self.ddecs_dic, self.relsep_dic, self.PA_dic, self.mualp_dic, self.mudec_dic, self.dic_keys, self.RV_dic_vals, self.dras_dic_vals, self.ddecs_dic_vals, self.relsep_dic_vals, self.PA_dic_vals, self.mualp_dic_vals, self.mudec_dic_vals = self.random_orbits()
         
-        ################ set colorbar #####################
+        ################################ set colorbar #####################
         # setup the normalization and the colormap
         self.nValues = np.array(self.dic_keys)
         self.normalize = mcolors.Normalize(vmin=self.nValues.min(), vmax=self.nValues.max())
         self.colormap = getattr(cm, self.cm_name)
-        # setup the colorbar
         self.sm = cm.ScalarMappable(norm=self.normalize, cmap=self.colormap)
         self.sm.set_array(self.nValues)
         
         print("Generating plots for target " + self.title)
 
-    ################################## Define Functions ########################################
+    ################################ Define Functions ############################################
     def JD_to_calendar(self, JD):
         """
             Function to convert Julian Date to Calendar Date
@@ -409,7 +409,6 @@ class OrbitPlots:
 
         try:
             assert self.have_reldat == True
-        
             for i in range(len(self.ep_relAst_obs)):
                 ra_exp, dec_exp = f_drasml(self.ep_relAst_obs[i]), f_ddecsml(self.ep_relAst_obs[i])
                 relsep_exp = self.f_relsepml(self.ep_relAst_obs[i])
@@ -417,8 +416,7 @@ class OrbitPlots:
                 dec_obs = dec_exp * self.relsep_obs[i] / relsep_exp
                 ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
                 ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
-                
-#         try:
+#
 #             assert self.have_reldat == True
 #             ra_obs = self.relsep_obs * self.PA_obs * np.sin(PA_obs*np.pi /180.)
 #             dec_obs = self.relsep_obs * self.PA_obs * np.cos(PA_obs*np.pi /180.)
@@ -514,18 +512,18 @@ class OrbitPlots:
 
 
         # plot line of nodes, periastron and the direction of motion of companion star, and label the host star
-        ax.plot([self.node0[0], self.node1[0]], [self.node0[1], self.node1[1]], 'k--')
+        ax.plot([self.node0[0], self.node1[0]], [self.node0[1], self.node1[1]], 'k--',linewidth = 1)
         ax.plot([0, self.pras[0]], [0, self.pras[1]], 'k:')
         # changed, self.idx_pras+1 maybe out of range, changed to -1
         arrow = mpatches.FancyArrowPatch((self.dras_ml[self.idx_pras-1][0], self.ddecs_ml[self.idx_pras-1][0]),(self.dras_ml[self.idx_pras][0], self.ddecs_ml[self.idx_pras][0]),  arrowstyle='->', mutation_scale=25, zorder=100)
         ax.add_patch(arrow)
-        ax.plot(0, 0, marker='*',  color='black')
+        ax.plot(0, 0, marker='*',  color='black', markersize = 10)
         
         ax.set_xlim(self.user_xlim)
         ax.set_ylim(self.user_ylim)
         ax.set_aspect(abs((self.user_xlim[1]-self.user_xlim[0])/(self.user_ylim[1]-self.user_ylim[0])))
-        
-        fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref],fraction=0.046, pad=0.04)
+        if self.usecolorbar is True:
+            fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref],fraction=self.colorbar_size, pad=self.colorbar_pad)
         ax.invert_xaxis()
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -566,7 +564,8 @@ class OrbitPlots:
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
         ax.set_aspect((x1-x0)/(y1-y0))
-        fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref], fraction=0.046, pad=0.04)
+        if self.usecolorbar is True:
+            fig.colorbar(self.sm, ax=ax, label=self.cmlabel_dic[self.cmref],fraction=self.colorbar_size, pad=self.colorbar_pad)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)

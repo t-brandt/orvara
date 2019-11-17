@@ -50,9 +50,12 @@ def initialize_plot_options(config):
     HGCAFile = config.get('data_paths', 'HGCAFile', fallback=None)
     
     # colorbar settings
-    plot_colorbar = config.getboolean('plotting', 'colorbar', fallback=False)
+    use_colorbar = config.getboolean('plotting', 'colorbar', fallback=False)
     color_map = config.get('plotting', 'colormap', fallback= 'viridis')
     cm_ref = config.get('plotting', 'reference')
+    colorbar_size = config.getfloat('plotting', 'fraction', fallback=0.046)
+    colorbar_pad = config.getfloat('plotting', 'pad', fallback=0.04)
+    
 
     # custom range of epochs
     start_ep = config.getfloat('plotting', 'start_epoch', fallback=0)
@@ -81,7 +84,7 @@ def initialize_plot_options(config):
     beststep = np.where(lnp==lnp.max())
    
     # initialize the OP object
-    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, burnin, [xmin, xmax], [ymin, ymax], num_steps, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir)
+    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, use_colorbar, colorbar_size, colorbar_pad, burnin, [xmin, xmax], [ymin, ymax], num_steps, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir)
     return OP
 
 
