@@ -78,10 +78,6 @@ def initialize_plot_options(config):
     #read in the mcmc chains
     burnin = config.getint('plotting', 'burnin', fallback=0)
     MCMCFile = config.get('plotting', 'McmcDataDir', fallback=None)
-    source = MCMCFile.split('_')[0]
-    tt, lnp, extras = [fits.open(MCMCFile)[i].data for i in range(3)]
-    nsteps = 50*tt.shape[1]
-    beststep = np.where(lnp==lnp.max())
    
     # initialize the OP object
     OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, cm_ref, num_orbits, color_map, use_colorbar, colorbar_size, colorbar_pad, burnin, [xmin, xmax], [ymin, ymax], num_steps, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir)

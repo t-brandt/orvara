@@ -20,7 +20,7 @@ from geomdl import operations
 
 """
     Example:
-    OPs = orbit_plots.OrbitPlots(title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, burnin, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir):
+    OPs = orbit_plots.OrbitPlots(title, title, Hip, start_ep, end_ep, cmref, num_lines, cm_name, usecolorbar, colorbar_size, colorbar_pad, burnin, user_xlim, user_ylim, steps, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir)
     OPs.astrometry()
     OPs.RV()
     OPs.relRV()
@@ -57,7 +57,6 @@ class OrbitPlots:
         
         self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_{Jup})}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'y', 'm', 'c', 'b']
-        
         
         ############################### load in data #####################
         # define epochs
@@ -126,14 +125,14 @@ class OrbitPlots:
         JD = int(365.25*y) + int(30.6001*(m+1)) + B + 1720996.5  + D + UT/24.
         return JD
 
-    def chi_sqr(self, offset, f, epoch_obs, data_obs, data_obs_err): #changed
-        """
-            A chi-square function for fitting
-        """
-        chi_sqr = 0
-        for i in range(len(epoch_obs)):
-            chi_sqr += (f(epoch_obs[i]) - data_obs[i] - offset)**2 / data_obs_err[i]**2
-        return chi_sqr
+#    def chi_sqr(self, offset, f, epoch_obs, data_obs, data_obs_err): #changed
+#        """
+#            A chi-square function for fitting
+#        """
+#        chi_sqr = 0
+#        for i in range(len(epoch_obs)):
+#            chi_sqr += (f(epoch_obs[i]) - data_obs[i] - offset)**2 / data_obs_err[i]**2
+#        return chi_sqr
 
     def define_epochs(self):
         """
@@ -168,9 +167,9 @@ class OrbitPlots:
         try:
             RVinst = (rvdat[:, 3]).astype(np.int32)
             # Check to see that the column we loaded was an integer
-            # assert np.all(RVinst == rvdat[:, 3])
+            assert np.all(RVinst == rvdat[:, 3])
             nInst = int(np.amax(rvdat[:, 3]) + 1)
-
+            
             self.multi_instr = True
             idx_dic = {}
             epoch_obs_dic = {}
@@ -226,28 +225,21 @@ class OrbitPlots:
             self.have_pmdat = False
         return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err
     
-    def calc_RV_offset(self, f_RVml):
+    def calc_RV_offset(self, walker_idx, step_idx):
         """
             Function to calculate the offset of the observed RV data
         """
         try:
-            # calculate the differences of offsets (del_offset), and shift the data according to
-            # del_offset, which normalizes the offset for different instruments.
+            # calculate the offsets of the RV curves
             assert self.multi_instr
             offset_dic = {}
-            del_offset_dic = {}
-            for i in range(self.nInst):
-                result = op.minimize(self.chi_sqr, 70, args=(f_RVml, self.epoch_obs_dic[i], self.RV_obs_dic[i], self.RV_obs_err_dic[i]))
-                offset_dic[i] = result['x']
-            offset = min(offset_dic.values())[0]
-            for i in range(self.nInst):
-                del_offset_dic[i] = offset_dic[i] - offset
-                self.RV_obs_dic[i] += del_offset_dic[i]
+            for i in np.arange(8, 8 + self.nInst, 1):
+                offset = self.extras[walker_idx, step_idx, i]
+                offset_dic[i-8] = offset
         except:
-            result = op.minimize(self.chi_sqr, 70, args=(f_RVml, self.epoch_obs, self.RV_obs, self.RV_obs_err))   # 70 is initial guess
-            offset = result['x']
-        return offset
-    
+            offset = self.extras[walker_idx, step_idx, 8]
+        return offset_dic
+
     def bestfit_orbit(self):
         """
             Function to calculate the most likely orbit
@@ -288,8 +280,7 @@ class OrbitPlots:
         f_mudecml = interp1d(self.epoch, mudec_ml, fill_value="extrapolate")
         
         # redefine RV_ml
-        offset = self.calc_RV_offset(f_RVml)
-        RV_ml -= offset
+        self.offset_ml = self.calc_RV_offset(self.beststep[0], self.beststep[1])
         
         # find the positions of nodes and periastron
         TA_ml = model.return_TAs(par)
@@ -326,7 +317,7 @@ class OrbitPlots:
             walker_idx = randrange(self.chain.shape[0])
             step_idx = randrange(self.burnin, self.chain.shape[1])
             par = orbit.Params(self.chain[walker_idx, step_idx])
-            plx = self.extras[walker_idx, step_idx, 0] # convertion factor?
+            plx = self.extras[walker_idx, step_idx, 0]
 
             # calculate and assign variables
             data = self.data
@@ -347,11 +338,8 @@ class OrbitPlots:
             mualp, mudec = 1e3*plx*365.25*mualp, 1e3*plx*365.25*mudec   # convert from arcsec/day to mas/yr
             
             # shift the RV curve wrt data points
-            midep_RV_obs = (self.epoch_obs[0] + self.epoch_obs[-1])/2
-            RV_ref_val = self.f_RVml(midep_RV_obs)
-            f_RV = interp1d(self.epoch, RV, fill_value="extrapolate")
-            offset = 0. #self.calc_RV_offset(f_RV)
-            RV -= offset + (f_RV(midep_RV_obs) - RV_ref_val)
+            offset = np.sum(self.calc_RV_offset(walker_idx, step_idx)[i] for i in range(self.nInst))/self.nInst
+            RV += np.sum(self.offset_ml[i] for i in range(self.nInst))/self.nInst - offset
             # shift curves to the data points
             mualp += self.extras[walker_idx, step_idx, 1]*1000
             mudec += self.extras[walker_idx, step_idx, 2]*1000
@@ -388,7 +376,8 @@ class OrbitPlots:
     ################################## Plotting ################################################
 
     ############### plot astrometric orbit ###############
-
+    ## Finalized
+    
     def astrometry(self):
         #rcParams["axes.labelpad"] = 10.0
         
@@ -399,7 +388,7 @@ class OrbitPlots:
         for i in range(self.num_lines):
             ax.plot(self.dras_dic_vals[i], self.ddecs_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.4,linewidth = 0.8)
 
-        # plot the most likely one
+        # plot the most likely orbit
         ax.plot(self.dras_ml, self.ddecs_ml, color='black')
 
         #plot the relAst data points
@@ -413,9 +402,10 @@ class OrbitPlots:
                 relsep_exp = self.f_relsepml(self.ep_relAst_obs[i])
                 ra_obs = ra_exp * self.relsep_obs[i] / relsep_exp    # similar triangles
                 dec_obs = dec_exp * self.relsep_obs[i] / relsep_exp
-                ax.scatter(ra_obs, dec_obs, s=45, facecolors='coral', edgecolors='none', zorder=99)
+                ax.scatter(ra_obs, dec_obs, s=45, facecolors='pink', edgecolors='none', zorder=99)
                 ax.scatter(ra_obs, dec_obs, s=45, facecolors='none', edgecolors='k', zorder=100)
-#
+                
+#             Tim's suggestion
 #             assert self.have_reldat == True
 #             ra_obs = self.relsep_obs * self.PA_obs * np.sin(PA_obs*np.pi /180.)
 #             dec_obs = self.relsep_obs * self.PA_obs * np.cos(PA_obs*np.pi /180.)
@@ -509,8 +499,7 @@ class OrbitPlots:
             elif dra[idx] > (dd[idx]-b_semimajor)/m_semimajor and dd[idx] > m_semiminor*dra[idx] + b_semiminor:
                 ax.annotate(str(year)+'  ', xy=(ctarr[0][0][0], ctarr[0][0][1]), verticalalignment='bottom', horizontalalignment='right', rotation=angle[0])
 
-
-        # plot line of nodes, periastron and the direction of motion of companion star, and label the host star
+        # plot line of nodes, periastron and the direction of motion of the companion
         ax.plot([self.node0[0], self.node1[0]], [self.node0[1], self.node1[1]], 'k--',linewidth = 1)
         ax.plot([0, self.pras[0]], [0, self.pras[1]], 'k:')
         # changed, self.idx_pras+1 maybe out of range, changed to -1
@@ -526,19 +515,25 @@ class OrbitPlots:
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
             cbar.ax.get_yaxis().labelpad=20
                         
+        # invert axis
         ax.invert_xaxis()
+        # set ticks
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+        # set labels
         ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (arcsec)', fontsize=14)
         ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
         ax.set_title(self.title + ' Astrometric Orbits')
+        # save
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
         plt.tight_layout()
         plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title))
-
+        
 
     ############### plot the RV orbits ###############
+    # need to use calculated offsets directly from cython
+    
     def RV(self):
 
         fig = plt.figure(figsize=(6, 6))
@@ -558,7 +553,8 @@ class OrbitPlots:
                 epoch_obs_Inst = np.zeros(len(self.epoch_obs_dic[i]))
                 for j in range(len(self.epoch_obs_dic[i])):
                     epoch_obs_Inst[j] = self.JD_to_calendar(self.epoch_obs_dic[i][j])
-                ax.plot(epoch_obs_Inst, self.RV_obs_dic[i], self.color_list[i]+'o', markersize=2)
+                    ax.plot(epoch_obs_Inst, self.RV_obs_dic[i] + self.offset_ml[i], self.color_list[i]+'o', markersize=2)   # each inst has diff offsets + self.offset_ml[i]
+
         except:
             ax.plot(self.JD_to_calendar(self.epoch_obs), self.RV_obs, 'ro', markersize=2)
 

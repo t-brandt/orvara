@@ -183,23 +183,26 @@ def run():
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
     sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
     sample0.run_mcmc(par0, nstep, **samplekwargs)
-
+    
     print('Total Time: %.2f' % (time.time() - start_time))
     print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0, :])))
     # save data
     shape = sample0.lnprobability[0].shape
     parfit = np.zeros((shape[0], shape[1], 8 + data.nInst))
+
     loglkwargs['returninfo'] = True
     loglkwargs['RVoffsets'] = True
+    
     for i in range(shape[0]):
         for j in range(shape[1]):
             res, RVoffsets = lnprob(sample0.chain[0][i, j], **loglkwargs)
             parfit[i, j, :8] = [res.plx_best, res.pmra_best, res.pmdec_best,
                                 res.chisq_sep, res.chisq_PA,
                                 res.chisq_H, res.chisq_HG, res.chisq_G]
+            
             if data.nInst > 0:
                 parfit[i, j, 8:] = RVoffsets
-
+    
     out = fits.HDUList(fits.PrimaryHDU(sample0.chain[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
