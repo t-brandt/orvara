@@ -21,15 +21,15 @@ _loglkwargs = {}
 
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
-        mpri = 1
+        mpri = 1.8
         jit = 0.5
-        sau = 10
-        esino = 0.5
-        ecoso = 0.5
-        inc = 1
-        asc = 1
-        lam = 1
-        msec = 0.1
+        sau = 12
+        esino = -0.08
+        ecoso = -0.48
+        inc = 1.5
+        asc = .5
+        lam = 2.6
+        msec = 0.01
 
         par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
         init = [jit, mpri]
@@ -103,7 +103,10 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
            data=None, nplanets=1, H1f=None, H2f=None, Gf=None, max_jitter=20):
     """
     Log likelyhood function for the joint parameters
-    :param theta:
+    :param theta: array-like.
+                  [j, mass_primary, mass_secondary, semi-major axis, sqrt(e)sin(w),
+                  sqrt(e)cos(w), inclination (rad), ascending node, lam]
+                  Note: j is such that sqrt(10^j) = RV jitter in meters per second.
     :param returninfo:
     :param use_epoch_astrometry:
     :param data:
@@ -115,10 +118,13 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
     :return:
     """
     model = orbit.Model(data)
-
+    # theta for beta pic c
+    # 1220 day period for beta pic c. If refep in Data is set to the periastron time of 2455117 JD
+    #theta = np.array([0, 1.84, 0.00852, 2.6948, np.sqrt(0.243) * np.sin(-95.2 * np.pi / 180),
+    #                  np.sqrt(0.243) * np.cos(-95.2 * np.pi / 180), 88.9 * np.pi / 180, 211.7 * np.pi / 180,
+    #                  -95.2 * np.pi / 180])
     for i in range(nplanets):
         params = orbit.Params(theta, i, nplanets)
-        
         if not np.isfinite(orbit.lnprior(params)):
             model.free()
             return -np.inf
@@ -126,6 +132,9 @@ def lnprob(theta, returninfo=False, use_epoch_astrometry=False,
         orbit.calc_EA_RPP(data, params, model)
         orbit.calc_RV(data, params, model)
         orbit.calc_offsets(data, params, model, i)
+        #pubmodel = orbit.PublicModel(model, data)
+        #import pdb
+        #pdb.set_trace()
     
     if use_epoch_astrometry:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)

@@ -253,7 +253,33 @@ cdef class Data:
         self.Cinv_H = np.linalg.inv(C_H.reshape(2, 2)).astype(float)
         self.Cinv_HG = np.linalg.inv(C_HG.reshape(2, 2)).astype(float)
         self.Cinv_G = np.linalg.inv(C_G.reshape(2, 2)).astype(float)
-        
+
+cdef class PublicModel:
+
+    cdef public double[:] RV
+    cdef public double[:] rel_RV
+    cdef public double[:] epochs
+    cdef public double[:] relsep
+    cdef public double[:] relastepochs
+
+    def __init__(self, Model model, Data data):
+        self.RV = np.ones(data.nRV, dtype=float)
+        self.rel_RV = np.ones(data.n_rel_RV, dtype=float)
+        self.epochs = np.ones(data.nRV, dtype=float)
+        self.relastepochs = np.ones(data.nAst, dtype=float)
+        self.relsep = np.ones(data.nAst, dtype=float)
+
+        for i in range(data.n_rel_RV):
+            self.rel_RV[i] = model.rel_RV[i]
+
+        for i in range(data.nRV):
+            self.RV[i] = model.RV[i]
+            self.epochs[i] = data.epochs[i]
+
+        for i in range(data.nAst):
+            self.relsep[i] = model.relsep[i]
+            self.relastepochs[i] = data.epochs[data.nRV + i]
+
 
 cdef class Model:
 
@@ -1149,7 +1175,7 @@ def lnprior(Params par, double max_jitter=20):
         return zeroprior
     if par.inc <= 0 or par.inc >= pi or par.asc < -pi or par.asc >= 3*pi:
         return zeroprior
-    if par.lam < -pi or par.lam >= 3*pi or par.jit < -1.*max_jitter or par.jit > max_jitter:
+    if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > max_jitter:
         return zeroprior
 
-    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))
+    return log(sin(par.inc)*1./(par.sau*par.mpri))

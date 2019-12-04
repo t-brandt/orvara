@@ -53,8 +53,9 @@ The value of x (row along the last axis) to access each parameter are as follows
 - 4 : Sqrt(eccentricity) * sin(w) where w is the argument of periastron.
 - 5 : Sqrt(eccentricity) * cos(w) where w is the argument of periastron.
 - 6 : inclination of the orbit of the planet in radians
-- 7 : ?? longitude of the ascending node
-- 8 : ?? lam
+- 7 : longitude of the ascending node in radians
+- 8 : Mean longitude at the reference time, commonly called \lambda in radians. By default,
+the reference epoch is 2455197.5000 JD.
 - 9 : mass of the third object (i.e. planet) if nplanets > 1.
 - 10: semi-major axis of the third planet in A.U.
 - and so forth, repeating parameters 2-8 (7 in total) but for each planet fit in order.
