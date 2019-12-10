@@ -23,13 +23,13 @@ _loglkwargs = {}
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
         mpri = 1.8
-        jit = 0.5
+        jit = .5
         sau = 12
         esino = -0.08
         ecoso = -0.48
-        inc = 1.5
-        asc = .5
-        lam = 2.6
+        inc = 88*np.pi/180
+        asc = 210*np.pi/180
+        lam = -40*np.pi/180
         msec = 0.01
 
         par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
