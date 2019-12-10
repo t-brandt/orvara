@@ -87,17 +87,6 @@ def initialize_data(config):
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
-        for fitter in [Hip1_fitter, Hip2_fitter, Gaia_fitter]:
-            print(fitter.fitter._chi2_matrix)
-            print(fitter.fitter.astrometric_solution_vector_components['ra'].T.copy(order='C'))
-            print(fitter.fitter.astrometric_solution_vector_components['dec'].T.copy(order='C'))
-            print(fitter.fitter.astrometric_solution_vector_components['ra'].shape[0])
-            print(fitter.fitter.astrometric_solution_vector_components['ra'].shape[1])
-            print(fitter.fitter.central_epoch_ra)
-            print(data.epRA_H)
-            print(fitter.fitter.central_epoch_dec)
-            print(fitter.fitter.epoch_times - fitter.fitter.central_epoch_ra)
-            #print(fitter.data.julian_day_epoch())
 
         data = orbit.Data(HipID, RVFile, AstrometryFile, use_epoch_astrometry,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
