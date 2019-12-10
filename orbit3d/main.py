@@ -12,6 +12,7 @@ import emcee
 from configparser import ConfigParser
 from astropy.io import fits
 from htof.main import Astrometry
+from astropy.time import Time
 
 from orbit3d import orbit
 from orbit3d.config import parse_args
@@ -70,18 +71,19 @@ def initialize_data(config):
 
     data = orbit.Data(HipID, RVFile, AstrometryFile, relRVfile=relRVFile)
     if use_epoch_astrometry:
+        to_jd = lambda x: Time(x, format='decimalyear').jd +.5
         Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HipID), GaiaDataDir,
-                                 central_epoch_ra=data.epRA_G,
-                                 central_epoch_dec=data.epDec_G,
-                                 central_epoch_fmt='frac_year')
+                                 central_epoch_ra=to_jd(data.epRA_G),
+                                 central_epoch_dec=to_jd(data.epDec_G),
+                                 format='jd', normed=False)
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
-                                 central_epoch_ra=data.epRA_H,
-                                 central_epoch_dec=data.epDec_H,
-                                 central_epoch_fmt='frac_year')
+                                 central_epoch_ra=to_jd(data.epRA_H),
+                                 central_epoch_dec=to_jd(data.epDec_H),
+                                 format='jd', normed=False)
         Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
-                                 central_epoch_ra=data.epRA_H,
-                                 central_epoch_dec=data.epDec_H,
-                                 central_epoch_fmt='frac_year')
+                                 central_epoch_ra=to_jd(data.epRA_H),
+                                 central_epoch_dec=to_jd(data.epDec_H),
+                                 format='jd', normed=False)
         # instantiate C versions of the astrometric fitter which are must faster than HTOF's Astrometry
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
