@@ -32,6 +32,7 @@ from geomdl import operations
 
 # Progress:
 # Finalized OPs.relRV(), OPs.relsep(), OPs.PA(), OPs.proper_motions()
+# deleted manually changing the axes ticks part
 
 # TO DO:
 # Finalize Astrometric, RV orbits and relative RV plots
@@ -293,7 +294,7 @@ class OrbitPlots:
         TA_ml = model.return_TAs(par)
         # When par.arg (omega) is negative, it means the periastron is below the plane
         # of the sky. We can set omega = -par.arg, which is the angle symmetric with
-        # respect to the plane of the sky. Although this agnle doesn't mean anything, the
+        # respect to the plane of the sky. Although this angle doesn't mean anything, the
         # same algorithm below can be applied to locate the position of nodes.
         omega = abs(par.arg)
         
@@ -589,7 +590,7 @@ class OrbitPlots:
         ax.set_ylabel('RV (m/s)')
         # add title somewhere
         #ax.set_title(self.title + ' RV Orbits')
-        ax.text(self.x_text,self.y_text, self.title, fontsize =15)
+        #ax.text(self.x_text,self.y_text, self.title, fontsize =15)
         for axis in ['top','bottom','left','right']:
             ax.spines[axis].set_linewidth(1.5)
         #ax.xaxis.set_tick_params(width=2)
@@ -895,6 +896,10 @@ class OrbitPlots:
                 cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
                 cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
                 fig.delaxes(cbar_ax)
+                
+            ax1.set_xlim(self.calendar_to_JD(self.start_epoch),self.calendar_to_JD(self.end_epoch))
+            ax2.set_xlim(self.calendar_to_JD(self.start_epoch),self.calendar_to_JD(self.end_epoch))
+
 
         except:
             fig = plt.figure(figsize=(5, 5.5))
@@ -957,95 +962,89 @@ class OrbitPlots:
             mudec_OC = self.mudec_dic_vals
 
             for i in range(self.num_lines):
-                ax1.plot(self.epoch, self.mualp_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
-                ax3.plot(self.epoch, self.mudec_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                ax1.plot(self.epoch_calendar, self.mualp_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                ax3.plot(self.epoch_calendar, self.mudec_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
                 for j in range(len(self.epoch)):
                     mualp_OC[i][j] -= self.f_mualpml(self.epoch[j])
                     mudec_OC[i][j] -= self.f_mudecml(self.epoch[j])
-                ax2.plot(self.epoch, mualp_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
-                ax4.plot(self.epoch, mudec_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                ax2.plot(self.epoch_calendar, mualp_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                ax4.plot(self.epoch_calendar, mudec_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
 
             # plot the highest likelihood curve
-            ax1.plot(self.epoch, self.mualp_ml, color='black')
-            ax2.plot(self.epoch, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
-            ax3.plot(self.epoch, self.mudec_ml, color='black')
-            ax4.plot(self.epoch, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
+            ax1.plot(self.epoch_calendar, self.mualp_ml, color='black')
+            ax2.plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
+            ax3.plot(self.epoch_calendar, self.mudec_ml, color='black')
+            ax4.plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
 
             # plot the observed data points
             mualpdatOC_list = []
             mudecdatOC_list = []
-            ax1.errorbar(self.ep_mualp_obs, self.mualp_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax1.scatter(self.ep_mualp_obs, self.mualp_obs, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
-            ax3.errorbar(self.ep_mudec_obs, self.mudec_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax3.scatter(self.ep_mudec_obs, self.mudec_obs, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            
+            ep_mualp_obs_calendar = []
+            ep_mudec_obs_calendar = []
+            for i in range(len(self.ep_mualp_obs)):
+                ep_mualp_obs_calendar.append(self.JD_to_calendar(self.ep_mualp_obs[i]))
+            for i in range(len(self.ep_mudec_obs)):
+                ep_mudec_obs_calendar.append(self.JD_to_calendar(self.ep_mudec_obs[i]))
+            
+            ax1.errorbar(ep_mualp_obs_calendar, self.mualp_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
+            ax1.scatter(ep_mualp_obs_calendar, self.mualp_obs, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            ax3.errorbar(ep_mudec_obs_calendar, self.mudec_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
+            ax3.scatter(ep_mudec_obs_calendar, self.mudec_obs, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            
+            # plot the O-C for observed data points
             for i in range(len(self.ep_mualp_obs)):
                 dat_OC = self.mualp_obs[i] - self.f_mualpml(self.ep_mualp_obs[i])
                 mualpdatOC_list.append(dat_OC)
-            ax2.errorbar(self.ep_mualp_obs, mualpdatOC_list, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax2.scatter(self.ep_mualp_obs, mualpdatOC_list, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            ax2.errorbar(ep_mualp_obs_calendar, mualpdatOC_list, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
+            ax2.scatter(ep_mualp_obs_calendar, mualpdatOC_list, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
             for i in range(len(self.ep_mudec_obs)):
                 dat_OC = self.mudec_obs[i] - self.f_mudecml(self.ep_mudec_obs[i])
                 mudecdatOC_list.append(dat_OC)
-            ax4.errorbar(self.ep_mudec_obs, mudecdatOC_list, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax4.scatter(self.ep_mudec_obs, mudecdatOC_list, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
-
-            # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.ep_mualp_obs[0], self.ep_mualp_obs[-1], 5)
-            epoch_label = np.zeros(len(epoch_ticks))
-            for i in range(len(epoch_ticks)):
-                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+            ax4.errorbar(ep_mudec_obs_calendar  , mudecdatOC_list, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
+            ax4.scatter(ep_mudec_obs_calendar, mudecdatOC_list, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
 
             # axes settings
             # ax1
-            self.range_eppm_obs = max(self.ep_mualp_obs) - min(self.ep_mualp_obs)
+            ax1.get_shared_x_axes().join(ax1, ax2)
+            range_eppm_obs = max(ep_mualp_obs_calendar) - min(ep_mualp_obs_calendar)
             range_mualp_obs = max(self.mualp_obs)  - min(self.mualp_obs)
-            ax1.set_xlim(min(self.ep_mualp_obs) - self.range_eppm_obs/8., max(self.ep_mualp_obs) + self.range_eppm_obs/8.)
+            ax1.set_xlim(min(ep_mualp_obs_calendar) - range_eppm_obs/8., max(ep_mualp_obs_calendar) + range_eppm_obs/8.)
             ax1.set_ylim(min(self.mualp_obs) - range_mualp_obs/5., max(self.mualp_obs) + range_mualp_obs/5.)
-            ax1.xaxis.set_major_formatter(NullFormatter())
-            ax1.xaxis.set_minor_locator(AutoMinorLocator())
-            ax1.yaxis.set_minor_locator(AutoMinorLocator())
-            ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax1.set_ylabel(r'$\Delta \mu_{\alpha}$ (mas/yr)', labelpad = 5)
             # ax3
+            ax3.get_shared_x_axes().join(ax3, ax4)
             range_mudec_obs = max(self.mudec_obs)  - min(self.mudec_obs)
-            ax3.set_ylabel(r'$\Delta \mu_{\alpha}$ mas/yr')
-            ax3.set_xlim(min(self.ep_mudec_obs) - self.range_eppm_obs/8., max(self.ep_mudec_obs) + self.range_eppm_obs/8.)
+            ax3.set_xlim(min(ep_mudec_obs_calendar) - range_eppm_obs/8., max(ep_mudec_obs_calendar) + range_eppm_obs/8.)
             ax3.set_ylim(min(self.mudec_obs) - range_mudec_obs/5., max(self.mudec_obs) + range_mudec_obs/5.)
-            ax3.xaxis.set_major_formatter(NullFormatter())
-            ax3.xaxis.set_minor_locator(AutoMinorLocator())
-            ax3.yaxis.set_minor_locator(AutoMinorLocator())
-            ax3.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax3.set_ylabel(r'$\Delta \mu_{\delta}$ (mas/yr)', labelpad = 6)
-
+            for ax in [ax1, ax3]:
+                ax.xaxis.set_major_formatter(NullFormatter())
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+                ax.yaxis.set_minor_locator(AutoMinorLocator())
+                ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             # ax2
             range_mualpdatOC = max(mualpdatOC_list) - min(mualpdatOC_list)
-            ax2.set_xlim(min(self.ep_mualp_obs) - self.range_eppm_obs/8., max(self.ep_mualp_obs) + self.range_eppm_obs/8.)
-            ax2.set_ylim(min(mualpdatOC_list) - range_mualpdatOC, max(mualpdatOC_list) + range_mualpdatOC)
-            ax2.set_xticks(epoch_ticks)
-            ax1.set_xticks(epoch_ticks)
-            ax2.set_xticklabels([str(int(i)) for i in epoch_label])
-            ax2.xaxis.set_minor_locator(AutoMinorLocator())
-            ax2.yaxis.set_minor_locator(AutoMinorLocator())
-            ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax2.set_xlabel('Epoch (year)', labelpad = 6)
-            ax2.set_ylabel('O-C', labelpad = 8)
-
+            if np.abs(min(mualpdatOC_list)) <= np.abs(max(mualpdatOC_list)):
+                ax2.set_ylim(-np.abs(max(mualpdatOC_list)) - range_mualpdatOC, max(mualpdatOC_list) + range_mualpdatOC)
+            elif np.abs(min(mualpdatOC_list)) > np.abs(max(mualpdatOC_list)):
+                ax2.set_ylim(min(mualpdatOC_list) - range_mualpdatOC, np.abs(min(mualpdatOC_list)) + range_mualpdatOC)
+            for ax in [ax2,ax4]:
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+                ax.yaxis.set_minor_locator(AutoMinorLocator())
+                ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+                ax.set_xlabel('Epoch (year)', labelpad = 6)
+                ax.set_ylabel('O-C', labelpad = 8)
             # ax4
             range_mudecdatOC = max(mudecdatOC_list) - min(mudecdatOC_list)
-            ax4.set_xlim(min(self.ep_mudec_obs) - self.range_eppm_obs/8., max(self.ep_mudec_obs) + self.range_eppm_obs/8.)
-            ax4.set_ylim(min(mudecdatOC_list) - range_mudecdatOC, max(mudecdatOC_list) + range_mudecdatOC)
-            ax4.set_xticks(epoch_ticks)
-            ax3.set_xticks(epoch_ticks)
-            ax4.set_xticklabels([str(int(i)) for i in epoch_label])
-            ax4.xaxis.set_minor_locator(AutoMinorLocator())
-            ax4.yaxis.set_minor_locator(AutoMinorLocator())
-            ax4.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax4.set_xlabel('Epoch (year)', labelpad = 6)
-            ax4.set_ylabel('O-C', labelpad = 9)
-            
+            if np.abs(min(mudecdatOC_list)) <= np.abs(max(mudecdatOC_list)):
+                ax4.set_ylim(-np.abs(max(mudecdatOC_list)) - range_mudecdatOC, max(mudecdatOC_list) + range_mudecdatOC)
+            elif np.abs(min(mudecdatOC_list)) > np.abs(max(mudecdatOC_list)):
+                ax4.set_ylim(min(mudecdatOC_list) - range_mudecdatOC, np.abs(min(mudecdatOC_list)) + range_mudecdatOC)
+                
             # from advanced plotting settings in config.ini
             if self.set_limit is True:
-                for ax in [ax2, ax4]:
+                for ax in [ax1, ax3]:
                     ax.set_xlim(self.calendar_to_JD(np.float(self.user_xlim[0])), self.calendar_to_JD(np.float(self.user_xlim[1])))
                     ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             if self.show_title is True:
@@ -1126,8 +1125,8 @@ class OrbitPlots:
     ################################################################################################
     ############### plot a nicer corner plot###############
     
-    def plot_corner(self, title_fmt=".4f", **kwargs):
-        labels=[r'$\mathrm{M_{pri}}$', r'$\mathrm{M_{sec}}$', 'Semi-major axis', 'Eccentricity', 'Inclination']
+    def plot_corner(self, title_fmt=".2f", **kwargs):
+        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'S (AU)', r'$\mathrm{e\, (^{\circ})}$', r'$\mathrm{i\, (^{\circ})}$']
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 80.0
         rcParams["xtick.labelsize"] = 10.0
