@@ -31,7 +31,7 @@ from geomdl import operations
 """
 
 # Progress:
-# Finalized OPs.PA(), OPs.proper_motions(), OPS.plot_corner()
+# Finalized OPs.relsep() , OPs.PA(), OPs.proper_motions(), OPS.plot_corner()
 # deleted the 'manually changing the axes ticks'
 
 # TO DO:
@@ -601,6 +601,9 @@ class OrbitPlots:
 
 
 
+# 3. relative RV plot
+# 
+
     ############### plot the relative RV and O-C ###############
 
     def relRV(self):
@@ -702,8 +705,9 @@ class OrbitPlots:
 ################################################################################################
 
 
+
 # 4. relative separation plot
-#
+# Finalized
     ################################################################################################
     ##################### plot Relative Separation vs. Epoch and O-C ############
     
@@ -718,54 +722,50 @@ class OrbitPlots:
             # plot the randomly selected curves
             relsep_OC = self.relsep_dic_vals
             for i in range(self.num_lines):
-                ax1.plot(self.epoch, self.relsep_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                ax1.plot(self.epoch_calendar, self.relsep_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
                 for j in range(len(self.epoch)):
                     relsep_OC[i][j] -= self.f_relsepml(self.epoch[j])
-                ax2.plot(self.epoch, relsep_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
+                ax2.plot(self.epoch_calendar, relsep_OC[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
                 
             # plot the highest likelihood orbit
-            ax1.plot(self.epoch, self.relsep_ml, color='black')
-            ax2.plot(self.epoch, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
+            ax1.plot(self.epoch_calendar, self.relsep_ml, color='black')
+            ax2.plot(self.epoch_calendar, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
 
             # plot the observed data points
             datOC_list = []
-            ax1.errorbar(self.ep_relAst_obs, self.relsep_obs, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
-            ax1.scatter(self.ep_relAst_obs, self.relsep_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
+            ep_relAst_obs_calendar = []
+            for i in range(len(self.ep_relAst_obs)):
+                ep_relAst_obs_calendar.append(self.JD_to_calendar(self.ep_relAst_obs[i]))
+            ax1.errorbar(ep_relAst_obs_calendar, self.relsep_obs, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
+            ax1.scatter(ep_relAst_obs_calendar, self.relsep_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
             for i in range(len(self.ep_relAst_obs)):
                 dat_OC = self.relsep_obs[i] - self.f_relsepml(self.ep_relAst_obs[i])
                 datOC_list.append(dat_OC)
-                ax2.errorbar(self.ep_relAst_obs[i], dat_OC, yerr=self.relsep_obs_err[i], color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
-                ax2.scatter(self.ep_relAst_obs[i], dat_OC, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
-
-            # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.ep_relAst_obs[0], self.ep_relAst_obs[-1], 5)
-            epoch_label = np.zeros(len(epoch_ticks))
-            for i in range(len(epoch_ticks)):
-                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
-
+            ax2.errorbar(ep_relAst_obs_calendar, datOC_list, yerr=self.relsep_obs_err[i], color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
+            ax2.scatter(ep_relAst_obs_calendar, datOC_list, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
+                
             # axes settings
             # ax1
-            self.range_eprA_obs = max(self.ep_relAst_obs) - min(self.ep_relAst_obs)
+            ax1.get_shared_x_axes().join(ax1, ax2)
+            range_eprA_obs = max(ep_relAst_obs_calendar) - min(ep_relAst_obs_calendar)
             range_relsep_obs = max(self.relsep_obs)  - min(self.relsep_obs)
-            ax1.set_xlim(min(self.ep_relAst_obs) - self.range_eprA_obs/8., max(self.ep_relAst_obs) + self.range_eprA_obs/8.)
+            ax1.set_xlim(min(ep_relAst_obs_calendar) - range_eprA_obs/8., max(ep_relAst_obs_calendar) + range_eprA_obs/8.)
             ax1.set_ylim(min(self.relsep_obs) - range_relsep_obs/2., max(self.relsep_obs) + range_relsep_obs/2.)
             ax1.xaxis.set_major_formatter(NullFormatter())
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
             ax1.yaxis.set_minor_locator(AutoMinorLocator())
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax1.set_ylabel('Seperation (arcsec)', labelpad = 13)
+            ax1.set_ylabel('Seperation (arcsec)', labelpad=13, fontsize=13)
             # ax2
             range_datOC = max(datOC_list) - min(datOC_list)
-            ax2.set_xlim(min(self.ep_relAst_obs) - self.range_eprA_obs/8., max(self.ep_relAst_obs) + self.range_eprA_obs/8.)
-            ax2.set_ylim(min(datOC_list) - range_datOC, max(datOC_list) + range_datOC)
-            ax2.set_xticks(epoch_ticks)
-            ax1.set_xticks(epoch_ticks)
-            ax2.set_xticklabels([str(int(i)) for i in epoch_label])
+            if np.abs(min(datOC_list)) <= np.abs(max(datOC_list)):
+                ax2.set_ylim(-np.abs(max(datOC_list)) - range_datOC, max(datOC_list) + range_datOC)
+            elif np.abs(min(datOC_list)) > np.abs(max(datOC_list)):
+                ax2.set_ylim(min(datOC_list) - range_datOC, np.abs(min(datOC_list)) + range_datOC)
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
-            ax2.yaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax2.set_xlabel('Epoch (year)', labelpad = 6)
-            ax2.set_ylabel('O-C', labelpad = -2)
+            ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
+            ax2.set_ylabel('O-C', labelpad=-2, fontsize=13)
             
             # from advanced plotting settings in config.ini
             if self.set_limit is True:
@@ -807,13 +807,12 @@ class OrbitPlots:
             ax.set_xticklabels([str(int(i)) for i in epoch_label])
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax.set_ylabel('Seperation (arcsec)')
-        
-        # ax2.set_ylim(-0.05,0.05)
-        
+                
         plt.tight_layout()
         print("Plotting Separation, your plot is generated at " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
 ################################################################################################
+
 
 
 # 5. position angle plot
