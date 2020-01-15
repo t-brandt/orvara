@@ -549,9 +549,8 @@ class OrbitPlots:
     ########################### plot the RV orbits #######################
     
     def RV(self):
-        fig = plt.figure(figsize=(5, 5))
+        fig = plt.figure(figsize=(5.7, 6.5))
         ax = fig.add_axes((0.15, 0.3, 0.8, 0.6))
-
         # plot the 50 randomly selected curves
         for i in range(self.num_lines):
             ax.plot(self.epoch_calendar, self.RV_dic_vals[i], color=self.colormap(self.normalize(self.nValues[i])), alpha=0.3)
@@ -570,8 +569,8 @@ class OrbitPlots:
                 rv_epoch_list.append(epoch_obs_Inst)
                 
             for i in range(self.nInst):
-                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + self.offset_ml[i], yerr=self.RV_obs_err_dic[i], fmt=self.color_list[i]+'o', ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
-                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + self.offset_ml[i], s=3, facecolors='none', edgecolors='k', zorder=200+i, alpha = 0.8)
+                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + self.offset_ml[i], yerr=self.RV_obs_err_dic[i], fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
+                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + self.offset_ml[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
         except:
             ax.plot(self.JD_to_calendar(self.epoch_obs), self.RV_obs, 'ro', markersize=2)
             
@@ -579,10 +578,21 @@ class OrbitPlots:
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
         ax.set_aspect((x1-x0)/(y1-y0))
+        
+        if self.set_limit is True:
+            ax.set_xlim(self.calendar_to_JD(np.float(self.user_xlim[0])), self.calendar_to_JD(np.float(self.user_xlim[1])))
+            ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+        if self.show_title is True:
+            ax.set_title('Relative RV vs. Epoch')
+        if self.add_text is True:
+            ax.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar is True:
-            cbar = fig.colorbar(self.sm, ax=ax, fraction=self.colorbar_size, pad=self.colorbar_pad)
+            cbar_ax = fig.add_axes([1.3, 0.325, 0.03, 0.55])
+            cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12) # default value = 12
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
             cbar.ax.get_yaxis().labelpad=20
+            fig.delaxes(cbar_ax)
+            
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
@@ -591,8 +601,7 @@ class OrbitPlots:
 
         plt.tight_layout()
         print("Plotting RV orbits, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf') # or +'.pdf'
-
+        plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf',bbox_inches='tight', dpi=200) # or +'.pdf'
 
 
 # 3. relative RV plot
