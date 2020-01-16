@@ -94,7 +94,7 @@ def initialize_plot_options(config):
     marker_color = config.get('plotting', 'marker_color', fallback= 'coral')
     
     # plot which instrument for the relative RV plot, starting from 1,2 ... n
-    plot_rel_rv_inst = config.getint('plotting', 'Relative_RV_which_Instrument', fallback=False)
+    plot_rel_rv_inst = config.get('plotting', 'Relative_RV_which_Instrument', fallback=False)
     
     # plot the two proper motion plots separately or together
     separate_pm_plots = config.getboolean('plotting', 'Proper_motion_separate_plots', fallback=False)
