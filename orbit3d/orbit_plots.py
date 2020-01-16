@@ -1158,6 +1158,7 @@ class OrbitPlots:
         
         chain =np.hstack([Mpri,Msec,Semimajor,Ecc,Inc])
         
+        # in corner_modified, the error is modified to keep 2 significant figures
         figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5), title_fmt=title_fmt, **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
