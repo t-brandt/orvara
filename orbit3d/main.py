@@ -109,11 +109,12 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
     :return:
     """
     model = orbit.Model(data)
-
+    lnp = 0
     for i in range(nplanets):
         params = orbit.Params(theta, i, nplanets)
+        lnp = lnp + orbit.lnprior(params)
 
-        if not np.isfinite(orbit.lnprior(params)):
+        if not np.isfinite(lnp):
             model.free()
             return -np.inf
 
@@ -132,7 +133,7 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
     if priors is not None:
         return orbit.lnprior(params) + orbit.calcL(data, params, model) - 1/2.*(params.mpri - priors['mpri'])**2/priors['mpri_sig']**2
     else:
-        return orbit.lnprior(params) + orbit.calcL(data, params, model)
+        return lnp - np.log(params.mpri) + orbit.calcL(data, params, model)
 
 
 
