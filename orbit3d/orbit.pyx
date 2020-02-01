@@ -87,16 +87,18 @@ cdef class Data:
     def __init__(self, Hip, RVfile, relAstfile,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
-                 refep=2455197.5000):
+                 refep=2455197.5000, verbose=True):
         try:
             rvdat = np.genfromtxt(RVfile)
             rvep = rvdat[:, 0]
             self.RV = rvdat[:, 1]
             self.RV_err = rvdat[:, 2]
             self.nRV = rvdat.shape[0]
-            print("Loading RV data from file " + RVfile)
+            if verbose:
+                print("Loading RV data from file " + RVfile)
         except:
-            print("Unable to load RV data from file " + RVfile)
+            if verbose:
+                print("Unable to load RV data from file " + RVfile)
             self.nRV = 0
             self.nInst = 1
             rvep = []
@@ -105,10 +107,12 @@ cdef class Data:
             # Check to see that the column we loaded was an integer
             assert np.all(self.RVinst == rvdat[:, 3])
             self.nInst = np.amax(rvdat[:, 3]) + 1
-            print("Loaded data from %d RV instruments." % (self.nInst))
+            if verbose:
+                print("Loaded data from %d RV instruments." % (self.nInst))
         except:
-            print("Unable to read RV instruments from fourth column.")
-            print("Assuming all data are from one instrument.")
+            if verbose:
+                print("Unable to read RV instruments from fourth column.")
+                print("Assuming all data are from one instrument.")
             self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
             self.nInst = 1
 
@@ -130,14 +134,17 @@ cdef class Data:
             try:
                 self.ast_planetID = (reldat[:, 5]).astype(np.int32)
                 assert np.all(self.ast_planetID == reldat[:, 5])
-                print("Loading astrometric data for %d planets" % (np.amax(self.ast_planetID) + 1))
+                if verbose:
+                    print("Loading astrometric data for %d planets" % (np.amax(self.ast_planetID) + 1))
             except:
                 self.ast_planetID = (reldat[:, 0]*0).astype(np.int32)
-                print("Loading astrometric data for 1 planet")
-
-            print("Loaded %d relative astrometric data points from file " % (self.nAst) + relAstfile)
+                if verbose:
+                    print("Loading astrometric data for 1 planet")
+            if verbose:
+                print("Loaded %d relative astrometric data points from file " % (self.nAst) + relAstfile)
         except:
-            print("Unable to load relative astrometry data from file " + relAstfile)
+            if verbose:
+                print("Unable to load relative astrometry data from file " + relAstfile)
             self.nAst = 0
             relep = []
 
@@ -145,10 +152,12 @@ cdef class Data:
             t = fits.open('HGCA_vDR2_corrected.fits')[1].data
             t = t[np.where(t['hip_id'] == Hip)]
             assert len(t) > 0
-            print("Loading absolute astrometry data for Hip %d" % (Hip))
+            if verbose:
+                print("Loading absolute astrometry data for Hip %d" % (Hip))
             self.use_abs_ast = 1
         except:
-            print("Unable to load absolute astrometry data for Hip %d" % (Hip))
+            if verbose:
+                print("Unable to load absolute astrometry data for Hip %d" % (Hip))
             self.use_abs_ast = 0
             self.epochs = np.asarray(list(rvep) + list(relep))
             self.nTot = len(self.epochs)
@@ -323,21 +332,22 @@ cdef class Model:
 
     def return_dRA_dDec(self):
         cdef int i, j
-        dRAs_G = np.empty(self.nAst)
-        dDecs_G = np.empty(self.nAst)
-        dRAs_H1 = np.empty(self.nAst)
-        dDecs_H1 = np.empty(self.nAst)
-        dRAs_H2 = np.empty(self.nAst)
-        dDecs_H2 = np.empty(self.nAst)
+        dRAs_G = np.empty(self.nGaia)
+        dDecs_G = np.empty(self.nGaia)
+        dRAs_H1 = np.empty(self.nHip1)
+        dDecs_H1 = np.empty(self.nHip1)
+        dRAs_H2 = np.empty(self.nHip2)
+        dDecs_H2 = np.empty(self.nHip2)
         
-        for i in range(self.nAst):
+        for i in range(self.nGaia):
             dRAs_G[i] = self.dRA_G[i]
+            dDecs_G[i] = self.dDec_G[j]
+        for i in range(self.nHip1):
             dRAs_H1[i] = self.dRA_H1[i]
+            dDecs_H1[i] = self.dDec_H1[j]
+        for i in range(self.nHip2):
             dRAs_H2[i] = self.dRA_H2[i]
-        for j in range(self.nAst):
-            dDecs_G[j] = self.dDec_G[j]
-            dDecs_H1[j] = self.dDec_H1[j]
-            dDecs_H2[j] = self.dDec_H2[j]
+            dDecs_H2[i] = self.dDec_H2[j]
         return dRAs_G, dDecs_G, dRAs_H1, dDecs_H1, dRAs_H2,  dDecs_H2
 
     def return_TAs(self, Params par):
@@ -357,15 +367,15 @@ cdef class Model:
 
     def return_relsep(self):
         cdef int i
-        relsep = np.empty(self.nRV)
-        for i in range(self.nRV):
+        relsep = np.empty(self.nAst)
+        for i in range(self.nAst):
             relsep[i] = self.relsep[i]
         return relsep
 
     def return_PAs(self):
         cdef int i
-        PAs = np.empty(self.nRV)
-        for i in range(self.nRV):
+        PAs = np.empty(self.nAst)
+        for i in range(self.nAst):
             PAs[i] = self.PA[i]
         return PAs
 
@@ -1199,4 +1209,4 @@ def lnprior(Params par):
     if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > 20:
         return zeroprior
 
-    return log(sin(par.inc)*1./(par.sau*par.msec*par.mpri))
+    return log(sin(par.inc)*1./(par.sau*par.msec))
