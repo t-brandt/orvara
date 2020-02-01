@@ -134,6 +134,7 @@ class OrbitPlots:
         self.normalize = mcolors.Normalize(vmin=vmin, vmax=vmax)
         self.colormap = getattr(cm, self.color_map)
         self.sm = cm.ScalarMappable(norm=self.normalize, cmap=self.colormap)
+        self.sm.set_array(np.linspace(vmin, vmax, 10))
         
         print("Generating plots for target " + self.title)
 
@@ -1227,7 +1228,7 @@ class OrbitPlots:
     ################################################################################################
     ############### plot a nicer corner plot###############
     
-    def plot_corner(self, title_fmt=".3f", **kwargs):
+    def plot_corner(self, **kwargs):
         labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e\, (^{\circ})}$', r'$\mathrm{i\, (^{\circ})}$']
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 80.0
@@ -1247,7 +1248,7 @@ class OrbitPlots:
         chain =np.hstack([Mpri,Msec,Semimajor,Ecc,Inc])
         
         # in corner_modified, the error is modified to keep 2 significant figures
-        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5), title_fmt=title_fmt, **kwargs)
+        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf')

@@ -269,11 +269,27 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
                 q_m, q_p = q_50-q_16, q_84-q_50
 
                 # Format the quantile display.
-                fmt = "{{0:{0}}}".format(title_fmt).format
+                #fmt = "{{0:{0}}}".format(title_fmt).format
+                
                 # modified to keep 2 significant figures in the errors
-                fmt_e = "{{0:{0}}}".format(".2g").format
+                idecimal_q = np.floor(np.log10(np.float('%.1g'%(q_50))))
+                idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
+                idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
+                #print(idecimal_p,q_p)
+
+                if idecimal_m == 0. or idecimal_p == 0. or -idecimal_q+1 == 0.:
+                    fmt_m_e = fmt_p_e = "{{0:{0}}}".format(".2g").format
+                    fmt = "{{0:{0}}}".format(".1f"%(idecimal_q)).format
+                elif idecimal_m == 1. or idecimal_p == 1. or idecimal_m == -1. or idecimal_p == -1. or idecimal_m == -3. or idecimal_p == -3.:
+                    fmt_m_e = fmt_p_e = "{{0:{0}}}".format(".2g").format
+                else:
+                    fmt_m_e = "{{0:{0}}}".format(".3f"%(-idecimal_m +1)).format
+                    fmt_p_e = "{{0:{0}}}".format(".3f"%(-idecimal_p +1)).format
+                    fmt = "{{0:{0}}}".format(".3g").format
+                
                 title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-                title = title.format(fmt(q_50), fmt_e(q_m), fmt_e(q_p))
+                title = title.format(fmt(q_50), fmt_m_e(q_m), fmt_p_e(q_p))
+                
 
                 # Add in the column name if it's given.
                 if labels is not None:
