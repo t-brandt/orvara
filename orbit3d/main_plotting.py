@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import os
 import time
-import emcee, corner
+#import emcee, corner
 import scipy.optimize as op
 from random import randrange
 from astropy.io import fits
@@ -41,68 +41,74 @@ def initialize_plot_options(config):
         initialize the user defined plotting options from config.ini
     """
 
+    OP = orbit_plots.OrbitPlots()
+
     # target information
-    target = config.get('plotting', 'target')
-    HipID = config.getint('data_paths', 'HipID', fallback=0)
-    nplanets = config.getint('mcmc_settings', 'nplanets')
-    
+    OP.target = OP.title = config.get('plotting', 'target')
+    OP.Hip = config.getint('data_paths', 'HipID', fallback=0)
+    OP.nplanets = config.getint('mcmc_settings', 'nplanets')
+
     # read data
-    RVFile = config.get('data_paths', 'RVFile')
-    AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback=None)
-    GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
-    Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
-    Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
-    HGCAFile = config.get('data_paths', 'HGCAFile', fallback=None)
+    OP.RVfile = config.get('data_paths', 'RVFile')
+    OP.relAstfile = config.get('data_paths', 'AstrometryFile', fallback=None)
+    OP.GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
+    OP.Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
+    OP.Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
+    OP.HGCAFile = config.get('data_paths', 'HGCAFile', fallback=None)
     
     #read in the mcmc chains
-    burnin = config.getint('plotting', 'burnin', fallback=0)
-    MCMCFile = config.get('plotting', 'McmcDataDir', fallback=None)
+    OP.burnin = config.getint('plotting', 'burnin', fallback=0)
+    OP.MCMCfile = config.get('plotting', 'McmcDataDir', fallback=None)
     
     # colorbar settings
-    use_colorbar = config.getboolean('plotting', 'use_colorbar', fallback=False)
-    color_map = config.get('plotting', 'colormap', fallback= 'viridis')
-    cm_ref = config.get('plotting', 'reference')
-    colorbar_size = config.getfloat('plotting', 'fraction', fallback=0.046)
-    colorbar_pad = config.getfloat('plotting', 'pad', fallback=0.04)
+    OP.usecolorbar = config.getboolean('plotting', 'use_colorbar', fallback=False)
+    OP.color_map = config.get('plotting', 'colormap', fallback= 'viridis')
+    OP.cmref = config.get('plotting', 'reference')
+    OP.colorbar_size = config.getfloat('plotting', 'fraction', fallback=0.046)
+    OP.colorbar_pad = config.getfloat('plotting', 'pad', fallback=0.04)
+
+    # which planet to plot?
+    OP.iplanet = config.getint('mcmc_settings', 'iplanet', fallback=0)
     
     # customized range of epochs
-    start_ep = config.getfloat('plotting', 'start_epoch', fallback=0)
-    end_ep = config.getfloat('plotting', 'end_epoch', fallback=0)
+    OP.start_epoch = config.getfloat('plotting', 'start_epoch', fallback=0)
+    OP.end_epoch = config.getfloat('plotting', 'end_epoch', fallback=0)
     
     # predicted epoch positions
-    predict_ep = config.get('plotting', 'predicted_years', fallback=0).split(",")
-    
+    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=0).split(",")
+    OP.predicted_ep_ast = config.get('plotting', 'position_predict', fallback=2000)
     # how many random orbits
-    num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
+    OP.num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
     
     # step size
-    num_steps = config.getint('plotting', 'num_steps', fallback = 1000)
+    OP.num_steps = config.getint('plotting', 'num_steps', fallback = 1000)
     
     # plot axes settings
-    set_limit = config.getboolean('plotting', 'set_limit', fallback=True)
-    xlim = config.get('plotting', 'xlim', fallback=None).split(",")
-    ylim = config.get('plotting', 'ylim', fallback=None).split(",")
+    OP.set_limit = config.getboolean('plotting', 'set_limit', fallback=True)
+    OP.user_xlim = config.get('plotting', 'xlim', fallback=None).split(",")
+    OP.user_ylim = config.get('plotting', 'ylim', fallback=None).split(",")
     
     # show or not show title, add a text on the plot
-    show_title = config.getboolean('plotting', 'show_title', fallback=True)
-    add_text = config.getboolean('plotting', 'add_text', fallback=False)
-    text_name = config.get('plotting', 'text_name', fallback=None)
-    x_text = config.getfloat('plotting', 'x_text', fallback=None)
-    y_text = config.getfloat('plotting', 'y_text', fallback=None)
+    OP.show_title = config.getboolean('plotting', 'show_title', fallback=True)
+    OP.add_text = config.getboolean('plotting', 'add_text', fallback=False)
+    OP.text_name = config.get('plotting', 'text_name', fallback=None)
+    OP.x_text = config.getfloat('plotting', 'x_text', fallback=None)
+    OP.y_text = config.getfloat('plotting', 'y_text', fallback=None)
     
     # marker settings
-    marker_color = config.get('plotting', 'marker_color', fallback= 'coral')
+    OP.marker_color = config.get('plotting', 'marker_color', fallback= 'coral')
     
     # plot which instrument for the relative RV plot, starting from 1,2 ... n
-    plot_rel_rv_inst = config.get('plotting', 'Relative_RV_which_Instrument', fallback=False)
+    OP.whichInst = config.get('plotting', 'Relative_RV_which_Instrument', fallback=False)
     
     # plot the two proper motion plots separately or together
-    separate_pm_plots = config.getboolean('plotting', 'Proper_motion_separate_plots', fallback=False)
+    OP.pm_separate = config.getboolean('plotting', 'Proper_motion_separate_plots', fallback=False)
     
     args = parse_args_plotting()
+    OP.outputdir = args.output_dir
 
     # initialize the OP object
-    OP = orbit_plots.OrbitPlots(target, HipID, start_ep, end_ep, predict_ep, cm_ref, num_orbits, color_map, use_colorbar, colorbar_size, colorbar_pad, marker_color, burnin, set_limit, xlim, ylim, show_title, add_text, text_name, x_text, y_text, num_steps, MCMCFile, RVFile, AstrometryFile, HGCAFile, args.output_dir, plot_rel_rv_inst, separate_pm_plots)
+    OP.start()
     return OP
 
 
@@ -124,6 +130,7 @@ def run():
     plot_settings = {}
     burnin = config.getint('plotting', 'burnin', fallback=0)
     plot_astr = config.getboolean('plotting', 'Astrometry_orbits_plot', fallback=False)
+    plot_astr_pred = config.getboolean('plotting', 'Astrometric_prediction_plot', fallback=False)
     plot_rv = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
     plot_rel_rv = config.getboolean('plotting', 'Relative_RV_plot', fallback=False)
     plot_rel_sep = config.getboolean('plotting', 'Relative_separation_plot', fallback=False)
@@ -131,19 +138,21 @@ def run():
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
     plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
         
-    if plot_astr is True:
+    if plot_astr:
         OPs.astrometry()
-    if plot_rv is True:
+    if plot_astr_pred:
+        OPs.astrometric_prediction()
+    if plot_rv:
         OPs.RV()
-    if plot_rel_rv is True:
+    if plot_rel_rv:
         OPs.relRV()
-    if plot_rel_sep is True:
+    if plot_rel_sep:
         OPs.relsep()
-    if plot_position_angle is True:
+    if plot_position_angle:
         OPs.PA()
-    if plot_proper_motions is True:
+    if plot_proper_motions:
         OPs.proper_motions()
-    if plot_corner is True:
+    if plot_corner:
         OPs.plot_corner()
     
 if __name__ == "__main__":
