@@ -41,12 +41,12 @@ class Orbit:
 
         data = orbit.Data(OP.Hip, OP.RVfile, OP.relAstfile, verbose=False)
         
-        if epochs == 'custom':
+        if isinstance(epochs, list) or isinstance(epochs, np.ndarray):
+            data.custom_epochs(epochs)
+        elif epochs == 'custom':
             data.custom_epochs(OP.epoch)
         elif epochs == 'observed':
             pass
-        elif isinstance(epochs, list) or isinstance(epochs, np.ndarray):
-            data.custom_epochs(epochs)
         else:
             raise ValueError("epochs should be 'custom', 'observed', or array-like")
         model = orbit.Model(data)
@@ -1042,7 +1042,7 @@ class OrbitPlots:
                     ax.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
                 if self.pm_separate:
-                    for figure in [fig, fig1]:
+                    for figure, name in [[fig, 'RA_'], [fig1, 'Dec_']]:
                         cbar_ax = figure.add_axes([1.6, 0.16, 0.05, 0.7])
                         if self.colorbar_size < 0 or self.colorbar_pad < 0:
                             cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
@@ -1054,6 +1054,7 @@ class OrbitPlots:
                         else:
                             cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
                         figure.delaxes(cbar_ax)
+                        figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf',bbox_inches='tight', dpi=200)
                 else:
                     cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
                     if self.colorbar_size < 0 or self.colorbar_pad < 0:
@@ -1114,9 +1115,9 @@ class OrbitPlots:
         plt.tight_layout()
         print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
         
-        if self.pm_separate:
-            fig.savefig(os.path.join(self.outputdir, 'ProperMotions_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
-            fig1.savefig(os.path.join(self.outputdir, 'ProperMotions1_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+        if self.pm_separate and not self.usecolorbar:
+            fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+            fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
         else:
             fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
 ################################################################################################
