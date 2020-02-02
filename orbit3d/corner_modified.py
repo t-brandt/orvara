@@ -272,20 +272,22 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
                 #fmt = "{{0:{0}}}".format(title_fmt).format
                 
                 # modified to keep 2 significant figures in the errors
-                idecimal_q = np.floor(np.log10(np.float('%.1g'%(q_50))))
                 idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
                 idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
-                #print(idecimal_p,q_p)
 
-                if idecimal_m == 0. or idecimal_p == 0. or -idecimal_q+1 == 0.:
-                    fmt_m_e = fmt_p_e = "{{0:{0}}}".format(".2g").format
-                    fmt = "{{0:{0}}}".format(".1f"%(idecimal_q)).format
-                elif idecimal_m == 1. or idecimal_p == 1. or idecimal_m == -1. or idecimal_p == -1. or idecimal_m == -3. or idecimal_p == -3.:
-                    fmt_m_e = fmt_p_e = "{{0:{0}}}".format(".2g").format
+                if idecimal_m < 2:
+                    fmt_m_e = "{{0:{0}}}".format(".%df"%(-idecimal_m + 1)).format
                 else:
-                    fmt_m_e = "{{0:{0}}}".format(".3f"%(-idecimal_m +1)).format
-                    fmt_p_e = "{{0:{0}}}".format(".3f"%(-idecimal_p +1)).format
-                    fmt = "{{0:{0}}}".format(".3g").format
+                    fmt_m_e = "{{0:{0}}}".format(".0f").format
+                if idecimal_p < 2:
+                    fmt_p_e = "{{0:{0}}}".format(".%df"%(-idecimal_p + 1)).format
+                else:
+                    fmt_p_e = "{{0:{0}}}".format(".0f").format
+                min_decimals = min(idecimal_m, idecimal_p)
+                if min_decimals < 2:
+                    fmt = "{{0:{0}}}".format(".%df"%(-min_decimals + 1)).format
+                else:
+                    fmt = "{{0:{0}}}".format(".0f").format
                 
                 title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
                 title = title.format(fmt(q_50), fmt_m_e(q_m), fmt_p_e(q_p))
