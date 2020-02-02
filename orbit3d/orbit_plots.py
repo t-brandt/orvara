@@ -1230,7 +1230,7 @@ class OrbitPlots:
     ############### plot a nicer corner plot###############
     
     def plot_corner(self, **kwargs):
-        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e\, (^{\circ})}$', r'$\mathrm{i\, (^{\circ})}$']
+        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{ecc}$', r'$\mathrm{i\, (^{\circ})}$']
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 80.0
         rcParams["xtick.labelsize"] = 10.0
