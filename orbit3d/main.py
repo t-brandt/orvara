@@ -71,7 +71,7 @@ def initialize_data(config):
 
     data = orbit.Data(HipID, RVFile, AstrometryFile, relRVfile=relRVFile)
     if use_epoch_astrometry:
-        to_jd = lambda x: Time(x, format='decimalyear').jd +.5
+        to_jd = lambda x: Time(x, format='decimalyear').jd
         Gaia_fitter = Astrometry('GaiaDR2', '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=to_jd(data.epRA_G),
                                  central_epoch_dec=to_jd(data.epDec_G),
