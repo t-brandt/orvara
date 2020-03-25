@@ -114,7 +114,11 @@ class OrbitPlots:
         # load observed RV data
         self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
         # load relative astrometry data:
-        self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err = self.load_relAst_data()
+        if os.access(self.relAstfile,os.R_OK):
+            self.have_reldat = True
+            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err = self.load_relAst_data()
+        else:
+            self.have_reldat = False
         # load HGCA data:
         self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err = self.load_HGCA_data()        
         
@@ -240,19 +244,15 @@ class OrbitPlots:
         """
             Function to load in the relative astrometry data
         """
-        try:
-            reldat = np.genfromtxt(self.relAstfile, usecols=(1,2,3,4,5), skip_header=1)
-            self.have_reldat = True
-            
-            ep_relAst_obs = reldat[:, 0]
-            for i in range(len(ep_relAst_obs)):
-                ep_relAst_obs[i] = self.calendar_to_JD(ep_relAst_obs[i])
+        reldat = np.genfromtxt(self.relAstfile, usecols=(1,2,3,4,5), skip_header=1)
+
+        ep_relAst_obs = reldat[:, 0]
+        for i in range(len(ep_relAst_obs)):
+            ep_relAst_obs[i] = self.calendar_to_JD(ep_relAst_obs[i])
             relsep_obs = reldat[:, 1]
             relsep_obs_err = reldat[:, 2]
             PA_obs = reldat[:, 3]
             PA_obs_err = reldat[:, 4]
-        except:
-            self.have_reldat = False
         return ep_relAst_obs, relsep_obs, relsep_obs_err, PA_obs, PA_obs_err
     
     def load_HGCA_data(self):
@@ -762,26 +762,19 @@ class OrbitPlots:
             for i in range(self.num_orbits):
                 orb = Orbit(self, step=self.rand_idx[i]) 
 
-                ax.plot(self.epoch, orb.relsep, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
+                ax.plot(self.epoch_calendar, orb.relsep, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
                 
             # plot the most likely one
             orb_ml = Orbit(self, step='best') 
-            ax.plot(self.epoch, orb_ml.relsep, color='black')
-            
-            # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.start_epoch, self.end_epoch, 5)
-            epoch_label = np.zeros(len(epoch_ticks))
-            for i in range(len(epoch_ticks)):
-                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+            ax.plot(self.epoch_calendar, orb_ml.relsep, color='black')
                 
             # axes settings
             ax.set_xlim(self.start_epoch, self.end_epoch)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
-            ax.set_xticks(epoch_ticks)
-            ax.set_xticklabels([str(int(i)) for i in epoch_label])
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax.set_ylabel('Seperation (arcsec)')
+            ax.set_ylabel('Seperation (arcsec)', fontsize=13)
+            ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
                 
         plt.tight_layout()
         print("Plotting Separation, your plot is generated at " + self.outputdir)
@@ -880,26 +873,19 @@ class OrbitPlots:
             for i in range(self.num_orbits):
                 orb = Orbit(self, step=self.rand_idx[i]) 
 
-                ax.plot(self.epoch, orb.PA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
+                ax.plot(self.epoch_calendar, orb.PA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
 
             orb_ml = Orbit(self, 'best')
             # plot the most likely one
-            ax.plot(self.epoch, orb_ml.PA, color='black')
-
-            # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.start_epoch, self.end_epoch, 5)
-            epoch_label = np.zeros(len(epoch_ticks))
-            for i in range(len(epoch_ticks)):
-                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+            ax.plot(self.epoch_calendar, orb_ml.PA, color='black')
 
             ax.set_xlim(self.start_epoch, self.end_epoch)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
-            ax.set_xticks(epoch_ticks)
-            ax.set_xticklabels([str(int(i)) for i in epoch_label])
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             #ax.set_title(self.title)
-            ax.set_ylabel(r'Position Angle ($^{\circ}$)')
+            ax.set_ylabel(r'Position Angle ($^{\circ}$)', fontsize=13)
+            ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
         
         plt.tight_layout()
         print("Plotting Position Angle, your plot is generated at " + self.outputdir)
@@ -1079,24 +1065,16 @@ class OrbitPlots:
             for i in range(self.num_orbits):
                 orb = Orbit(self, step=self.rand_idx[i])
 
-                ax1.plot(self.epoch, orb.mu_RA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                ax2.plot(self.epoch, orb.mu_Dec, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
+                ax1.plot(self.epoch_calendar, orb.mu_RA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
+                ax2.plot(self.epoch_calendar, orb.mu_Dec, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
                 
             # plot the most likely one
-            ax1.plot(self.epoch, orb_ml.mu_RA, color='black')
-            ax2.plot(self.epoch, orb_ml.mu_Dec, color='black')
-
-            # manually change the x tick labels from JD to calendar years
-            epoch_ticks = np.linspace(self.start_epoch, self.end_epoch, 5)
-            epoch_label = np.zeros(len(epoch_ticks))
-            for i in range(len(epoch_ticks)):
-                epoch_label[i] = round(self.JD_to_calendar(epoch_ticks[i]))
+            ax1.plot(self.epoch_calendar, orb_ml.mu_RA, color='black')
+            ax2.plot(self.epoch_calendar, orb_ml.mu_Dec, color='black')
 
             ax1.set_xlim(self.start_epoch, self.end_epoch)
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
             ax1.yaxis.set_minor_locator(AutoMinorLocator())
-            ax1.set_xticks(epoch_ticks)
-            ax1.set_xticklabels([str(int(i)) for i in epoch_label])
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             #ax1.set_title(self.title)
             ax1.set_xlabel('date (yr)')
@@ -1105,8 +1083,6 @@ class OrbitPlots:
             ax2.set_xlim(self.start_epoch, self.end_epoch)
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.yaxis.set_minor_locator(AutoMinorLocator())
-            ax2.set_xticks(epoch_ticks)
-            ax2.set_xticklabels([str(int(i)) for i in epoch_label])
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             #ax2.set_title(self.title)
             ax2.set_xlabel('date (yr)')
