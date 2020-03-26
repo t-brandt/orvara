@@ -234,7 +234,7 @@ class OrbitPlots:
         RV_obs_err_dic = {}
         
         for i in range(nInst):
-            idx_dic[i] = (np.where(RVinst == i)[0][0], np.where(RVinst == i)[0][-1])
+            idx_dic[i] = (np.where(self.RVinst == i)[0][0], np.where(self.RVinst == i)[0][-1])
             epoch_obs_dic[i] = epoch_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
             RV_obs_dic[i] = RV_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
             RV_obs_err_dic[i] = RV_obs_err[idx_dic[i][0]: idx_dic[i][-1] + 1]
@@ -1171,7 +1171,7 @@ class OrbitPlots:
 
         # Bin it up, then smooth it.  More points -> less smoothing.
         
-        dens = np.histogram2d(dra, ddec, bins=[x, y])[0]
+        dens = np.histogram2d(dra, ddec, bins=[x, y])[0].T
         
         _x, _y = np.mgrid[-20:21, -20:21]
         window = np.exp(-(_x**2 + _y**2)/20.*len(par)/len(x)**2)
