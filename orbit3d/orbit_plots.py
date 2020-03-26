@@ -1188,6 +1188,11 @@ class OrbitPlots:
         ax = fig.add_subplot(111)
         ax.imshow(dens[::-1], extent=(xmin, xmax, ymin, ymax),
                   interpolation='nearest', aspect=1, cmap=cm.hot_r)
+
+        # Mark the central star if (0, 0) is within the axis limits
+        if xmin*xmax < 0 and ymin*ymax < 0:
+            ax.plot(0, 0, marker='*', markersize=15, color='c')
+
         x = 0.5*(x[1:] + x[:-1])
         y = 0.5*(y[1:] + y[:-1])
         levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
