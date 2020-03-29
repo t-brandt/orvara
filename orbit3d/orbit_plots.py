@@ -327,8 +327,8 @@ class OrbitPlots:
         X = np.cos(EA) - par.ecc
         Y = np.sin(EA)*np.sqrt(1 - par.ecc**2)
         
-        dra = (B*X + G*Y)*par.sau*plx
-        ddec = (A*X + F*Y)*par.sau*plx
+        dra = (B*X + G*Y)*(-par.sau)*plx
+        ddec = (A*X + F*Y)*(-par.sau)*plx
         
         return dra, ddec
 
@@ -1150,8 +1150,8 @@ class OrbitPlots:
         X = np.cos(E) - ecc
         Y = np.sin(E)*np.sqrt(1 - ecc**2)
         
-        dra = (B*X + G*Y)*sau*plx
-        ddec = (A*X + F*Y)*sau*plx
+        dra = (B*X + G*Y)*(-sau)*plx
+        ddec = (A*X + F*Y)*(-sau)*plx
 
         # Set limits on plot to include basically all of the data.
         

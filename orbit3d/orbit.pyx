@@ -73,6 +73,7 @@ cdef class Data:
     cdef double [:] PA
     cdef double [:] relsep_err
     cdef double [:] PA_err
+    cdef double [:] relsep_pa_corr
     cdef int [:] ast_planetID
     cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
@@ -119,10 +120,14 @@ cdef class Data:
         try:
             try:
                 reldat = np.genfromtxt(relAstfile,
-                                       usecols=(1,2,3,4,5,6), skip_header=1)
+                                       usecols=(1,2,3,4,5,6,7), skip_header=1)
             except:
-                reldat = np.genfromtxt(relAstfile,
-                                       usecols=(1,2,3,4,5), skip_header=1)
+                try:
+                    reldat = np.genfromtxt(relAstfile,
+                                           usecols=(1,2,3,4,5,6), skip_header=1)
+                except:
+                    reldat = np.genfromtxt(relAstfile,
+                                           usecols=(1,2,3,4,5), skip_header=1)
             if len(reldat.shape) == 1:
                 reldat = np.reshape(reldat, (1, -1))
             relep = (reldat[:, 0] - 2000)*365.25 + 2451544.5
@@ -131,6 +136,12 @@ cdef class Data:
             self.PA = reldat[:, 3]*np.pi/180
             self.PA_err = reldat[:, 4]*np.pi/180
             self.nAst = reldat.shape[0]
+            # Relative separation/PA correlation \in (-1, 1)
+            try:
+                self.relsep_pa_corr = reldat[:, 6]
+            except:
+                self.relsep_pa_corr = reldat[:, 0]*0
+
             try:
                 self.ast_planetID = (reldat[:, 5]).astype(np.int32)
                 assert np.all(self.ast_planetID == reldat[:, 5])
@@ -388,7 +399,7 @@ cdef class Model:
             double sqrt(double _x)
             double atan2(double _y, double _x)
 
-        cdef double a_1 = -par.sau/(1. + par.mpri/par.msec)
+        cdef double a_1 = par.sau/(1. + par.mpri/par.msec)
         cdef double cosarg = cos(par.arg)
         cdef double sinarg = sin(par.arg)
         cdef double cosasc = cos(par.asc)
@@ -659,7 +670,7 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
         double sqrt(double _x)
         double atan2(double _y, double _x)
 
-    cdef double a_1 = -par.sau/(1. + par.mpri/par.msec)
+    cdef double a_1 = par.sau/(1. + par.mpri/par.msec)
     cdef double cosarg = cos(par.arg)
     cdef double sinarg = sin(par.arg)
     cdef double cosasc = cos(par.asc)
@@ -684,7 +695,7 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
         dRA = B*X + G*Y
         dDec = A*X + F*Y
 
-        model.relsep[i] = -sqrt(dRA**2 + dDec**2)*par.sau/a_1
+        model.relsep[i] = sqrt(dRA**2 + dDec**2)*par.sau/a_1
         model.PA[i] = atan2(-dRA, -dDec)
 
     i1 = data.nRV + data.nAst
@@ -971,6 +982,8 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     cdef double jitsq = pow(10., par.jit)
     cdef double rv_ivar = 1
+    cdef double pi = 3.14159265358979323846264338327950288
+    cdef double twopi = 2*pi
 
     cdef double *A = <double *> PyMem_Malloc(data.nInst * sizeof(double))
     cdef double *B = <double *> PyMem_Malloc(data.nInst * sizeof(double))
@@ -1033,14 +1046,26 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         for j in range(3):
             M[i*3 + j] = 0
 
-    cdef double chisq_PA, chisq_sep, chisq_H, chisq_HG, chisq_G, chisq_plx
+    cdef double chisq_PA, chisq_sep, chisq_H, chisq_HG, chisq_G, chisq_plx, dPA, corr
     chisq_PA = chisq_sep = chisq_H = chisq_HG = chisq_G = chisq_plx = 0
 
     for i in range(data.nAst):
-        M[0] += model.relsep[i]**2/data.relsep_err[i]**2
-        b[0] += model.relsep[i]*data.relsep[i]/data.relsep_err[i]**2
-        chisq_PA += (atan2(sin(model.PA[i] - data.PA[i]),
-                           cos(model.PA[i] - data.PA[i])))**2/data.PA_err[i]**2
+        corr = data.relsep_pa_corr[i]
+        
+        #M[0] += model.relsep[i]**2/data.relsep_err[i]**2
+        #b[0] += model.relsep[i]*data.relsep[i]/data.relsep_err[i]**2
+
+        M[0] += model.relsep[i]**2/((1 - corr**2)*data.relsep_err[i]**2)
+        b[0] += model.relsep[i]*data.relsep[i]/((1 - corr**2)*data.relsep_err[i]**2)
+
+        dPA = (model.PA[i] - data.PA[i])%twopi
+        if dPA > pi:
+            dPA = dPA - twopi
+
+        b[0] += corr*model.relsep[i]*dPA/((1 - corr**2)*data.relsep_err[i]*data.PA_err[i])
+        chisq_PA += dPA**2/((1 - corr**2)*data.PA_err[i]**2)
+        #chisq_PA += (atan2(sin(model.PA[i] - data.PA[i]),
+        #                   cos(model.PA[i] - data.PA[i])))**2/data.PA_err[i]**2
 
 
     M[0] += model.pmra_H**2*data.Cinv_H[0, 0]
@@ -1128,7 +1153,16 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     ##################################################################
 
     for i in range(data.nAst):
-        chisq_sep += (model.relsep[i]*plx_best - data.relsep[i])**2/data.relsep_err[i]**2
+        corr = data.relsep_pa_corr[i]
+
+        dPA = (model.PA[i] - data.PA[i])%twopi
+        if dPA > pi:
+            dPA = dPA - twopi
+
+        #chisq_sep += (model.relsep[i]*plx_best - data.relsep[i])**2/data.relsep_err[i]**2
+        chisq_sep += (model.relsep[i]*plx_best - data.relsep[i])**2/((1 - corr**2)*data.relsep_err[i]**2)
+        chisq_sep -= 2*corr*(model.relsep[i]*plx_best - data.relsep[i])*dPA/((1 - corr**2)*data.relsep_err[i]*data.PA_err[i])
+
 
     deltaRA = plx_best*model.pmra_H - data.pmra_H + pmra_best
     deltaDec = plx_best*model.pmdec_H - data.pmdec_H + pmdec_best
