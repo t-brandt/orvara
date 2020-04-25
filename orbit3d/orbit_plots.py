@@ -1,5 +1,8 @@
 import os
 import numpy as np
+import julian
+from datetime import datetime as dt
+import time
 from random import randrange
 from orbit3d import corner_modified
 from scipy.interpolate import interp1d
@@ -147,21 +150,18 @@ class OrbitPlots:
         """
             Function to convert Julian Date to Calendar Date
         """
-        a = int(JD + 0.5)
-        if a < 2299161:
-            c = a + 1524
-        else:
-            b = int((a - 1867216.25)/36524.25)
-            c = a + b - int(b/4) + 1525
-        d = int((c - 122.1)/365.25)
-        e = int(365.25*d)
-        f = int((c - e)/30.6001)
-
-        D = c - e - int(30.6001*f) + ((JD + 0.5) - int(JD + 0.5))
-        M = f - 1 - 12*int(f/14.)
-        Y = d - 4715 - int((7 + M)/10.)
-        year = Y + M/12. + D/365.25
-        return year
+        mjd = JD - 2400000.5
+        date = julian.from_jd(mjd, fmt='mjd')
+        def sinceEpoch(date): # returns seconds since epoch
+            return time.mktime(date.timetuple())
+        s = sinceEpoch
+        year = date.year
+        startOfThisYear = dt(year=year, month=1, day=1)
+        startOfNextYear = dt(year=year+1, month=1, day=1)
+        yearElapsed = s(date) - s(startOfThisYear)
+        yearDuration = s(startOfNextYear) - s(startOfThisYear)
+        fraction = yearElapsed/yearDuration
+        return date.year + fraction
 
     def calendar_to_JD(self, year, M=1, D=1):
         """
