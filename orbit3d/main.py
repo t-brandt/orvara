@@ -22,22 +22,24 @@ _loglkwargs = {}
 
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
-        mpri = 1.8
-        jit = .5
-        sau = 12
-        esino = -0.08
-        ecoso = -0.48
-        inc = 88*np.pi/180
-        asc = 210*np.pi/180
-        lam = -40*np.pi/180
-        msec = 0.01
+        mpri = 1.85
+        jit = 2.3
+        sau = 10
+        esino = 0.1
+        ecoso = 0.30
+        inc = 88.8*np.pi/180
+        asc = 212*np.pi/180
+        lam = -35*np.pi/180
+        msec = 0.00764
 
         par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
         init = [jit, mpri]
+        init_perturb_scale = [1., 0.2]
         for i in range(nplanets):
             init += [msec, sau, esino, ecoso, inc, asc, lam]
+            init_perturb_scale += [msec*0.2, sau*0.1, 0.05, 0.05, 2., 2., 2.]
         par0 *= np.asarray(init)
-        par0 *= 2 ** (np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
+        par0 += np.array(init_perturb_scale) * (np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
 
     else:
 
