@@ -23,7 +23,7 @@ _loglkwargs = {}
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
     if start_file.lower() == 'none':
         mpri = 1.85
-        jit = 2.3
+        jit = 0.5
         sau = 10
         esino = 0.1
         ecoso = 0.30
