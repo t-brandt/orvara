@@ -34,12 +34,10 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers):
 
         par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
         init = [jit, mpri]
-        init_perturb_scale = [1., 0.2]
         for i in range(nplanets):
             init += [msec, sau, esino, ecoso, inc, asc, lam]
-            init_perturb_scale += [msec*0.2, sau*0.1, 0.05, 0.05, 2., 2., 2.]
         par0 *= np.asarray(init)
-        par0 += np.array(init_perturb_scale) * (np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
+        par0 *= 2 ** (np.random.rand(np.prod(par0.shape)).reshape(par0.shape) - 0.5)
 
     else:
 
