@@ -80,13 +80,13 @@ class Orbit:
         self.dras, self.ddecs = self.dRAs_G*self.plx*1000, self.dDecs_G*self.plx*1000
         self.RV = model.return_RVs()
         self.relsep = model.return_relsep()*self.plx
-        self.PA = (model.return_PAs()*180/np.pi) % 360
+        self.PA = ((model.return_PAs()+np.pi)*180/np.pi) % 360
 
         self.mu_RA_CM = 1e3*OP.extras[idx, 1]
         self.mu_Dec_CM = 1e3*OP.extras[idx, 2]
         
-        self.mu_RA = 1e3*(self.mu_RA*self.plx*365.25 + OP.extras[idx, 1])
-        self.mu_Dec = 1e3*(self.mu_Dec*self.plx*365.25 + OP.extras[idx, 2])
+        self.mu_RA = 1e3*(-self.mu_RA*self.plx*365.25 + OP.extras[idx, 1])
+        self.mu_Dec = 1e3*(-self.mu_Dec*self.plx*365.25 + OP.extras[idx, 2])
         self.offset = OP.calc_RV_offset(idx)
 
         if OP.cmref == 'msec':
@@ -394,8 +394,8 @@ class OrbitPlots:
 
             t = np.asarray(self.epoch_calendar)
             
-            y, x = [-orb_ml.relsep[i]*np.cos(orb_ml.PA[i]*np.pi/180),
-                    -orb_ml.relsep[i]*np.sin(orb_ml.PA[i]*np.pi/180)]
+            y, x = [orb_ml.relsep[i]*np.cos(orb_ml.PA[i]*np.pi/180),
+                    orb_ml.relsep[i]*np.sin(orb_ml.PA[i]*np.pi/180)]
             _dy, _dx = [-orb_ml.mu_Dec[i] + orb_ml.mu_Dec_CM,
                         -orb_ml.mu_RA[i] + orb_ml.mu_RA_CM]
             i += 1
@@ -796,9 +796,9 @@ class OrbitPlots:
             ax2 = fig.add_axes((0.15, 0.12, 0.8, 0.16)) # X, Y, width, height
 
             orb_ml = Orbit(self, step='best')
-            
+
             for i in range(self.num_orbits):
-                
+
                 orb = Orbit(self, step=self.rand_idx[i])
 
                 ax1.plot(self.epoch_calendar, orb.PA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
@@ -807,20 +807,20 @@ class OrbitPlots:
             # plot the highest likelihood orbit
             ax1.plot(self.epoch_calendar, orb_ml.PA, color='black')
             ax2.plot(self.epoch_calendar, np.zeros(len(self.epoch)), 'k--', dashes=(5, 5))
-                       
+
             # plot the observed data points
             orb_ml = Orbit(self, 'best', epochs='observed')
-            
+
             ep_relAst_obs_calendar = []
             for i in range(len(self.ep_relAst_obs)):
                 ep_relAst_obs_calendar.append(self.JD_to_calendar(self.ep_relAst_obs[i]))
             ax1.errorbar(ep_relAst_obs_calendar, self.PA_obs, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
             ax1.scatter(ep_relAst_obs_calendar, self.PA_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
             dat_OC = self.PA_obs - orb_ml.PA
-            
+
             ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
             ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
-            
+
             # axes settings
             # ax1
             ax1.get_shared_x_axes().join(ax1, ax2)
