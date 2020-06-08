@@ -188,7 +188,7 @@ class OrbitPlots:
         start_epoch = self.calendar_to_JD(self.start_epoch)
         end_epoch = self.calendar_to_JD(self.end_epoch)
         range_epoch = end_epoch - start_epoch
-        epoch = np.linspace(start_epoch - 0.1*range_epoch, end_epoch + 0.5*range_epoch, self.num_steps)
+        epoch = np.linspace(start_epoch, end_epoch + 0.5*range_epoch, self.num_steps)
         epoch_calendar = np.zeros(len(epoch))
         for i in range(len(epoch_calendar)):
             epoch_calendar[i] = self.JD_to_calendar(epoch[i])
@@ -1211,13 +1211,12 @@ class OrbitPlots:
     ############### plot a nicer corner plot###############
     
     def plot_corner(self, **kwargs):
-        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{ecc}$', r'$\mathrm{i\, (^{\circ})}$']
+        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         rcParams["lines.linewidth"] = 1.0
-        rcParams["axes.labelpad"] = 80.0
+        rcParams["axes.labelpad"] = 20.0
         rcParams["xtick.labelsize"] = 10.0
         rcParams["ytick.labelsize"] = 10.0
         
-        #burnin = self.burnin
         chain = self.chain
         ndim = chain[:, 0].flatten().shape[0]
         Mpri = chain[:, 1].flatten().reshape(ndim,1)                      # in M_{\odot}
