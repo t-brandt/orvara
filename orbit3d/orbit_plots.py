@@ -30,14 +30,6 @@ from matplotlib.ticker import AutoMinorLocator
     OPs.plot_corner()
 """
 
-# Progress:
-# Finalized all of the preliminary plots: OPs.astrometry(), OPs.RV(), OP.relRV(), OPs.relsep() , OPs.PA(), OPs.proper_motions(), OPS.plot_corner()
-# deleted the 'manually changing the axes ticks'
-
-# TO DO:
-# Fix the excepts, or delete them?
-
-
 class Orbit:
 
     def __init__(self, OP, step='best', epochs='custom'):
@@ -89,7 +81,9 @@ class Orbit:
         self.mu_Dec = 1e3*(-self.mu_Dec*self.plx*365.25 + OP.extras[idx, 2])
         self.offset = OP.calc_RV_offset(idx)
 
-        if OP.cmref == 'msec':
+        if OP.cmref == 'msec_solar':
+            self.colorpar = self.par.msec
+        elif OP.cmref == 'msec_jup':
             self.colorpar = self.par.msec*1989/1.898
         elif OP.cmref == 'ecc':
             self.colorpar = self.par.ecc
@@ -102,8 +96,7 @@ class OrbitPlots:
         pass        
 
     def start(self):
-
-        self.cmlabel_dic = {'msec': r'$\mathrm{M_{comp} (M_{Jup})}$', 'ecc': 'Eccentricity'}
+        self.cmlabel_dic = {'msec_jup': r'$\mathrm{M_{comp} (M_{Jup})}$','msec_solar': r'$\mathrm{M_{comp} (M_{\odot})}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'b', 'y', 'c', 'b']
         
         ############################### load in data #######################
@@ -128,9 +121,12 @@ class OrbitPlots:
         ################################ set colorbar ######################
         # setup the normalization and the colormap
 
-        if self.cmref == 'msec':
+        if self.cmref == 'msec_jup':
             vmin = 1989/1.898*stats.scoreatpercentile(self.chain[:, 2], 1)
             vmax = 1989/1.898*stats.scoreatpercentile(self.chain[:, 2], 99)
+        if self.cmref == 'msec_solar':
+            vmin = stats.scoreatpercentile(self.chain[:, 2], 1)
+            vmax = stats.scoreatpercentile(self.chain[:, 2], 99)
         elif self.cmref == 'ecc':
             ecc = self.chain[:, 4]**2 + self.chain[:, 5]**2
             vmin = stats.scoreatpercentile(ecc, 1)
@@ -1211,7 +1207,6 @@ class OrbitPlots:
     ############### plot a nicer corner plot###############
     
     def plot_corner(self, **kwargs):
-        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 20.0
         rcParams["xtick.labelsize"] = 10.0
@@ -1220,7 +1215,12 @@ class OrbitPlots:
         chain = self.chain
         ndim = chain[:, 0].flatten().shape[0]
         Mpri = chain[:, 1].flatten().reshape(ndim,1)                      # in M_{\odot}
-        Msec = (chain[:,2]*1989/1.898).flatten().reshape(ndim,1)         # in M_{jup}
+        if self.cmref == 'msec_solar':
+            Msec = (chain[:,2]).flatten().reshape(ndim,1)         # in M_{\odot}
+            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
+        elif self.cmref == 'msec_jup':
+            Msec = (chain[:,2]*1989/1.898).flatten().reshape(ndim,1)
+            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         Semimajor = chain[:,3].flatten().reshape(ndim,1)                       # in AU
         Ecc = (chain[:,4]**2 +chain[:,5]**2).flatten().reshape(ndim,1)
         #Omega=(np.arctan2(chain[:,burnin:,4],chain[:,burnin:,5])).flatten().reshape(ndim,1)
