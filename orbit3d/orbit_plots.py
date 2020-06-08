@@ -327,8 +327,8 @@ class OrbitPlots:
         X = np.cos(EA) - par.ecc
         Y = np.sin(EA)*np.sqrt(1 - par.ecc**2)
         
-        dra = (B*X + G*Y)*(-par.sau)*plx
-        ddec = (A*X + F*Y)*(-par.sau)*plx
+        dra = (B*X + G*Y)*(par.sau)*plx #changed
+        ddec = (A*X + F*Y)*(par.sau)*plx #changed
         
         return dra, ddec
 
@@ -345,7 +345,7 @@ class OrbitPlots:
 
             ax.plot(dra, ddec, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.4, linewidth=0.8)
 
-        # plot the most likely orbit
+        #plot the most likely orbit
         
         orb_ml = Orbit(self, step='best')
         dra, ddec = self.closed_orbit(orb_ml.par, orb_ml.plx)
@@ -394,8 +394,8 @@ class OrbitPlots:
 
             t = np.asarray(self.epoch_calendar)
             
-            y, x = [orb_ml.relsep[i]*np.cos(orb_ml.PA[i]*np.pi/180),
-                    orb_ml.relsep[i]*np.sin(orb_ml.PA[i]*np.pi/180)]
+            y, x = [-orb_ml.relsep[i]*np.cos(orb_ml.PA[i]*np.pi/180),
+                    -orb_ml.relsep[i]*np.sin(orb_ml.PA[i]*np.pi/180)]
             _dy, _dx = [-orb_ml.mu_Dec[i] + orb_ml.mu_Dec_CM,
                         -orb_ml.mu_RA[i] + orb_ml.mu_RA_CM]
             i += 1
@@ -403,7 +403,7 @@ class OrbitPlots:
             m, b = calc_linear([x, x + _dx], [y, y + _dy])
 
             # plot the predicted epochs data points on the most likely orbit
-            ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)            
+            ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)
             # calculate the angle between the tangent line and the x-axis
             y_intercept = m*xlim[0]+b
             x_intercept = (ylim[0]-b)/m
@@ -418,7 +418,7 @@ class OrbitPlots:
             # calculate the slopes and y-intercepts of the semi-major and semi-minor axes
             m_semimajor, b_semimajor = calc_linear([min_x,max_x],[min(ddec),max(ddec)])
             m_semiminor, b_semiminor = calc_linear([min(dra),max(dra)],[min_y,max_y])
-            
+
             # if the point you are labeling has x value larger than the corresponding x value on the semimajor axis (same y), and has y value larger than the corresponding y value on the semiminor axis (same x), then it's in the first quardret and the labels should be aligned to the left and rotated by -angle (here the angle is already corrected by 90 degrees in line 486)
             if x < (y-b_semimajor)/m_semimajor and y > m_semiminor*x + b_semiminor:
                 ax.annotate('  ' + str(year), xy=(x, y), verticalalignment='bottom', horizontalalignment='left',rotation =-angle)
@@ -434,7 +434,7 @@ class OrbitPlots:
 
         # plot line of nodes, periastron and the direction of motion of the companion
         dra_nd, ddec_nd = self.closed_orbit(orb_ml.par, orb_ml.plx, nodes=True)
-        
+
         ax.plot(dra_nd[2:], ddec_nd[2:], 'k--',linewidth = 1)
         ax.plot([0, dra_nd[1]], [0, ddec_nd[1]], 'k:')
         # add arrow
