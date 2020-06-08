@@ -1218,7 +1218,7 @@ class OrbitPlots:
         if self.cmref == 'msec_solar':
             Msec = (chain[:,2]).flatten().reshape(ndim,1)         # in M_{\odot}
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
-        elif self.cmref == 'msec_jup':
+        else:
             Msec = (chain[:,2]*1989/1.898).flatten().reshape(ndim,1)
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         Semimajor = chain[:,3].flatten().reshape(ndim,1)                       # in AU
