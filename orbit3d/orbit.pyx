@@ -11,7 +11,12 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 cdef class Params:
     cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit
-    cdef public double ecc, per, arg, sqrt1pe, sqrt1me
+    cdef public double ecc, per, arg, sinarg, cosarg, sqrt1pe, sqrt1me
+    cdef public int nplanets
+    
+    # Array to hold the semimajor axes of all companions
+
+    cdef double *all_sau
 
     def __init__(self, par, int iplanet=0, int nplanets=1):
 
@@ -21,13 +26,19 @@ cdef class Params:
 
         cdef int i
 
+        self.nplanets = nplanets 
+        self.all_sau = <double *> PyMem_Malloc(self.nplanets*sizeof(double))
+        if not self.all_sau:
+            raise MemoryError()
+        
         self.jit = par[0]
         self.mpri = par[1]
         self.msec = par[2 + 7*iplanet]
         self.sau = par[3 + 7*iplanet]
-
+        
         for i in range(nplanets):
-            if self.sau > par[3 + 7*i]:
+            self.all_sau[i] = par[3 + 7*i]
+            if self.sau > self.all_sau[i]:
                 self.mpri += par[2 + 7*i]
 
         self.esino = par[4 + 7*iplanet]
@@ -39,7 +50,13 @@ cdef class Params:
         self.ecc = self.ecoso**2 + self.esino**2
         self.per = sqrt(self.sau*self.sau*self.sau/(self.mpri + self.msec))*365.25
         self.arg = atan2(self.esino, self.ecoso)
+        self.sinarg = self.esino/sqrt(self.ecc)
+        self.cosarg = self.ecoso/sqrt(self.ecc)
 
+    def free(self):
+        if self.all_sau:
+            PyMem_Free(self.all_sau)
+        
 ######################################################################
 # A small structure to hold the important components of Mirek's HTOF
 # routine to avoid python overheads.
@@ -75,12 +92,14 @@ cdef class Data:
     cdef double [:] PA_err
     cdef double [:] relsep_pa_corr
     cdef int [:] ast_planetID
-    cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst
+    cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst, companion_ID
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
+    cdef public double pmra_G_B, pmdec_G_B
     cdef public double plx, plx_err
     cdef double [:, :] Cinv_H
     cdef double [:, :] Cinv_HG
     cdef double [:, :] Cinv_G
+    cdef double [:, :] Cinv_G_B
     cdef public double refep
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
@@ -88,7 +107,7 @@ cdef class Data:
     def __init__(self, Hip, RVfile, relAstfile,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
-                 refep=2455197.5000, verbose=True):
+                 refep=2455197.5000, companion_gaia=None, verbose=True):
         try:
             rvdat = np.genfromtxt(RVfile)
             rvep = rvdat[:, 0]
@@ -119,18 +138,21 @@ cdef class Data:
 
         try:
             try:
-                reldat = np.genfromtxt(relAstfile,
-                                       usecols=(1,2,3,4,5,6,7), skip_header=1)
+                reldat = np.genfromtxt(relAstfile, usecols=(0,1,2,3,4,5,6))
             except:
                 try:
-                    reldat = np.genfromtxt(relAstfile,
-                                           usecols=(1,2,3,4,5,6), skip_header=1)
+                    reldat = np.genfromtxt(relAstfile, usecols=(0,1,2,3,4,5))
                 except:
-                    reldat = np.genfromtxt(relAstfile,
-                                           usecols=(1,2,3,4,5), skip_header=1)
+                    reldat = np.genfromtxt(relAstfile, usecols=(0,1,2,3,4))
             if len(reldat.shape) == 1:
                 reldat = np.reshape(reldat, (1, -1))
-            relep = (reldat[:, 0] - 2000)*365.25 + 2451544.5
+                
+            # Try to guess whether we should assume the epochs of the
+            # relative astrometry file to be decimal years or JD.
+            if np.median(reldat[:, 0]) < 3000:
+                relep = (reldat[:, 0] - 2000)*365.25 + 2451544.5
+            else:
+                relep = reldat[:, 0]
             self.relsep = reldat[:, 1]
             self.relsep_err = reldat[:, 2]
             self.PA = reldat[:, 3]*np.pi/180
@@ -138,13 +160,13 @@ cdef class Data:
             self.nAst = reldat.shape[0]
             # Relative separation/PA correlation \in (-1, 1)
             try:
-                self.relsep_pa_corr = reldat[:, 6]
+                self.relsep_pa_corr = reldat[:, 5]
             except:
                 self.relsep_pa_corr = reldat[:, 0]*0
 
             try:
-                self.ast_planetID = (reldat[:, 5]).astype(np.int32)
-                assert np.all(self.ast_planetID == reldat[:, 5])
+                self.ast_planetID = (reldat[:, 6]).astype(np.int32)
+                assert np.all(self.ast_planetID == reldat[:, 6])
                 if verbose:
                     print("Loading astrometric data for %d planets" % (np.amax(self.ast_planetID) + 1))
             except:
@@ -253,7 +275,38 @@ cdef class Data:
         self.Cinv_H = np.linalg.inv(C_H.reshape(2, 2)).astype(float)
         self.Cinv_HG = np.linalg.inv(C_HG.reshape(2, 2)).astype(float)
         self.Cinv_G = np.linalg.inv(C_G.reshape(2, 2)).astype(float)
-
+        
+        if companion_gaia is None:
+            self.Cinv_G_B = np.zeros((2, 2)).astype(float)
+            self.pmra_G_B = self.pmdec_G_B = 0
+            self.companion_ID = -1
+            if verbose:
+                print("Not using companion proper motion from Gaia.")
+        elif companion_gaia['ID'] < 0 or companion_gaia['ID'] >= self.nplanets:
+            self.Cinv_G_B = np.zeros((2, 2)).astype(float)
+            self.pmra_G_B = self.pmdec_G_B = 0
+            self.companion_ID = -1
+            if verbose:
+                print("Not using companion proper motion from Gaia.")
+            
+        else:
+            eRA, eDec, corr = [1e-3*companion_gaia['e_pmra'],
+                               1e-3*companion_gaia['e_pmdec'],
+                               companion_gaia['corr_pmra_pmdec']]
+            C_G = np.asarray([[eRA**2, eRA*eDec*corr], [eRA*eDec*corr, eDec**2]])
+            try:
+                self.Cinv_G_B = np.linalg.inv(C_G.reshape(2, 2)).astype(float)
+                self.pmra_G_B = 1e-3*companion_gaia['pmra']
+                self.pmdec_G_B = 1e-3*companion_gaia['pmdec']
+                self.companion_ID = companion_gaia['ID']
+                if verbose:
+                    print("Using companion proper motion from Gaia.")
+            except:
+                self.Cinv_G_B = np.zeros((2, 2)).astype(float)
+                self.pmra_G_B = self.pmdec_G_B = 0
+                self.companion_ID = -1
+                if verbose:
+                    print("Not using companion proper motion from Gaia.")
 
     def custom_epochs(self, epochs, refep=2455197.5000, iplanet=0):
 
@@ -268,18 +321,23 @@ cdef class Model:
 
     cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
     cdef public double pmra_H, pmra_HG, pmra_G, pmdec_H, pmdec_HG, pmdec_G
+    cdef public double pmra_G_B, pmdec_G_B
     cdef double *EA
     cdef double *sinEA
     cdef double *cosEA
     cdef double *RV
     cdef double *relsep
     cdef double *PA
+    cdef double *rel_RA
+    cdef double *rel_Dec
     cdef double *dRA_H1
     cdef double *dDec_H1
     cdef double *dRA_H2
     cdef double *dDec_H2
     cdef double *dRA_G
     cdef double *dDec_G
+    cdef double *dRA_G_B
+    cdef double *dDec_G_B
 
     def __init__(self, Data data):
         self.nEA = data.nTot
@@ -290,6 +348,7 @@ cdef class Model:
         self.nGaia = data.nGaia
         self.pmra_H = self.pmra_HG = self.pmra_G = 0
         self.pmdec_H = self.pmdec_HG = self.pmdec_G = 0
+        self.pmra_G_B = self.pmdec_G_B = 0
         cdef int i
 
         self.EA = <double *> PyMem_Malloc((self.nEA+1) * sizeof(double))
@@ -308,10 +367,12 @@ cdef class Model:
 
         self.relsep = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
         self.PA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
-        if not self.RV or not self.relsep or not self.PA:
+        self.rel_RA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
+        self.rel_Dec = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
+        if not self.RV or not self.relsep or not self.PA or not self.rel_RA or not self.rel_Dec:
             raise MemoryError()
         for i in range(self.nAst):
-            self.relsep[i] = self.PA[i] = 0
+            self.relsep[i] = self.PA[i] = self.rel_RA[i] = self.rel_Dec[i] = 0
 
         self.dRA_H1 = <double *> PyMem_Malloc((self.nHip1+1) * sizeof(double))
         self.dDec_H1 = <double *> PyMem_Malloc((self.nHip1+1) * sizeof(double))
@@ -334,6 +395,13 @@ cdef class Model:
         for i in range(self.nGaia):
             self.dRA_G[i] = self.dDec_G[i] = 0
 
+        self.dRA_G_B = <double *> PyMem_Malloc((self.nGaia+1) * sizeof(double))
+        self.dDec_G_B = <double *> PyMem_Malloc((self.nGaia+1) * sizeof(double))
+        if not self.dRA_G_B or not self.dDec_G_B:
+            raise MemoryError()
+        for i in range(self.nGaia):
+            self.dRA_G_B[i] = self.dDec_G_B[i] = 0
+
     def return_RVs(self):
         cdef int i
         RVs = np.empty(self.nRV)
@@ -352,13 +420,13 @@ cdef class Model:
         
         for i in range(self.nGaia):
             dRAs_G[i] = self.dRA_G[i]
-            dDecs_G[i] = self.dDec_G[j]
+            dDecs_G[i] = self.dDec_G[i]
         for i in range(self.nHip1):
             dRAs_H1[i] = self.dRA_H1[i]
-            dDecs_H1[i] = self.dDec_H1[j]
+            dDecs_H1[i] = self.dDec_H1[i]
         for i in range(self.nHip2):
             dRAs_H2[i] = self.dRA_H2[i]
-            dDecs_H2[i] = self.dDec_H2[j]
+            dDecs_H2[i] = self.dDec_H2[i]
         return dRAs_G, dDecs_G, dRAs_H1, dDecs_H1, dRAs_H2,  dDecs_H2
 
     def return_TAs(self, Params par):
@@ -399,9 +467,9 @@ cdef class Model:
             double sqrt(double _x)
             double atan2(double _y, double _x)
 
-        cdef double a_1 = par.sau/(1. + par.mpri/par.msec)
-        cdef double cosarg = cos(par.arg)
-        cdef double sinarg = sin(par.arg)
+        cdef double a_1 = -par.sau/(1. + par.mpri/par.msec)
+        cdef double cosarg = par.cosarg
+        cdef double sinarg = par.sinarg
         cdef double cosasc = cos(par.asc)
         cdef double sinasc = sin(par.asc)
         cdef double cosinc = cos(par.inc)
@@ -426,12 +494,16 @@ cdef class Model:
         PyMem_Free(self.dDec_H2)
         PyMem_Free(self.dRA_G)
         PyMem_Free(self.dDec_G)
+        PyMem_Free(self.dRA_G_B)
+        PyMem_Free(self.dDec_G_B)
         PyMem_Free(self.RV)
         PyMem_Free(self.EA)
         PyMem_Free(self.sinEA)
         PyMem_Free(self.cosEA)
         PyMem_Free(self.relsep)
         PyMem_Free(self.PA)
+        PyMem_Free(self.rel_RA)
+        PyMem_Free(self.rel_Dec)
 
 cdef class Chisq_resids:
     cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA
@@ -670,9 +742,9 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
         double sqrt(double _x)
         double atan2(double _y, double _x)
 
-    cdef double a_1 = par.sau/(1. + par.mpri/par.msec)
-    cdef double cosarg = cos(par.arg)
-    cdef double sinarg = sin(par.arg)
+    cdef double a_1 = -par.sau/(1. + par.mpri/par.msec)
+    cdef double cosarg = par.cosarg
+    cdef double sinarg = par.sinarg
     cdef double cosasc = cos(par.asc)
     cdef double sinasc = sin(par.asc)
     cdef double cosinc = cos(par.inc)
@@ -687,16 +759,31 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
     cdef double X, Y, dRA, dDec, sqonemeccsqr = sqrt(1 - par.ecc**2)
 
     for i in range(data.nAst):
-        if data.ast_planetID[i] != iplanet:
-            continue
         X = model.cosEA[i + data.nRV] - par.ecc
         Y = model.sinEA[i + data.nRV]*sqonemeccsqr
 
         dRA = B*X + G*Y
         dDec = A*X + F*Y
 
-        model.relsep[i] = sqrt(dRA**2 + dDec**2)*par.sau/a_1
-        model.PA[i] = atan2(-dRA, -dDec)
+        ###################################################################
+        # Operate in dRA, dDec for now.  We will use the offset of the
+        # primary and companion of interest, or, if there is an
+        # additional companion within the orbit of the companion of
+        # interest, we will add in the offset of the primary about
+        # *that* center of mass.
+        ###################################################################
+        
+        if data.ast_planetID[i] == iplanet:        
+            model.rel_RA[i] += -par.sau/a_1*dRA
+            model.rel_Dec[i] += -par.sau/a_1*dDec
+        elif par.all_sau[data.ast_planetID[i]] > par.all_sau[iplanet]:    
+            model.rel_RA[i] += dRA
+            model.rel_Dec[i] += dDec
+
+        # If we are at the last companion, convert to sep, PA
+        if iplanet == par.nplanets - 1:
+            model.relsep[i] = sqrt(model.rel_RA[i]**2 + model.rel_Dec[i]**2)
+            model.PA[i] = atan2(-model.rel_RA[i], -model.rel_Dec[i])
 
     i1 = data.nRV + data.nAst
     i2 = i1 + data.nHip1
@@ -725,6 +812,15 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
         model.dRA_G[i - i1] += B*X + G*Y
         model.dDec_G[i - i1] += A*X + F*Y
 
+        if data.companion_ID == iplanet and data.Cinv_G_B[0, 0] != 0:
+            model.dRA_G_B[i - i1] = -par.mpri/par.msec*(B*X + G*Y)
+            model.dDec_G_B[i - i1] = -par.mpri/par.msec*(A*X + F*Y)
+
+    # We only use the array of semimajor axes in this routine: free it
+    # after we are done.
+            
+    par.free()
+    
     return
 
 @cython.boundscheck(False)
@@ -745,19 +841,22 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     cdef double *b_Hip1 = <double *> PyMem_Malloc(Hip1.npar * sizeof(double))
     cdef double *b_Hip2 = <double *> PyMem_Malloc(Hip2.npar * sizeof(double))
     cdef double *b_Gaia = <double *> PyMem_Malloc(Gaia.npar * sizeof(double))
-    if not b_Hip1 or not b_Hip2 or not b_Gaia:
+    cdef double *b_Gaia_B = <double *> PyMem_Malloc(Gaia.npar * sizeof(double))
+    if not b_Hip1 or not b_Hip2 or not b_Gaia or not b_Gaia_B:
         raise MemoryError()
 
     cdef double *res_Hip1 = <double *> PyMem_Malloc(Hip1.npar * sizeof(double))
     cdef double *res_Hip2 = <double *> PyMem_Malloc(Hip2.npar * sizeof(double))
     cdef double *res_Gaia = <double *> PyMem_Malloc(Gaia.npar * sizeof(double))
-    if not res_Hip1 or not res_Hip2 or not res_Gaia:
+    cdef double *res_Gaia_B = <double *> PyMem_Malloc(Gaia.npar * sizeof(double))
+    if not res_Hip1 or not res_Hip2 or not res_Gaia or not res_Gaia_B:
         raise MemoryError()
 
     cdef double *chi2mat_Hip1 = <double *> PyMem_Malloc(Hip1.npar*Hip1.npar * sizeof(double))
     cdef double *chi2mat_Hip2 = <double *> PyMem_Malloc(Hip2.npar*Hip2.npar * sizeof(double))
     cdef double *chi2mat_Gaia = <double *> PyMem_Malloc(Gaia.npar*Gaia.npar * sizeof(double))
-    if not chi2mat_Gaia or not chi2mat_Hip1 or not chi2mat_Hip2:
+    cdef double *chi2mat_Gaia_B = <double *> PyMem_Malloc(Gaia.npar*Gaia.npar * sizeof(double))
+    if not chi2mat_Gaia or not chi2mat_Hip1 or not chi2mat_Hip2 or not chi2mat_Gaia_B:
         raise MemoryError()
 
     cdef int i, j
@@ -765,6 +864,7 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     cdef double RA_H1, Dec_H1, pmra_H1, pmdec_H1
     cdef double RA_H2, Dec_H2, pmra_H2, pmdec_H2
     cdef double RA_G, Dec_G, pmra_G, pmdec_G
+    cdef double RA_G_B, Dec_G_B, pmra_G_B, pmdec_G_B
 
     for i in range(Hip1.npar):
         x = 0
@@ -787,6 +887,13 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
             x += model.dDec_G[j]*Gaia.dec_solution_vecs[i, j]
         b_Gaia[i] = x
 
+        if data.Cinv_G_B[0, 0] != 0:
+            x = 0
+            for j in range(Gaia.nepochs):
+                x += model.dRA_G_B[j]*Gaia.ra_solution_vecs[i, j]
+                x += model.dDec_G_B[j]*Gaia.dec_solution_vecs[i, j]
+            b_Gaia_B[i] = x
+
     for i in range(Hip1.npar):
         for j in range(Hip1.npar):
             chi2mat_Hip1[i*Hip1.npar + j] = Hip1.chi2_matrix[i, j]
@@ -796,6 +903,9 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     for i in range(Gaia.npar):
         for j in range(Gaia.npar):
             chi2mat_Gaia[i*Gaia.npar + j] = Gaia.chi2_matrix[i, j]
+    for i in range(Gaia.npar):
+        for j in range(Gaia.npar):
+            chi2mat_Gaia_B[i*Gaia.npar + j] = Gaia.chi2_matrix[i, j]
 
     lstsq_C(chi2mat_Hip1, b_Hip1, Hip1.npar, Hip1.npar, res_Hip1)
     RA_H1 = res_Hip1[0]
@@ -815,24 +925,36 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     pmra_G = res_Gaia[2]*365.25
     pmdec_G = res_Gaia[3]*365.25
 
+    if data.Cinv_G_B[0, 0] != 0: 
+        lstsq_C(chi2mat_Gaia_B, b_Gaia_B, Gaia.npar, Gaia.npar, res_Gaia_B)
+        RA_G_B = res_Gaia_B[0]
+        Dec_G_B = res_Gaia_B[1]
+        pmra_G_B = res_Gaia_B[2]*365.25
+        pmdec_G_B = res_Gaia_B[3]*365.25
+
     model.pmra_H = 0.4*pmra_H1 + 0.6*pmra_H2
     model.pmdec_H = 0.4*pmdec_H1 + 0.6*pmdec_H2
     model.pmra_G = pmra_G
     model.pmdec_G = pmdec_G
+    model.pmra_G_B = pmra_G_B
+    model.pmdec_G_B = pmdec_G_B
     model.pmra_HG = (RA_G - (0.4*RA_H1 + 0.6*RA_H2))/(data.epRA_G - data.epRA_H)
     model.pmdec_HG = (Dec_G - (0.4*Dec_H1 + 0.6*Dec_H2))/(data.epDec_G - data.epDec_H)
 
     PyMem_Free(b_Hip1)
     PyMem_Free(b_Hip2)
     PyMem_Free(b_Gaia)
+    PyMem_Free(b_Gaia_B)
 
     PyMem_Free(res_Hip1)
     PyMem_Free(res_Hip2)
     PyMem_Free(res_Gaia)
+    PyMem_Free(res_Gaia_B)
 
     PyMem_Free(chi2mat_Hip1)
     PyMem_Free(chi2mat_Hip2)
     PyMem_Free(chi2mat_Gaia)
+    PyMem_Free(chi2mat_Gaia_B)
 
     return
 
@@ -866,6 +988,9 @@ def calc_PMs_no_epoch_astrometry(Data data, Model model):
     model.pmra_G = (model.dRA_G[2] - model.dRA_G[0])/data.dt_G
     model.pmdec_G = (model.dDec_G[5] - model.dDec_G[3])/data.dt_G
 
+    model.pmra_G_B = (model.dRA_G_B[2] - model.dRA_G_B[0])/data.dt_G
+    model.pmdec_G_B = (model.dDec_G_B[5] - model.dDec_G_B[3])/data.dt_G
+
     return
 
 @cython.boundscheck(False)
@@ -895,8 +1020,8 @@ def calc_RV(Data data, Params par, Model model):
     cdef double RVampl = 2*pi*par.sau*sin(par.inc)/(par.per*sqrt1pe*sqrt1me)
     RVampl *= 1731458.33*par.msec/(par.mpri + par.msec)
 
-    cdef double cosarg = cos(par.arg)
-    cdef double sinarg = sin(par.arg)
+    cdef double cosarg = par.cosarg
+    cdef double sinarg = par.sinarg
     cdef double ecccosarg = par.ecc*cosarg
     cdef double sqrt1pe_div_sqrt1me = sqrt1pe/sqrt1me
     cdef double TA, ratio, fac, tanEAd2
@@ -972,6 +1097,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     cdef extern from "math.h" nogil:
         double sin(double _x)
+        double sqrt(double _x)
         double cos(double _x)
         double log(double _x)
         double pow(double _x, double _y)
@@ -1050,14 +1176,16 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     chisq_PA = chisq_sep = chisq_H = chisq_HG = chisq_G = chisq_plx = 0
 
     for i in range(data.nAst):
-        corr = data.relsep_pa_corr[i]
-        
+
         #M[0] += model.relsep[i]**2/data.relsep_err[i]**2
         #b[0] += model.relsep[i]*data.relsep[i]/data.relsep_err[i]**2
 
+        # Allow for covariance in separation, PA
+        corr = data.relsep_pa_corr[i]        
         M[0] += model.relsep[i]**2/((1 - corr**2)*data.relsep_err[i]**2)
         b[0] += model.relsep[i]*data.relsep[i]/((1 - corr**2)*data.relsep_err[i]**2)
 
+        # Difference in PA: between -pi and pi
         dPA = (model.PA[i] - data.PA[i])%twopi
         if dPA > pi:
             dPA = dPA - twopi
@@ -1090,6 +1218,22 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     M[2] += model.pmdec_HG*data.Cinv_HG[1, 1] + model.pmra_HG*data.Cinv_HG[0, 1]
     M[2] += model.pmdec_G*data.Cinv_G[1, 1] + model.pmra_G*data.Cinv_G[0, 1]
 
+    ######################################################################
+    # Include the effect of a wide companion if present (check using a
+    # nonzero inverse covariance matrix).
+    ######################################################################
+    
+    if data.Cinv_G_B[0, 0] != 0:
+        M[0] += model.pmra_G_B**2*data.Cinv_G_B[0, 0]
+        M[0] += 2*model.pmra_G_B*model.pmdec_G_B*data.Cinv_G_B[1, 0]
+        M[0] += model.pmdec_G_B**2*data.Cinv_G_B[1, 1]
+        #
+        M[1] += model.pmra_G_B*data.Cinv_G_B[0, 0] 
+        M[1] += model.pmdec_G_B*data.Cinv_G_B[0, 1]
+        #
+        M[2] += model.pmdec_G_B*data.Cinv_G_B[1, 1] 
+        M[2] += model.pmra_G_B*data.Cinv_G_B[0, 1]
+
     b[0] += model.pmra_H*data.pmra_H*data.Cinv_H[0, 0]
     b[0] += model.pmdec_H*data.pmdec_H*data.Cinv_H[1, 1]
     b[0] += (model.pmdec_H*data.pmra_H + model.pmra_H*data.pmdec_H)*data.Cinv_H[0, 1]
@@ -1119,6 +1263,15 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     b[2] = data.pmdec_H*data.Cinv_H[1, 1] + data.pmra_H*data.Cinv_H[0, 1]
     b[2] += data.pmdec_HG*data.Cinv_HG[1, 1] + data.pmra_HG*data.Cinv_HG[0, 1]
     b[2] += data.pmdec_G*data.Cinv_G[1, 1] + data.pmra_G*data.Cinv_G[0, 1]
+
+    if data.Cinv_G_B[0, 0] != 0:
+        b[0] += model.pmra_G_B*data.pmra_G_B*data.Cinv_G_B[0, 0]
+        b[0] += model.pmdec_G_B*data.pmdec_G_B*data.Cinv_G_B[1, 1]
+        b[0] += (model.pmdec_G_B*data.pmra_G_B + model.pmra_G_B*data.pmdec_G_B)*data.Cinv_G_B[0, 1]
+        
+        b[1] += data.pmra_G_B*data.Cinv_G_B[0, 0] + data.pmdec_G_B*data.Cinv_G_B[0, 1]
+
+        b[2] += data.pmdec_G_B*data.Cinv_G_B[1, 1] + data.pmra_G_B*data.Cinv_G_B[0, 1]
 
     cdef double plx_best, pmra_best, pmdec_best, deltaRA, deltaDec, detM
 
@@ -1182,6 +1335,14 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     chisq_G += deltaDec**2*data.Cinv_G[1, 1]
     chisq_G += 2*deltaRA*deltaDec*data.Cinv_G[0, 1]
 
+    # Now take care of the companion
+    if data.Cinv_G_B[0, 0] != 0:
+        deltaRA = model.pmra_G_B - data.pmra_G_B + pmra_best
+        deltaDec = model.pmdec_G_B - data.pmdec_G_B + pmdec_best
+        chisq_G += deltaRA**2*data.Cinv_G_B[0, 0]
+        chisq_G += deltaDec**2*data.Cinv_G_B[1, 1]
+        chisq_G += 2*deltaRA*deltaDec*data.Cinv_G_B[0, 1]
+
     chisq_plx = (data.plx - plx_best)**2/data.plx_err**2
 
     lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx
@@ -1203,7 +1364,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         
         PyMem_Free(RVzero)
         model.free()
-
+        
         if RVoffsets:
             return chisq_struct, RVzero_np
         else:
@@ -1225,7 +1386,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 # the quantity out.
 ######################################################################
 
-def lnprior(Params par):
+def lnprior(Params par, double minjit=-20, double maxjit=20):
 
     cdef extern from "math.h" nogil:
         double sin(double _x)
@@ -1238,9 +1399,9 @@ def lnprior(Params par):
         return zeroprior
     if par.sau > 2e5 or par.mpri > 1e3 or par.msec > 1e3:
         return zeroprior
-    if par.inc <= 0 or par.inc >= pi or par.asc < -pi or par.asc >= 3*pi:
+    if par.inc < 0 or par.inc > pi or par.asc < -pi or par.asc > 3*pi:
         return zeroprior
-    if par.lam < -pi or par.lam >= 3*pi or par.jit < -20 or par.jit > 20:
+    if par.lam < -pi or par.lam > 3*pi or par.jit < minjit or par.jit > maxjit:
         return zeroprior
 
     return log(sin(par.inc)*1./(par.sau*par.msec))
