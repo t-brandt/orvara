@@ -1,8 +1,5 @@
-#           Date      Sep      Err_sep  PA        Err_PA   
-xxxx-xx-xx  2012.48     2.594   0.014   298.6   0.1    NIRC2
-xxxx-xx-xx  2014.78     2.637   0.014   299.5   0.1    NIRC2
-xxxx-xx-xx  2016.30     2.66    0.03    301.5   0.56   ShaneAO
-xxxx-xx-xx  2016.63     2.68    0.02    301.7   0.47   ShaneAO
-xxxx-xx-xx  2017.43     2.671   0.004   301.3   0.2    PHARO
-xxxx-xx-xx  2018.32     2.673   0.003   301.27  0.04   NIRC2
-xxxx-xx-xx  2018.41     2.67    0.01    301.0   0.24   ShaneAO
+#   Date       Sep  Err_sep      PA  Err_PA  Corr_Sep_PA  PlanetID  
+ 2012.48     2.594    0.014   298.6     0.1            0         0
+ 2014.78     2.637    0.014   299.5     0.1            0         0
+ 2018.32     2.673    0.003  301.27    0.04            0         0
+
