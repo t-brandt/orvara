@@ -58,7 +58,7 @@ def initialize_plot_options(config):
     
     #read in the mcmc chains
     OP.burnin = config.getint('plotting', 'burnin', fallback=0)
-    OP.MCMCfile = config.get('plotting', 'McmcDataDir', fallback=None)
+    OP.MCMCfile = config.get('plotting', 'McmcDataFile', fallback=None)
     
     # colorbar settings
     OP.usecolorbar = config.getboolean('plotting', 'use_colorbar', fallback=False)
@@ -68,7 +68,7 @@ def initialize_plot_options(config):
     OP.colorbar_pad = config.getfloat('plotting', 'pad', fallback=0.04)
 
     # which planet to plot?
-    OP.iplanet = config.getint('mcmc_settings', 'iplanet', fallback=0)
+    OP.iplanet = config.getint('plotting', 'iplanet', fallback=0)
     
     # customized range of epochs
     OP.start_epoch = config.getfloat('plotting', 'start_epoch', fallback=0)
@@ -99,7 +99,7 @@ def initialize_plot_options(config):
     OP.marker_color = config.get('plotting', 'marker_color', fallback= 'coral')
     
     # plot which instrument for the relative RV plot, starting from 1,2 ... n
-    OP.whichInst = config.get('plotting', 'Relative_RV_which_Instrument', fallback=False)
+    OP.whichInst = config.get('plotting', 'Relative_RV_Instrument', fallback=False)
     
     # plot the two proper motion plots separately or together
     OP.pm_separate = config.getboolean('plotting', 'Proper_motion_separate_plots', fallback=False)
