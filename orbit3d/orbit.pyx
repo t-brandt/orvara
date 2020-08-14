@@ -282,7 +282,7 @@ cdef class Data:
             self.companion_ID = -1
             if verbose:
                 print("Not using companion proper motion from Gaia.")
-        elif companion_gaia['ID'] < 0 or companion_gaia['ID'] >= self.nplanets:
+        elif companion_gaia['ID'] < 0:# or companion_gaia['ID'] >= self.nplanets:
             self.Cinv_G_B = np.zeros((2, 2)).astype(float)
             self.pmra_G_B = self.pmdec_G_B = 0
             self.companion_ID = -1
