@@ -14,7 +14,7 @@ from configparser import ConfigParser
 from astropy.io import fits
 from htof.main import Astrometry
 from astropy.time import Time
-
+import sys
 from orbit3d import orbit
 from orbit3d.config import parse_args
 
@@ -243,9 +243,18 @@ def run():
         sample0 = PTSampler(ntemps=ntemps, nwalkers=nwalkers, dim=ndim,
                             logl=avoid_pickle_lnprob, logp=return_one,
                             threads=nthreads)
-        
-    sample0.run_mcmc(par0, nstep, **samplekwargs)
     
+    print("Running MCMC ... ")
+    sample0.run_mcmc(par0, nstep, **samplekwargs)
+    #add a progress bar
+    for i, result in enumerate(sample0.sample(par0, iterations=nstep)):
+        width = 30
+        n = int((width+1) * float(i) / nstep)
+        sys.stdout.write("\r[{0}{1}]".format('#' * n, ' ' * (width - n)))
+        if (i+1) % 100 == 0:
+            sys.stdout.write("{0:5.1%}".format(float(i) / nstep))
+    sys.stdout.write("\n")
+        
     print('Total Time: %.0f seconds' % (time.time() - start_time))
     print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0, :])))
     # save data

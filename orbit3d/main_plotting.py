@@ -75,7 +75,7 @@ def initialize_plot_options(config):
     OP.end_epoch = config.getfloat('plotting', 'end_epoch', fallback=0)
     
     # predicted epoch positions
-    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=0).split(",")
+    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('1990','2000','2010','2020','2030')).split(",")
     OP.predicted_ep_ast = config.getfloat('plotting', 'position_predict', fallback=2000)
     # how many random orbits
     OP.num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
@@ -103,6 +103,10 @@ def initialize_plot_options(config):
     
     # plot the two proper motion plots separately or together
     OP.pm_separate = config.getboolean('plotting', 'Proper_motion_separate_plots', fallback=False)
+    
+    #save data
+    OP.save_params = config.getboolean('save_results', 'save_params', fallback=True)
+    OP.err_margin = config.get('save_results', 'err_margin', fallback= ('0.16', '0.5', '0.84')).split(",")
     
     args = parse_args_plotting()
     OP.outputdir = args.output_dir
@@ -137,6 +141,7 @@ def run():
     plot_position_angle = config.getboolean('plotting', 'Position_angle_plot', fallback=False)
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
     plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
+    save_params = config.getboolean('save_results', 'save_params', fallback=True)
         
     if plot_astr:
         OPs.astrometry()
@@ -154,6 +159,8 @@ def run():
         OPs.proper_motions()
     if plot_corner:
         OPs.plot_corner()
+    if save_params:
+        OPs.save_data()
     
 if __name__ == "__main__":
     run()

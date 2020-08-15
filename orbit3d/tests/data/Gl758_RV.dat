@@ -1,4 +1,10 @@
-# 
+# Instruments: Keck/HIRES, Tull/McDonald, APF/Lick
+# [1] Butler, R. P., Vogt, S. S., Laughlin, G., et al. 2017, AJ, 153, 208
+# [2] Endl, M., Brugamyer, E. J., Cochran, W. D., et al. 2016, ApJ, 818, 34
+# [3] Fulton, B. J., Weiss, L. M., Sinukoff, E., et al. 2015, ApJ, 805, 175
+##
+#File format
+# Epoch[JD]   RV[m/s] RV_err[m/s] InstrumentID
 2451121.66132  29.88 4.63 0
 2451152.55410  20.29 4.57 0
 2451328.93255  18.48 3.78 0

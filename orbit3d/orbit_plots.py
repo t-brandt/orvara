@@ -18,18 +18,6 @@ import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 
-"""
-    Example:
-    OPs = orbit_plots.OrbitPlots(title, Hip, start_ep, end_ep, predicted_ep, cmref, num_lines, cm_name, usecolorbar, colorbar_size, colorbar_pad, burnin, user_xlim, user_ylim, user_xtext, user_ytext, steps, mcmcfile, RVfile, AstrometryFile, HGCAFile, outputdir)
-    OPs.astrometry()
-    OPs.RV()
-    OPs.relRV()
-    OPs.relsep()
-    OPs.PA()
-    OPs.proper_motions()
-    OPs.plot_corner()
-"""
-
 class Orbit:
 
     def __init__(self, OP, step='best', epochs='custom'):
@@ -303,8 +291,6 @@ class OrbitPlots:
 ########################################## Plotting ################################################
 
 # 1. Astrometric plots
-# Finalized
-# scipy seems to have issues finding the tangent line of an ecplise of any shape
 
     ###############################################################################################
     ############################## plot astrometric orbits ######################
@@ -356,7 +342,6 @@ class OrbitPlots:
         
         orb_ml = Orbit(self, step='best')
         dra, ddec = self.closed_orbit(orb_ml.par, orb_ml.plx)
-        #dd = ddec
         ax.plot(dra, ddec, color='black')
 
         # plot the relAst data points
@@ -453,7 +438,7 @@ class OrbitPlots:
         if self.show_title:
             ax.set_title('Astrometric Orbits')
         if self.add_text:
-            ax.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
+            ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
             if self.colorbar_size < 0 or self.colorbar_pad < 0:
                 cbar = fig.colorbar(self.sm, ax=ax, fraction=0.046, pad=0.04)
@@ -478,7 +463,6 @@ class OrbitPlots:
         plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf') # or +'.png'
 
 # 2. RV orbits plot
-# FINALIZED
 
     ################################################################################################
     ########################### plot the RV orbits #######################
@@ -523,7 +507,7 @@ class OrbitPlots:
         if self.show_title:
             ax.set_title('Relative RV vs. Epoch')
         if self.add_text:
-            ax.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
+            ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
             cbar_ax = fig.add_axes([1.3, 0.325, 0.03, 0.55])
             if self.colorbar_size < 0 or self.colorbar_pad < 0:
@@ -549,7 +533,7 @@ class OrbitPlots:
 
 
 # 3. relative RV plot
-# FINALIZED
+
     ################################################################################################
     ############### plot the relative RV and O-C #####################
 
@@ -654,7 +638,7 @@ class OrbitPlots:
         if self.show_title:
             ax1.set_title('Relative RV vs. Epoch')
         if self.add_text:
-            ax1.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
+            ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
             cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
             if self.colorbar_size < 0 or self.colorbar_pad < 0:
@@ -675,7 +659,7 @@ class OrbitPlots:
 
 
 # 4. relative separation plot
-# FINALIZED
+
     ################################################################################################
     ##################### plot Relative Separation vs. Epoch and O-C ############
     
@@ -742,7 +726,7 @@ class OrbitPlots:
             if self.show_title:
                 ax1.set_title('Relative Separation vs. Epoch')
             if self.add_text:
-                ax1.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
+                ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
                 cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
                 if self.colorbar_size < 0 or self.colorbar_pad < 0:
@@ -787,7 +771,7 @@ class OrbitPlots:
 
 
 # 5. position angle plot
-# FINALIZED
+
     ################################################################################################
     ############### plot the position angle and O-C ###############
 
@@ -854,7 +838,7 @@ class OrbitPlots:
             if self.show_title:
                 ax1.set_title('Position angle vs. Epoch')
             if self.add_text:
-                ax1.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
+                ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
                 cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
                 if self.colorbar_size < 0 or self.colorbar_pad < 0:
@@ -899,7 +883,7 @@ class OrbitPlots:
 
 
 # 6. Proper motion plots
-# FINALIZED
+
     ################################################################################################
     ############### plot the proper motions, together or separately ###############
     
@@ -1028,7 +1012,7 @@ class OrbitPlots:
                 ax3.set_title('Declination vs. Epoch')
             if self.add_text:
                 for ax in [ax1,ax3]:
-                    ax.text(self.calendar_to_JD(self.x_text),self.y_text, self.text_name, fontsize=15)
+                    ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
                 if self.pm_separate:
                     for figure, name in [[fig, 'RA_'], [fig1, 'Dec_']]:
@@ -1099,8 +1083,10 @@ class OrbitPlots:
             fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
         elif not self.usecolorbar:
             fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+            
 ################################################################################################
 
+#astrometric prediction plot
 
     def astrometric_prediction(self, nbins=500):
 
@@ -1209,7 +1195,6 @@ class OrbitPlots:
         plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf')
 
 # 7. Corner plot
-# find out a way to fix the labels (2 sig figure for errors)...
     ################################################################################################
     ############### plot a nicer corner plot###############
     
@@ -1220,6 +1205,7 @@ class OrbitPlots:
         rcParams["ytick.labelsize"] = 10.0
         
         chain = self.chain
+
         ndim = chain[:, 0].flatten().shape[0]
         Mpri = chain[:, 1].flatten().reshape(ndim,1)                      # in M_{\odot}
         di = 7*self.iplanet
@@ -1231,7 +1217,7 @@ class OrbitPlots:
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         Semimajor = chain[:,3+di].flatten().reshape(ndim,1)                       # in AU
         Ecc = (chain[:,4+di]**2 + chain[:,5+di]**2).flatten().reshape(ndim,1)
-        #Omega=(np.arctan2(chain[:,burnin:,4],chain[:,burnin:,5])).flatten().reshape(ndim,1)
+        #Omega=(np.arctan2(chain[:,4+di],chain[:,5+di])).flatten().reshape(ndim,1)
         Inc = (chain[:,6+di]*180/np.pi).flatten().reshape(ndim,1)
         
         chain =np.hstack([Mpri,Msec,Semimajor,Ecc,Inc])
@@ -1243,4 +1229,106 @@ class OrbitPlots:
         plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf')
 
 ###################################################################################################
+###################################################################################################
+
+#save data
+
+    def save_data(self):
+    
+        def print_best_chisq():
+            par_label = ['plx_best', 'pmra_best', 'pmdec_best', 'chisq_sep', 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G', 'RV_off']
+            print("Saving beststep parameters to " + self.outputdir)
+            text_file = open(os.path.join(self.outputdir, 'beststep_params_' + self.title) +'.txt', "w")
+            for i in range(self.extras[self.lnp == np.amax(self.lnp)].shape[1]):
+                if i<8:
+                    text_file.write(par_label[i])
+                    text_file.write("  %f"%round(self.extras[self.lnp == np.amax(self.lnp)].flatten()[i],10))
+                    text_file.write("\n")
+                if i>=8:
+                    text_file.write(par_label[8]+str(i-8))
+                    text_file.write("  %f"%round(self.extras[self.lnp == np.amax(self.lnp)].flatten()[i],10))
+                    text_file.write("\n")
+            text_file.close()
+        
+        def print_par_values(x,m):
+            q_16, q_50, q_84 = corner_modified.quantile(x, m)
+            q_m, q_p = q_50-q_16, q_84-q_50
+
+            # modified to keep 2 significant figures in the errors
+            idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
+            idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
+
+            if idecimal_m < 2:
+                fmt_m_e = "{{0:{0}}}".format(".%df"%(-idecimal_m + 1)).format
+            else:
+                fmt_m_e = "{{0:{0}}}".format(".0f").format
+            if idecimal_p < 2:
+                fmt_p_e = "{{0:{0}}}".format(".%df"%(-idecimal_p + 1)).format
+            else:
+                fmt_p_e = "{{0:{0}}}".format(".0f").format
+            min_decimals = min(idecimal_m, idecimal_p)
+
+            if min_decimals < 2:
+                fmt = "{{0:{0}}}".format(".%df"%(-min_decimals + 1)).format
+            else:
+                fmt = "{{0:{0}}}".format(".0f").format
+
+            title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+            title = title.format(fmt(q_50), fmt_m_e(q_m), fmt_p_e(q_p))
+            if m == [0.16, 0.5, 0.84]:
+                return(title)
+            else:
+                return(round(q_16,3), round(q_84,3))
+        
+        def print_posterior(perc_sigmas):
+        
+            chain = self.chain
+            extras = self.extras
+            ndim = chain[:, 0].flatten().shape[0]
+            di = 7*self.iplanet
+            
+            #save posterior and derived parameters
+            RV_Jitter = print_par_values(chain[:,0+di],perc_sigmas)
+            Mpri = print_par_values(chain[:,1+di],perc_sigmas)
+            if self.cmref == 'msec_solar':
+                Msec = print_par_values(chain[:,2+di],perc_sigmas)
+                unit = '(solar)'
+            else:
+                Msec = print_par_values(chain[:,2+di]*1989/1.898,perc_sigmas)
+                unit = '(jup)'
+            a = print_par_values(chain[:,3+di],perc_sigmas)
+            sqesino = print_par_values(chain[:,4+di],perc_sigmas)
+            sqecoso = print_par_values(chain[:,5+di],perc_sigmas)
+            inc = print_par_values((chain[:,6+di]*180/np.pi)%(360),perc_sigmas)
+            asc = print_par_values((chain[:,7+di]*180/np.pi)%(360),perc_sigmas)
+            lam = print_par_values((chain[:,8+di]*180/np.pi)%(360),perc_sigmas)
+            plx = print_par_values(extras[:,0],perc_sigmas)
+            period_data = np.sqrt(chain[:,3+di]**3/(chain[:,1+di] + chain[:,2+di]))
+            period = print_par_values(period_data,perc_sigmas)
+            omega_data=(np.arctan2(chain[:,4+di],chain[:,5+di])%(2*np.pi))
+            omega = print_par_values(omega_data,perc_sigmas)
+            e = print_par_values(chain[:,4+di]**2 + chain[:,5+di]**2,perc_sigmas)
+            sma = print_par_values(1e3/206264.80624538*chain[:,0+di],perc_sigmas)
+            t0_data = 2455197.5 - period_data*(chain[:,8+di]*180/np.pi - omega_data*180/np.pi)/360. #reference epoch 2455197.5
+            t0 = print_par_values(t0_data,perc_sigmas)
+            q = print_par_values(chain[:,2+di]/chain[:,1+di],perc_sigmas)
+            
+            label = ['jit (m/s)', 'Mpri (solar)', 'Msec '+unit, 'sqesinw','sqecosw', 'a (AU)','inclination (deg)','ascending node (deg)', 'mean longitude (deg)','parallax (mas)', 'period (yrs)', 'argument of periastron (deg)', 'eccentricity', 'semimajor axis (mas)', 'T0 (JD)', 'mass ratio' ]
+            result = [RV_Jitter, Mpri, Msec, a, sqesino, sqecoso, inc, asc, lam, plx, period, omega, e, sma, t0, q]
+        
+            print("Saving posterior parameters to " + self.outputdir)
+            text_file = open(os.path.join(self.outputdir, 'posterior_params_' + self.title) +'.txt', "w")
+
+            for i in range(len(label)):
+                text_file.write(label[i])
+                text_file.write("         ")
+                text_file.write(str(result[i]))
+                text_file.write("\n")
+            text_file.close()
+        
+        if self.save_params:
+            print_best_chisq()
+            print_posterior(list([float(err) for err in self.err_margin]))
+            
+#######
 # end of code

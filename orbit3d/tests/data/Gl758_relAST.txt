@@ -1,5 +1,9 @@
+# Instrument: NIRC2 on Keck
+# Published in Bowler,B.P. et al. Orbit and Dynamical Mass of the Late-T Dwarf GL 758 B. Astron. J. 2018, 155, 159, doi:10.3847/1538-3881/aab2a6.
+##
+# File format
 # Date       Sep   Err_sep     PA  Err_PA  Sep_PA_corr  PlanetID
- 2010.33     1.848   0.005   200.6   0.3   0         0
- 2013.50     1.743   0.005   205.7   0.2   0         0
- 2016.49     1.626   0.005   210.3   0.4   0         0
- 2017.77     1.588   0.005   213.5   0.3   0         0
+ 2010.33     1.848   0.005   200.6   0.3   0         	0
+ 2013.50     1.743   0.005   205.7   0.2   0         	0
+ 2016.49     1.626   0.005   210.3   0.4   0         	0
+ 2017.77     1.588   0.005   213.5   0.3   0         	0
