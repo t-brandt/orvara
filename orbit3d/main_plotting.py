@@ -106,7 +106,7 @@ def initialize_plot_options(config):
     
     #save data
     OP.save_params = config.getboolean('save_results', 'save_params', fallback=True)
-    OP.err_margin = config.get('save_results', 'err_margin', fallback= ('0.16', '0.5', '0.84')).split(",")
+    OP.err_margin = config.get('save_results', 'err_margin', fallback= ('0.16, 0.5, 0.84')).split(",")
     
     args = parse_args_plotting()
     OP.outputdir = args.output_dir
