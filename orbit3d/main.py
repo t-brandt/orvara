@@ -245,14 +245,23 @@ def run():
                             threads=nthreads)
     
     print("Running MCMC ... ")
-    sample0.run_mcmc(par0, nstep, **samplekwargs)
+    #sample0.run_mcmc(par0, nstep, **samplekwargs)
     #add a progress bar
-    for i, result in enumerate(sample0.sample(par0, iterations=nstep)):
-        width = 30
-        n = int((width+1) * float(i) / nstep)
+    width = 30
+    sys.stdout.write("[{0}]  {1}%".format(' ' * width, 0))
+    for ipct in range(100):
+        if ipct == 0:
+            sample0.run_mcmc(par0, int(nstep/100), **samplekwargs)
+        elif ipct < 99:
+            # Continue from last step
+            sample0.run_mcmc(sample0.chain[..., -1, :], 
+                             int(nstep/100), **samplekwargs)
+        else:
+            sample0.run_mcmc(sample0.chain[..., -1, :], 
+                             nstep - 99*int(nstep/100), **samplekwargs)
+        n = int((width+1) * float(ipct) / 100)
         sys.stdout.write("\r[{0}{1}]".format('#' * n, ' ' * (width - n)))
-        if (i+1) % 100 == 0:
-            sys.stdout.write("{0:5.1%}".format(float(i) / nstep))
+        sys.stdout.write("%3d%%" % (ipct + 1))
     sys.stdout.write("\n")
         
     print('Total Time: %.0f seconds' % (time.time() - start_time))
