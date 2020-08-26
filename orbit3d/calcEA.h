@@ -33,22 +33,16 @@ inline double EAstart(double M, double ecc) {
   double ome = 1. - ecc;
   double sqrt_ome = sqrt(ome);
     
-  if (M < 1e-3*sqrt_ome*ome) {
-    double xi = M/(ome*ome);
-    double xi2_ome = xi*xi*ome;
-    double eta = xi*(1 - xi2_ome*(ecc/6. - xi2_ome*(19*ecc - 9)/120. - xi2_ome/18.));
-    return ome*eta;
-  } else {
-    double chi = M/(sqrt_ome*ome);
-    double Lam = sqrt(8 + 9*chi*chi);
-    //double S = pow(Lam + 3*chi, 1./3);
-    double S = cbrt(Lam + 3*chi);
-    double sigma = 6*chi/(2 + S*S + 4./(S*S));
-    double s2 = sigma*sigma;
-    double denom = s2 + 2;
-    double E = sigma*(1 + s2*ome*((s2 + 20)/(60.*denom) + s2*ome*(s2*s2*s2 + 25*s2*s2 + 340*s2 + 840)/(1400*denom*denom*denom)));
-    return E*sqrt_ome;
-  }
+  double chi = M/(sqrt_ome*ome);
+  double Lam = sqrt(8 + 9*chi*chi);
+  //double S = pow(Lam + 3*chi, 1./3);
+  double S = cbrt(Lam + 3*chi);
+  double sigma = 6*chi/(2 + S*S + 4./(S*S));
+  double s2 = sigma*sigma;
+  double denom = s2 + 2;
+  double E = sigma*(1 + s2*ome*((s2 + 20)/(60.*denom) + s2*ome*(s2*s2*s2 + 25*s2*s2 + 340*s2 + 840)/(1400*denom*denom*denom)));
+  return E*sqrt_ome;
+
 }
 
 /* 
