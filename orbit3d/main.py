@@ -123,7 +123,7 @@ def initialize_data(config, companion_gaia):
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                           epochs_Gaia=Gaia_fitter.data.julian_day_epoch(),
-                          companion_gaia=companion_gaia)
+                          companion_gaia=companion_gaia, verbose=False)
     else:
         hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter = None, None, None
 
