@@ -661,7 +661,7 @@ def calc_EA_RPP(Data data, Params par, Model model):
             # are not in the singular corner.
             #############################################################
 
-            if _MA + (1 - par.ecc) > 0.25:
+            if 2*_MA + (1 - par.ecc) > 0.2:
                 for j in range(11, -1, -1):
                     if _MA > bounds[j]:
                         break
@@ -692,7 +692,8 @@ def calc_EA_RPP(Data data, Params par, Model model):
 
             # Second order approximation.
 
-            #dEA = num*denom/(denom**2 + 0.5*sinEA*num)
+            if _MA > 0.4:
+                dEA = num*denom/(denom**2 + 0.5*sinEA*num)
 
             # This brings the scheme to third order.
 
@@ -701,9 +702,9 @@ def calc_EA_RPP(Data data, Params par, Model model):
             # Replaced the preceding two lines with the following,
             # which requires only one division (this is Householder's
             # third order formula)
-
-            dEA = num*(denom**2 + 0.5*num*sinEA)
-            dEA /= denom*denom**2 + num*(denom*sinEA + one_sixth*num*cosEA)
+            else:
+                dEA = num*(denom**2 + 0.5*num*sinEA)
+                dEA /= denom*denom**2 + num*(denom*sinEA + one_sixth*num*cosEA)
 
             dEAsq_d6 = dEA*dEA*one_sixth
 
