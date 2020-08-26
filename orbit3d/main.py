@@ -202,6 +202,7 @@ def run():
     ntemps = config.getint('mcmc_settings', 'ntemps')
     nplanets = config.getint('mcmc_settings', 'nplanets')
     nstep = config.getint('mcmc_settings', 'nstep')
+    thin = config.getint('mcmc_settings', 'thin', fallback=50)
     nthreads = config.getint('mcmc_settings', 'nthreads')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     HipID = config.getint('data_paths', 'HipID', fallback=0)
@@ -232,7 +233,7 @@ def run():
     ndim = par0[0, 0, :].size
     data, H1f, H2f, Gf = initialize_data(config, companion_gaia)
     # set arguments for emcee PTSampler and the log-likelyhood (lnprob)
-    samplekwargs = {'thin': 50}
+    samplekwargs = {'thin': thin}
     loglkwargs = {'returninfo': False, 'use_epoch_astrometry': use_epoch_astrometry,
         'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors}
     _loglkwargs = loglkwargs
@@ -248,20 +249,20 @@ def run():
     #sample0.run_mcmc(par0, nstep, **samplekwargs)
     #add a progress bar
     width = 30
+    N = min(100, nstep//thin)
+    n_taken = 0
     sys.stdout.write("[{0}]  {1}%".format(' ' * width, 0))
-    for ipct in range(100):
+    for ipct in range(N):
+        dn = (((nstep*(ipct + 1))//N - n_taken)//thin)*thin
+        n_taken += dn
         if ipct == 0:
-            sample0.run_mcmc(par0, int(nstep/100), **samplekwargs)
-        elif ipct < 99:
-            # Continue from last step
-            sample0.run_mcmc(sample0.chain[..., -1, :], 
-                             int(nstep/100), **samplekwargs)
+            sample0.run_mcmc(par0, dn, **samplekwargs)
         else:
-            sample0.run_mcmc(sample0.chain[..., -1, :], 
-                             nstep - 99*int(nstep/100), **samplekwargs)
-        n = int((width+1) * float(ipct) / 100)
+            # Continue from last step
+            sample0.run_mcmc(sample0.chain[..., -1, :], dn, **samplekwargs)
+        n = int((width+1) * float(ipct + 1) / N)
         sys.stdout.write("\r[{0}{1}]".format('#' * n, ' ' * (width - n)))
-        sys.stdout.write("%3d%%" % (ipct + 1))
+        sys.stdout.write("%3d%%" % (int(100*(ipct + 1)/N)))
     sys.stdout.write("\n")
         
     print('Total Time: %.0f seconds' % (time.time() - start_time))
