@@ -75,7 +75,7 @@ def initialize_plot_options(config):
     OP.end_epoch = config.getfloat('plotting', 'end_epoch', fallback=0)
     
     # predicted epoch positions
-    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('1990','2000','2010','2020','2030')).split(",")
+    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('1990,2000,2010,2020,2030')).split(",")
     OP.predicted_ep_ast = config.getfloat('plotting', 'position_predict', fallback=2000)
     # how many random orbits
     OP.num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
