@@ -1259,7 +1259,7 @@ class OrbitPlots:
         ax[0].set_title("Overview of chains",y=1.03,fontsize=15)
         for label in ax[i].get_xticklabels():
                 label.set_fontsize(15)
-        plt.savefig(os.path.join(self.outputdir, 'Diagnostic_' + self.title)+'.pdf')
+        plt.savefig(os.path.join(self.outputdir, 'Diagnostic_' + self.title)+'.png')
 
 
 #save data
