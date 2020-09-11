@@ -142,7 +142,10 @@ def run():
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
     plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
     save_params = config.getboolean('save_results', 'save_params', fallback=True)
-        
+    checkconv = config.getboolean('plotting', 'check_convergence', fallback=False)
+    
+    if checkconv:
+        OPs.plot_chains()
     if plot_astr:
         OPs.astrometry()
     if plot_astr_pred:
@@ -161,6 +164,7 @@ def run():
         OPs.plot_corner()
     if save_params:
         OPs.save_data()
+
     
 if __name__ == "__main__":
     run()

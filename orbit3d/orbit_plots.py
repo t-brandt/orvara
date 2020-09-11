@@ -1231,6 +1231,37 @@ class OrbitPlots:
 ###################################################################################################
 ###################################################################################################
 
+#diagnostic plots
+
+    def plot_chains(self,labels=None,burnin=500,thin=1,alpha=0.1):
+        labels=['Jitter','Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam' ]
+        print("Generating diagonstic plots to check convergence")
+
+        tt, lnp, extras = [fits.open(self.MCMCfile)[i].data for i in range(3)]
+        tt = tt[:, self.burnin:, :]
+        nwalkers = tt.shape[0]
+        chain = tt
+        ndim = chain.shape[2]
+        nwalkers = chain.shape[0]
+        
+        fig, ax = plt.subplots(nrows=ndim,sharex=True, figsize=(10,7))
+        for i in range(ndim):
+            for walker in range(nwalkers):
+                ax[i].plot(chain[walker,:,i],color="black",alpha=alpha,lw=0.5);
+            if labels:
+                ax[i].set_ylabel(labels[i],fontsize=15)
+            ax[i].margins(y=0.1)
+            for label in ax[i].get_yticklabels():
+                label.set_fontsize(15)
+
+        ax[i].set_xlabel("sample",fontsize=15)
+        ax[i].minorticks_on()
+        ax[0].set_title("Overview of chains",y=1.03,fontsize=15)
+        for label in ax[i].get_xticklabels():
+                label.set_fontsize(15)
+        plt.savefig(os.path.join(self.outputdir, 'Diagnostic_' + self.title)+'.pdf')
+
+
 #save data
 
     def save_data(self):
@@ -1299,17 +1330,17 @@ class OrbitPlots:
             a = print_par_values(chain[:,3+di],perc_sigmas)
             sqesino = print_par_values(chain[:,4+di],perc_sigmas)
             sqecoso = print_par_values(chain[:,5+di],perc_sigmas)
-            inc = print_par_values((chain[:,6+di]*180/np.pi)%(360),perc_sigmas)
-            asc = print_par_values((chain[:,7+di]*180/np.pi)%(360),perc_sigmas)
-            lam = print_par_values((chain[:,8+di]*180/np.pi)%(360),perc_sigmas)
+            inc = print_par_values((chain[:,6+di]*180/np.pi)%(180),perc_sigmas)
+            asc = print_par_values((chain[:,7+di]*180/np.pi)%(180),perc_sigmas)
+            lam = print_par_values((chain[:,8+di]*180/np.pi)%(180),perc_sigmas)
             plx = print_par_values(extras[:,0],perc_sigmas)
             period_data = np.sqrt(chain[:,3+di]**3/(chain[:,1+di] + chain[:,2+di]))
             period = print_par_values(period_data,perc_sigmas)
-            omega_data=(np.arctan2(chain[:,4+di],chain[:,5+di])%(2*np.pi))
+            omega_data=(np.arctan2(chain[:,4+di],chain[:,5+di])%(2*np.pi))*180/np.pi
             omega = print_par_values(omega_data,perc_sigmas)
             e = print_par_values(chain[:,4+di]**2 + chain[:,5+di]**2,perc_sigmas)
             sma = print_par_values(1e3/206264.80624538*chain[:,0+di],perc_sigmas)
-            t0_data = 2455197.5 - period_data*(chain[:,8+di]*180/np.pi - omega_data*180/np.pi)/360. #reference epoch 2455197.5
+            t0_data = 2455197.5 - 365.25*period_data*((chain[:,8+di]*180/np.pi)%(180) - omega_data)/360. #reference epoch 2455197.5
             t0 = print_par_values(t0_data,perc_sigmas)
             q = print_par_values(chain[:,2+di]/chain[:,1+di],perc_sigmas)
             
