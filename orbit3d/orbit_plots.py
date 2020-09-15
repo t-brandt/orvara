@@ -234,6 +234,8 @@ class OrbitPlots:
             Function to load in the relative astrometry data
         """
         reldat = np.genfromtxt(self.relAstfile, usecols=(0,1,2,3,4))
+        if len(reldat.shape) == 1:
+            reldat = np.reshape(reldat, (1, -1))
         # Try to guess whether we should assume the epochs of the
         # relative astrometry file to be decimal years or JD.
         if np.median(reldat[:, 0]) < 3000:
@@ -460,7 +462,7 @@ class OrbitPlots:
 
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf') # or +'.png'
+        plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', transparent=True) # or +'.png'
 
 # 2. RV orbits plot
 
@@ -529,7 +531,7 @@ class OrbitPlots:
 
         plt.tight_layout()
         print("Plotting RV orbits, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf',bbox_inches='tight', dpi=200) # or +'.pdf'
+        plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200) # or +'.pdf'
 
 
 # 3. relative RV plot
@@ -653,7 +655,7 @@ class OrbitPlots:
             fig.delaxes(cbar_ax)
 
         print("Plotting relative RV, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'relRV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'),bbox_inches='tight', dpi=200)
+        plt.savefig(os.path.join(self.outputdir, 'relRV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
@@ -765,7 +767,7 @@ class OrbitPlots:
                 
         plt.tight_layout()
         print("Plotting Separation, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+        plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
@@ -876,7 +878,7 @@ class OrbitPlots:
         
         plt.tight_layout()
         print("Plotting Position Angle, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+        plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200, transparent=True)
 ################################################################################################
 
 
@@ -1027,7 +1029,7 @@ class OrbitPlots:
                         else:
                             cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
                         figure.delaxes(cbar_ax)
-                        figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+                        figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
                 else:
                     cbar_ax = fig.add_axes([1.5, 0.16, 0.05, 0.7])
                     if self.colorbar_size < 0 or self.colorbar_pad < 0:
@@ -1040,7 +1042,7 @@ class OrbitPlots:
                     else:
                         cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
                     fig.delaxes(cbar_ax)
-                    fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+                    fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
         else:
             fig = plt.figure(figsize=(11, 5.5))
             ax1 = fig.add_axes((0.10, 0.1, 0.35, 0.77))
@@ -1079,10 +1081,10 @@ class OrbitPlots:
         print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
         
         if self.pm_separate and not self.usecolorbar:
-            fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
-            fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+            fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+            fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
         elif not self.usecolorbar:
-            fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf',bbox_inches='tight', dpi=200)
+            fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
             
 ################################################################################################
 
@@ -1192,7 +1194,7 @@ class OrbitPlots:
                 'Location of %s, %.1f' % (self.text_name, self.predicted_ep_ast), fontsize=14)
         ax.invert_xaxis()
         plt.tight_layout()
-        plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf')
+        plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True)
 
 # 7. Corner plot
     ################################################################################################
@@ -1226,7 +1228,7 @@ class OrbitPlots:
         figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf')
+        plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf', transparent=True)
 
 ###################################################################################################
 ###################################################################################################
@@ -1270,14 +1272,15 @@ class OrbitPlots:
             par_label = ['plx_best', 'pmra_best', 'pmdec_best', 'chisq_sep', 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G', 'RV_off']
             print("Saving beststep parameters to " + self.outputdir)
             text_file = open(os.path.join(self.outputdir, 'beststep_params_' + self.title) +'.txt', "w")
-            for i in range(self.extras[self.lnp == np.amax(self.lnp)].shape[1]):
+            indx = self.lnp == np.amax(self.lnp)
+            for i in range(self.extras.shape[-1]):
                 if i<8:
                     text_file.write(par_label[i])
-                    text_file.write("  %f"%round(self.extras[self.lnp == np.amax(self.lnp)].flatten()[i],10))
+                    text_file.write("  %f"%round(self.extras[indx][0][i],10))
                     text_file.write("\n")
                 if i>=8:
                     text_file.write(par_label[8]+str(i-8))
-                    text_file.write("  %f"%round(self.extras[self.lnp == np.amax(self.lnp)].flatten()[i],10))
+                    text_file.write("  %f"%round(self.extras[indx][0][i],10))
                     text_file.write("\n")
             text_file.close()
         
