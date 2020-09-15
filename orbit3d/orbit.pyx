@@ -1254,8 +1254,13 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     M[1*3 + 1] = data.Cinv_H[0, 0] + data.Cinv_HG[0, 0] + data.Cinv_G[0, 0]
     M[1*3 + 2] = data.Cinv_H[0, 1] + data.Cinv_HG[0, 1] + data.Cinv_G[0, 1]
-    M[2*3 + 1] = M[1*3 + 2]
     M[2*3 + 2] = data.Cinv_H[1, 1] + data.Cinv_HG[1, 1] + data.Cinv_G[1, 1]
+    if data.Cinv_G_B[0, 0] != 0:
+        M[1*3 + 1] += data.Cinv_G_B[0, 0]
+        M[1*3 + 2] += data.Cinv_G_B[0, 1]
+        M[2*3 + 2] += data.Cinv_G_B[1, 1]
+
+    M[2*3 + 1] = M[1*3 + 2]
 
     b[1] = data.pmra_H*data.Cinv_H[0, 0] + data.pmdec_H*data.Cinv_H[0, 1]
     b[1] += data.pmra_HG*data.Cinv_HG[0, 0] + data.pmdec_HG*data.Cinv_HG[0, 1]
@@ -1338,8 +1343,8 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     # Now take care of the companion
     if data.Cinv_G_B[0, 0] != 0:
-        deltaRA = model.pmra_G_B - data.pmra_G_B + pmra_best
-        deltaDec = model.pmdec_G_B - data.pmdec_G_B + pmdec_best
+        deltaRA = plx_best*model.pmra_G_B - data.pmra_G_B + pmra_best
+        deltaDec = plx_best*model.pmdec_G_B - data.pmdec_G_B + pmdec_best
         chisq_G += deltaRA**2*data.Cinv_G_B[0, 0]
         chisq_G += deltaDec**2*data.Cinv_G_B[1, 1]
         chisq_G += 2*deltaRA*deltaDec*data.Cinv_G_B[0, 1]
