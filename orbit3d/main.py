@@ -17,6 +17,7 @@ from astropy.time import Time
 import sys
 from orbit3d import orbit
 from orbit3d.config import parse_args
+import pkg_resources
 
 _loglkwargs = {}
 
@@ -283,8 +284,21 @@ def run():
             
             if data.nInst > 0:
                 parfit[i, j, 8:] = RVoffsets
-    
-    out = fits.HDUList(fits.PrimaryHDU(sample0.chain[0].astype(np.float32)))
+
+    hdu = fits.PrimaryHDU(sample0.chain[0].astype(np.float32))
+    version = pkg_resources.get_distribution("orbit3d").version
+    hdu.header.append(('version', version, 'Code version'))
+    for line in open(args.config_file):
+        line = line[:-1]
+        try:
+            if '=' in line and not line.startswith('#'):
+                hdu.header.append((line.split('=')[0], line.split('=')[1]), end=True)
+            elif not line.startswith('#'):
+                hdu.header.append(('comment', line[:80]), end=True)
+        except:
+            continue
+
+    out = fits.HDUList(hdu)
     out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
     for i in range(1000):
