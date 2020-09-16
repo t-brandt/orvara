@@ -23,7 +23,7 @@ class Orbit:
     def __init__(self, OP, step='best', epochs='custom'):
 
         data = orbit.Data(OP.Hip, OP.RVfile, OP.relAstfile, verbose=False)
-        
+
         if isinstance(epochs, list) or isinstance(epochs, np.ndarray):
             data.custom_epochs(epochs, iplanet=OP.iplanet)
         elif epochs == 'custom':
@@ -100,10 +100,10 @@ class OrbitPlots:
         # load observed RV data
         self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
         # load relative astrometry data:
-        if os.access(self.relAstfile,os.R_OK):
+        try: #if os.access(self.relAstfile,os.R_OK):
             self.have_reldat = True
-            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err = self.load_relAst_data()
-        else:
+            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err, self.ast_indx = self.load_relAst_data(self.iplanet)
+        except: #else:
             self.have_reldat = False
         # load HGCA data:
         self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err = self.load_HGCA_data()        
@@ -229,13 +229,25 @@ class OrbitPlots:
             RV_obs_err_dic[i] = RV_obs_err[idx_dic[i][0]: idx_dic[i][-1] + 1]
         return epoch_obs, RV_obs, RV_obs_err, nInst, epoch_obs_dic, RV_obs_dic, RV_obs_err_dic
 
-    def load_relAst_data(self):
+    def load_relAst_data(self, iplanet=None):
         """
             Function to load in the relative astrometry data
         """
         reldat = np.genfromtxt(self.relAstfile, usecols=(0,1,2,3,4))
         if len(reldat.shape) == 1:
             reldat = np.reshape(reldat, (1, -1))
+
+        try:
+            icompanion = np.genfromtxt(self.relAstfile, usecols=(6)).astype(int)
+        except:
+            icompanion = np.zeros(reldat.shape[0]).astype(int)
+
+        indx = np.where(icompanion == iplanet)
+        if iplanet is not None:
+            reldat = reldat[indx]
+        if len(reldat) == 0:
+            return None
+
         # Try to guess whether we should assume the epochs of the
         # relative astrometry file to be decimal years or JD.
         if np.median(reldat[:, 0]) < 3000:
@@ -244,13 +256,13 @@ class OrbitPlots:
             relep = reldat[:, 0]
 
         ep_relAst_obs = relep #reldat[:, 0]
-        for i in range(len(ep_relAst_obs)):
-            #ep_relAst_obs[i] = self.calendar_to_JD(ep_relAst_obs[i])
-            relsep_obs = reldat[:, 1]
-            relsep_obs_err = reldat[:, 2]
-            PA_obs = reldat[:, 3]
-            PA_obs_err = reldat[:, 4]
-        return ep_relAst_obs, relsep_obs, relsep_obs_err, PA_obs, PA_obs_err
+
+        relsep_obs = reldat[:, 1]
+        relsep_obs_err = reldat[:, 2]
+        PA_obs = reldat[:, 3]
+        PA_obs_err = reldat[:, 4]
+        
+        return ep_relAst_obs, relsep_obs, relsep_obs_err, PA_obs, PA_obs_err, indx
     
     def load_HGCA_data(self):
         """
@@ -693,7 +705,7 @@ class OrbitPlots:
             ax1.errorbar(ep_relAst_obs_calendar, self.relsep_obs, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
             ax1.scatter(ep_relAst_obs_calendar, self.relsep_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
 
-            dat_OC = self.relsep_obs - orb_ml.relsep
+            dat_OC = self.relsep_obs - orb_ml.relsep[self.ast_indx]
             
             ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
             ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
@@ -709,7 +721,7 @@ class OrbitPlots:
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
             ax1.yaxis.set_minor_locator(AutoMinorLocator())
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax1.set_ylabel('Seperation (arcsec)', labelpad=13, fontsize=13)
+            ax1.set_ylabel('Separation (arcsec)', labelpad=13, fontsize=13)
             # ax2
             range_datOC = max(dat_OC) - min(dat_OC)
             if np.abs(min(dat_OC)) <= np.abs(max(dat_OC)):
@@ -762,7 +774,7 @@ class OrbitPlots:
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax.set_ylabel('Seperation (arcsec)', fontsize=13)
+            ax.set_ylabel('Separation (arcsec)', fontsize=13)
             ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
                 
         plt.tight_layout()
@@ -805,7 +817,7 @@ class OrbitPlots:
                 ep_relAst_obs_calendar.append(self.JD_to_calendar(self.ep_relAst_obs[i]))
             ax1.errorbar(ep_relAst_obs_calendar, self.PA_obs, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
             ax1.scatter(ep_relAst_obs_calendar, self.PA_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
-            dat_OC = self.PA_obs - orb_ml.PA
+            dat_OC = self.PA_obs - orb_ml.PA[self.ast_indx]
 
             ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
             ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
