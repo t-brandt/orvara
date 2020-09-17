@@ -775,8 +775,8 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
         ###################################################################
         
         if data.ast_planetID[i] == iplanet:        
-            model.rel_RA[i] += -par.sau/a_1*dRA
-            model.rel_Dec[i] += -par.sau/a_1*dDec
+            model.rel_RA[i] += par.sau/a_1*dRA
+            model.rel_Dec[i] += par.sau/a_1*dDec
         elif par.all_sau[data.ast_planetID[i]] > par.all_sau[iplanet]:    
             model.rel_RA[i] += dRA
             model.rel_Dec[i] += dDec
@@ -784,7 +784,7 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
         # If we are at the last companion, convert to sep, PA
         if iplanet == par.nplanets - 1:
             model.relsep[i] = sqrt(model.rel_RA[i]**2 + model.rel_Dec[i]**2)
-            model.PA[i] = atan2(-model.rel_RA[i], -model.rel_Dec[i])
+            model.PA[i] = atan2(model.rel_RA[i], model.rel_Dec[i])
 
     i1 = data.nRV + data.nAst
     i2 = i1 + data.nHip1
