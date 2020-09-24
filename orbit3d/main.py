@@ -214,10 +214,11 @@ def run():
     priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback = 1.)
     priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback = np.inf)
     priors['minjit'] = config.getfloat('priors_settings', 'minjitter', fallback = 1e-5)
+    priors['minjit'] = max(priors['minjit'], 1e-20) # effectively zero, but we need the log
     priors['minjit'] = 2*np.log10(priors['minjit'])
     priors['maxjit'] = config.getfloat('priors_settings', 'maxjitter', fallback = 1e3)
     priors['maxjit'] = 2*np.log10(priors['maxjit'])
-    assert priors['maxjit'] > priors['minjit']
+    assert priors['maxjit'] > priors['minjit'], "Requested maximum jitter < minimum jitter"
 
     # Secondary star in Gaia with a measured proper motion?
     companion_gaia = {}
