@@ -130,11 +130,12 @@ cdef class Data:
             if verbose:
                 print("Loaded data from %d RV instruments." % (self.nInst))
         except:
-            if verbose:
-                print("Unable to read RV instruments from fourth column.")
-                print("Assuming all data are from one instrument.")
-            self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
-            self.nInst = 1
+            if self.nRV > 0:
+                if verbose:
+                    print("Unable to read RV instruments from fourth column.")
+                    print("Assuming all data are from one instrument.")
+                self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
+                self.nInst = 1
 
         try:
             try:
@@ -778,8 +779,8 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
             model.rel_RA[i] += par.sau/a_1*dRA
             model.rel_Dec[i] += par.sau/a_1*dDec
         elif par.all_sau[data.ast_planetID[i]] > par.all_sau[iplanet]:    
-            model.rel_RA[i] += dRA
-            model.rel_Dec[i] += dDec
+            model.rel_RA[i] -= dRA
+            model.rel_Dec[i] -= dDec
 
         # If we are at the last companion, convert to sep, PA
         if iplanet == par.nplanets - 1:
