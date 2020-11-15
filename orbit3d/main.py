@@ -15,6 +15,7 @@ from astropy.io import fits
 from htof.main import Astrometry
 from astropy.time import Time
 import sys
+import re
 from orbit3d import orbit
 from orbit3d.config import parse_args
 import pkg_resources
@@ -290,7 +291,13 @@ def run():
         line = line[:-1]
         try:
             if '=' in line and not line.startswith('#'):
-                hdu.header.append((line.split('=')[0], line.split('=')[1]), end=True)
+                keys = re.split('[ ]*=[ ]*', line)
+                # hierarch and continue cards are incompatible.  Hacky fix.
+                if len(keys[0]) > 8 and len(keys[0]) + len(keys[1]) + 13 > 80:
+                    n_over = len(keys[0]) + len(keys[1]) + 13 - 80
+                    hdu.header.append((keys[0], keys[1][:-n_over]), end=True)
+                else:
+                    hdu.header.append((keys[0], keys[1]), end=True)
             elif not line.startswith('#'):
                 hdu.header.append(('comment', line[:80]), end=True)
         except:
