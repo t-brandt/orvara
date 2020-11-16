@@ -223,10 +223,10 @@ class OrbitPlots:
         RV_obs_err_dic = {}
         
         for i in range(nInst):
-            idx_dic[i] = (np.where(self.RVinst == i)[0][0], np.where(self.RVinst == i)[0][-1])
-            epoch_obs_dic[i] = epoch_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
-            RV_obs_dic[i] = RV_obs[idx_dic[i][0]: idx_dic[i][-1] + 1]
-            RV_obs_err_dic[i] = RV_obs_err[idx_dic[i][0]: idx_dic[i][-1] + 1]
+            idx_dic[i] = (np.where(self.RVinst == i)[0])
+            epoch_obs_dic[i] = epoch_obs[idx_dic[i]]
+            RV_obs_dic[i] = RV_obs[idx_dic[i]]
+            RV_obs_err_dic[i] = RV_obs_err[idx_dic[i]]
         return epoch_obs, RV_obs, RV_obs_err, nInst, epoch_obs_dic, RV_obs_dic, RV_obs_err_dic
 
     def load_relAst_data(self, iplanet=None):
