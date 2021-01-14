@@ -65,10 +65,10 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
     # Ensure that values are within allowable ranges.
     
     bounds = [[0, minjit, maxjit],   # jitter
-              [1, 1e-5, 1e3],        # mpri (Solar masses)
-              [2, 1e-5, 1e3],        # msec (Solar masses)
+              [1, 1e-4, 1e3],        # mpri (Solar masses)
+              [2, 1e-4, 1e3],        # msec (Solar masses)
               [3, 1e-5, 2e5],        # semimajor axis (AU)
-              [6, 0, np.pi],         # inclination (radians)
+              [6, 1e-5, np.pi],      # inclination (radians)
               [7, -np.pi, 3*np.pi],  # longitude of ascending node (rad)
               [8, -np.pi, 3*np.pi]]  # long at ref epoch (rad)
         
@@ -84,7 +84,7 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
     # Eccentricity is a special case.  Cap at 0.99.
     ecc = par0[..., 4::7]**2 + par0[..., 5::7]**2
     fac = np.ones(ecc.shape)
-    fac[ecc > 0.99] = 1/np.sqrt(ecc[ecc > 0.99])
+    fac[ecc > 0.99] = np.sqrt(0.99)/np.sqrt(ecc[ecc > 0.99])
     par0[..., 4::7] *= fac
     par0[..., 5::7] *= fac
 
@@ -238,9 +238,12 @@ def run():
         'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors}
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
+
     try:
+        use_ptemcee = False
         sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
     except:
+        use_ptemcee = True
         sample0 = PTSampler(ntemps=ntemps, nwalkers=nwalkers, dim=ndim,
                             logl=avoid_pickle_lnprob, logp=return_one,
                             threads=nthreads)
@@ -268,7 +271,10 @@ def run():
     print('Total Time: %.0f seconds' % (time.time() - start_time))
     print("Mean acceptance fraction (cold chain): {0:.6f}".format(np.mean(sample0.acceptance_fraction[0, :])))
     # save data
-    shape = sample0.lnprobability[0].shape
+    if not use_ptemcee:
+        shape = sample0.lnprobability[0].shape
+    else:
+        shape = sample0.logprobability[0].shape
     parfit = np.zeros((shape[0], shape[1], 8 + data.nInst))
 
     loglkwargs['returninfo'] = True
@@ -304,7 +310,10 @@ def run():
             continue
 
     out = fits.HDUList(hdu)
-    out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
+    if not use_ptemcee:
+        out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
+    else:
+        out.append(fits.PrimaryHDU(sample0.logprobability[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
     for i in range(1000):
         filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
