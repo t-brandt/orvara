@@ -1402,7 +1402,7 @@ def lnprior(Params par, double minjit=-20, double maxjit=20):
     cdef double pi = 3.14159265358979323846264338327950288 # np.pi
     cdef double zeroprior = -np.inf
 
-    if par.sau <= 0 or par.mpri <= 0 or par.msec < 1e-4 or par.ecc >= 1:
+    if par.sau <= 0 or par.mpri <= 0 or par.msec <= 0 or par.ecc >= 1:
         return zeroprior
     if par.sau > 2e5 or par.mpri > 1e3 or par.msec > 1e3:
         return zeroprior
