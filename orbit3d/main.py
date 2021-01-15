@@ -90,11 +90,14 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
 
     return par0
 
+
 def initialize_data(config, companion_gaia):
     # load in items from the ConfigParser object
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     HGCAFile = config.get('data_paths', 'HGCAFile')
     HGCAVersion = config.get('data_paths', 'HGCAVersion', fallback='GaiaDR2')
+    if HGCAVersion is not 'GaiaDR2' and HGCAVersion is not 'GaiaeDR3':
+        raise ValueError('HGCAVersion in the config file is not GaiaDR2 and is not GaiaeDR3')
     RVFile = config.get('data_paths', 'RVFile')
     AstrometryFile = config.get('data_paths', 'AstrometryFile')
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
@@ -245,12 +248,14 @@ def run():
     try:
         use_ptemcee = False
         sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
+        print('Using emcee.PTSampler.')
     except:
         use_ptemcee = True
         sample0 = PTSampler(ntemps=ntemps, nwalkers=nwalkers, dim=ndim,
                             logl=avoid_pickle_lnprob, logp=return_one,
                             threads=nthreads)
-    
+        print('Using ptemcee.')
+
     print("Running MCMC ... ")
     #sample0.run_mcmc(par0, nstep, **samplekwargs)
     #add a progress bar
