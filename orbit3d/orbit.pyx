@@ -104,7 +104,7 @@ cdef class Data:
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
 
-    def __init__(self, Hip, RVfile, relAstfile,
+    def __init__(self, Hip, HGCAfile, RVfile, relAstfile,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
                  refep=2455197.5000, companion_gaia=None, verbose=True):
@@ -183,7 +183,7 @@ cdef class Data:
             relep = []
 
         try:
-            t = fits.open('HGCA_vDR2_corrected.fits')[1].data
+            t = fits.open(HGCAfile)[1].data
             t = t[np.where(t['hip_id'] == Hip)]
             assert len(t) > 0
             if verbose:
