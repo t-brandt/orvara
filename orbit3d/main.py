@@ -96,7 +96,7 @@ def initialize_data(config, companion_gaia):
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     HGCAFile = config.get('data_paths', 'HGCAFile')
     HGCAVersion = config.get('data_paths', 'HGCAVersion', fallback='GaiaDR2')
-    if HGCAVersion.lower() is not 'GaiaDR2'.lower() or HGCAVersion is not 'GaiaeDR3'.lower():
+    if HGCAVersion.lower() != 'GaiaDR2'.lower() and HGCAVersion != 'GaiaeDR3'.lower():
         raise ValueError('HGCAVersion in the config file is not GaiaDR2 and is not GaiaeDR3')
     RVFile = config.get('data_paths', 'RVFile')
     AstrometryFile = config.get('data_paths', 'AstrometryFile')
