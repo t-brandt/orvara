@@ -17,14 +17,14 @@ from matplotlib.ticker import AutoMinorLocator
 from astropy.table import Table
 from astropy.io import ascii as asciiastropy
 
-plt.style.use('/home/gmbrandt/Documents/papers/mesa.mplstyle')
+#plt.style.use('/home/gmbrandt/Documents/papers/mesa.mplstyle')
 
 
 class Orbit:
 
     def __init__(self, OP, step='best', epochs='custom'):
 
-        data = orbit.Data(OP.Hip, OP.RVfile, OP.relAstfile, verbose=False)
+        data = orbit.Data(OP.Hip, OP.HGCAFile, OP.RVfile, OP.relAstfile, verbose=False)
 
         if isinstance(epochs, list) or isinstance(epochs, np.ndarray):
             data.custom_epochs(epochs, iplanet=OP.iplanet)
@@ -181,6 +181,7 @@ class OrbitPlots:
         try:
             RVinst = (rvdat[:, 3]).astype(np.int32)
             self.RVinst = RVinst
+            self.RVinstrument_id = RVinst
             # Check to see that the column we loaded was an integer
             assert np.all(RVinst == rvdat[:, 3])
             nInst = int(np.amax(rvdat[:, 3]) + 1)
@@ -190,6 +191,11 @@ class OrbitPlots:
             self.multi_instr = False
             nInst = 1
             self.RVinst = (RV_obs*0).astype(int)
+
+        try:
+            self.RVinstrument_longnames = np.genfromtxt(self.RVfile, usecols=(5,), dtype=str).flatten()
+        except:
+            self.RVinstrument_longnames = None
     
         idx_dic = {}
         epoch_obs_dic = {}
@@ -476,7 +482,7 @@ class OrbitPlots:
         axes[0].plot(self.epoch_calendar, orb_ml.RV, color='black')
         axes[1].axhline(y=0, color='k', ls='--')
 
-        # plot the observed data points (RV & relAst)
+        # get the observed data point epochs (RV)
         rv_epoch_list = []
         for i in range(self.nInst):
             epoch_obs_Inst = np.zeros(len(self.epoch_obs_dic[i]))
@@ -493,34 +499,61 @@ class OrbitPlots:
         for i in range(self.nInst):
             ominusc = self.RV_obs_dic[i] + orb_ml.offset[i] - model_rv_vs_epoch(rv_epoch_list[i])
             OC.append(ominusc)
-            chisq.append(ominusc**2/(self.RV_obs_err_dic[i]**2 + jit_ml**2))
+            chisq.extend(ominusc**2/(self.RV_obs_err_dic[i]**2 + jit_ml**2))
         chisq = np.sum(chisq)
 
+        make_rv_instrument_legend = self.RVinstrument_longnames is not None and len(set(self.RVinstrument_id)) > 1
+        if not make_rv_instrument_legend:
+            colors = [self.marker_color]
+            markers = ['o']
+        else:
+            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'][:len(set(self.RVinstrument_id))] # cycle through the matplotlib colors
+            markers = ['o', 'v', '^', '8', 's', 'p', 'h', 'D'][:len(set(self.RVinstrument_id))]
+
+            data_sources = list(set(self.RVinstrument_id))
+            data_sources.sort()
+
         for i in range(self.nInst):
+            instrument_name = None
+            if make_rv_instrument_legend:
+                instrument_name = self.RVinstrument_longnames[self.RVinstrument_id == i][0]
+            marker, color = markers[i], colors[i]
             # plot RV and fit:
             # faint error bars for jitter
-            axes[0].errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i],yerr=np.sqrt(self.RV_obs_err_dic[i] ** 2 + jit_ml**2), fmt=self.color_list[i] + 'o', ecolor='red',
-                        alpha=0.5, zorder=298)
+            axes[0].errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i],
+                             yerr=np.sqrt(self.RV_obs_err_dic[i] ** 2 + jit_ml**2),
+                             color='none', ecolor='red', alpha=0.5,
+                             )
             # solid error bars for absence of jitter
-            axes[0].errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + 0), fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
-            axes[0].scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+            axes[0].errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i],
+                             yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + 0), fmt=marker,
+                             ecolor='black', alpha=0.8, color=color, label=instrument_name)
             # plot OC:
-            axes[1].errorbar(rv_epoch_list[i], OC[i], yerr=np.sqrt(self.RV_obs_err_dic[i] ** 2 + jit_ml**2), fmt=self.color_list[i] + 'o', ecolor='red',
-                        alpha=0.5, zorder=298)
+            axes[1].errorbar(rv_epoch_list[i], OC[i], yerr=np.sqrt(self.RV_obs_err_dic[i] ** 2 + jit_ml**2),
+                             color='none',
+                             ecolor='red', alpha=0.5)
             # solid error bars for absence of jitter
-            axes[1].errorbar(rv_epoch_list[i], OC[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + 0), fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
-            axes[1].scatter(rv_epoch_list[i], OC[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+            axes[1].errorbar(rv_epoch_list[i], OC[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + 0),
+                             fmt=marker, label=instrument_name,
+                             ecolor='black', alpha=0.8, color=color)
 
-        axes[0].set_xlim(np.min(rv_epoch_list)-1, np.max(rv_epoch_list)+1)
+        # a list of all the rv epochs so that np.min works in the case of more than one instrument
+        rv_all_epochs_one_list = []
+        for i in range(self.nInst):
+            rv_all_epochs_one_list.extend(rv_epoch_list[i])
+        axes[0].set_xlim(np.min(rv_all_epochs_one_list)-1, np.max(rv_all_epochs_one_list)+1)
         #x0, x1 = axes[0].get_xlim()
         #y0, y1 = axes[0].get_ylim()
         #axes[0].set_aspect((x1-x0)/(y1-y0))
 
+        if make_rv_instrument_legend:
+            axes[0].legend(loc='best', prop={'size': 8}, frameon=True)
+
         # add the chisquared
         axes[0].annotate(fr'$\chi^2 = {round(chisq, 2)}$', xy=(0.05, 0.05), xycoords='axes fraction')
         
-        if self.set_limit:
-            axes[0].set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+        if self.set_limit and self.user_xlim_rv[0] is not None:
+            axes[0].set_xlim(np.float(self.user_xlim_rv[0]), np.float(self.user_xlim_rv[1]))
             #ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1])) disable y limit setting.
         if self.show_title:
             axes[0].set_title('Relative RV vs. Epoch')
@@ -767,8 +800,8 @@ class OrbitPlots:
             axes[0].annotate(fr'$\chi^2 = {round(chisq, 2)}$', xy=(0.05, 0.05), xycoords='axes fraction')
 
             # from advanced plotting settings in config.ini
-            if self.set_limit:
-                axes[0].set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+            if self.set_limit and self.user_xlim_ast[0] is not None:
+                axes[0].set_xlim(float(self.user_xlim_ast[0]), float(self.user_xlim_ast[1]))
                 #axes[0].set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))  #temporarily disabled y limit setting
             axes[0].locator_params(axis='x', nbins=5)
             if False: # temporary disable of legend on the relative separation plots.
@@ -884,7 +917,6 @@ class OrbitPlots:
                 axes[0].scatter(ep_relAst_obs_calendar[this_source], self.PA_obs[this_source], s=45, edgecolors='k',
                                 alpha=1, zorder=300, marker=marker, label=data_source, facecolors=color)
 
-
                 axes[1].errorbar(ep_relAst_obs_calendar[this_source], dat_OC[this_source], yerr=self.PA_obs_err[this_source], color=color,
                                  fmt=marker, ecolor='black', capsize=3, markersize=5, zorder=299)
                 axes[1].scatter(ep_relAst_obs_calendar[this_source], dat_OC[this_source], s=45, edgecolors='k', alpha=1, zorder=300,
@@ -920,8 +952,8 @@ class OrbitPlots:
                 axes[0].legend(loc='best', prop={'size': 8}, frameon=True)
 
             # from advanced plotting settings in config.ini
-            if self.set_limit:
-                axes[0].set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+            if self.set_limit and self.user_xlim_ast[0] is not None:
+                axes[0].set_xlim(float(self.user_xlim_ast[0]), float(self.user_xlim_ast[1]))
                 #axes[0].set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))   #temporarily disabled y limit setting
             axes[0].locator_params(axis='x', nbins=5)
 
@@ -1091,11 +1123,13 @@ class OrbitPlots:
                     ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
                     ax.set_xlabel('Epoch (year)', labelpad = 6, fontsize = 13)
                     ax.set_ylabel('O-C', labelpad = 8, fontsize = 13)
-
+            for ax in axes.ravel():
+                ax.set_xlim(1990, 2020)
             # from advanced plotting settings in config.ini
             if self.set_limit:
                 for ax in axes.ravel():
-                    ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+                    None # disabled setting plot limits for proper motions.
+                    #ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
                     #ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))  # disable y limit set
             if self.show_title:
                 ax1.set_title('Right Ascension vs. Epoch')
@@ -1297,7 +1331,7 @@ class OrbitPlots:
         plx = self.extras[:, 0]
         plx = np.reshape(plx, -1)
 
-        data = orbit.Data(self.Hip, self.RVfile, self.relAstfile, verbose=False)
+        data = orbit.Data(self.Hip, OP.HGCAFile, self.RVfile, self.relAstfile, verbose=False)
 
         # Solve Kepler's equation in array format given a different
         # eccentricity for each point.  This is the same Newton solver

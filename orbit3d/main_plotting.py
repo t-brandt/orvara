@@ -78,6 +78,10 @@ def initialize_plot_options(config):
     OP.set_limit = config.getboolean('plotting', 'set_limit', fallback=True)
     OP.user_xlim = config.get('plotting', 'xlim', fallback=None).split(",")
     OP.user_ylim = config.get('plotting', 'ylim', fallback=None).split(",")
+    OP.user_xlim_rv = config.get('plotting', 'xlim_rv', fallback=None).split(",")
+    OP.user_ylim_rv = config.get('plotting', 'ylim_rv', fallback=None).split(",")
+    OP.user_xlim_ast = config.get('plotting', 'xlim_ast', fallback=None).split(",")
+    OP.user_ylim_ast = config.get('plotting', 'ylim_ast', fallback=None).split(",")
     
     # show or not show title, add a text on the plot
     OP.show_title = config.getboolean('plotting', 'show_title', fallback=True)
@@ -134,6 +138,8 @@ def run():
     
     if checkconv:
         OPs.plot_chains()
+    if plot_rv:
+        OPs.RV()
     if plot_rel_sep:
         OPs.relsep()
     if plot_position_angle:
@@ -142,8 +148,6 @@ def run():
         OPs.astrometry()
     if plot_astr_pred:
         OPs.astrometric_prediction_plot()
-    if plot_rv:
-        OPs.RV()
     if plot_rel_rv:
         OPs.relRV()
     if plot_proper_motions:
