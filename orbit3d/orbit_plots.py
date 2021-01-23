@@ -1422,11 +1422,19 @@ class OrbitPlots:
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)',
                     r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$', '$\mathrm{\Omega\, (^{\circ})}$', r'$\mathrm{\lambda_{\rm ref}\, (^{\circ})}$']
         if not self.custom_corner_plot:
-            Semimajor = chain[:,3+di].flatten().reshape(ndim,1)                       # in AU
-            Ecc = (chain[:,4+di]**2 + chain[:,5+di]**2).flatten().reshape(ndim,1)
-            Inc = (chain[:,6+di]*180/np.pi).flatten().reshape(ndim,1)
-            Omega=(chain[:,7 + di]*180/np.pi).flatten().reshape(ndim,1)
-            lamref = ((chain[:,8 + di]*180/np.pi) % 360 - 360).flatten().reshape(ndim,1)
+            Semimajor = chain[:, 3+di].flatten().reshape(ndim,1)                       # in AU
+            Ecc = (chain[:, 4+di]**2 + chain[:, 5+di]**2).flatten().reshape(ndim,1)
+
+            # centering the angular distributions about the average so that they look good in plots and so
+            # the median values are correct and do not appear in a gap if the posteriors are bimodal (this does not
+            # change the posteriors, just changes the range over which they are plotted).
+            Inc = center_angular_data((chain[:, 6 + di]*180/np.pi).flatten())
+            Omega = center_angular_data((chain[:, 7 + di]*180/np.pi).flatten())
+            lamref = center_angular_data((chain[:, 8 + di]*180/np.pi).flatten())
+
+            Inc = Inc.reshape(ndim,1)
+            Omega = Omega.reshape(ndim,1)
+            lamref = lamref.reshape(ndim,1)
             chain =np.hstack([Mpri, Msec, Semimajor, Ecc, Inc, Omega, lamref])
         else:
             # a custom corner plot for a two planet system.
@@ -1636,3 +1644,21 @@ def ra_dec_error_to_approx_sep_error(sep, pa, ra_err, dec_err, ra_dec_corr):
     # note that this separation error allows for formally negative separations.
     return np.array(sep_err)#, np.array(pa_err)*180/np.pi, np.array(pa_sep_corr)
 
+
+# utility function for posteriors for angular values
+def angular_average(angles):
+    # angles in degrees
+    x = np.sum(np.cos(angles * np.pi/180))
+    y = np.sum(np.sin(angles * np.pi/180))
+    average_angle = np.arctan2(y, x) * 180/np.pi
+    return average_angle
+
+
+def center_angular_data(data):
+    avg = angular_average(data)
+    # wrap the data in the interval +- 180 degrees around the average. This should center multimodal angular distributions
+    gt = data > avg + 180
+    lt = data < avg - 180
+    data[gt] -= 360
+    data[lt] += 360
+    return data
