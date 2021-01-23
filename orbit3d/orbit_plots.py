@@ -1428,14 +1428,17 @@ class OrbitPlots:
             # centering the angular distributions about the average so that they look good in plots and so
             # the median values are correct and do not appear in a gap if the posteriors are bimodal (this does not
             # change the posteriors, just changes the range over which they are plotted).
+            little_omega = (np.arccos(chain[:, :, 5 + di] / np.sqrt(chain[:, 4+di]**2 + chain[:, 5+di]**2)) * 180 / np.pi).flatten()
+            little_omega = center_angular_data(little_omega)
             Inc = center_angular_data((chain[:, 6 + di]*180/np.pi).flatten())
             Omega = center_angular_data((chain[:, 7 + di]*180/np.pi).flatten())
             lamref = center_angular_data((chain[:, 8 + di]*180/np.pi).flatten())
 
-            Inc = Inc.reshape(ndim,1)
-            Omega = Omega.reshape(ndim,1)
-            lamref = lamref.reshape(ndim,1)
-            chain =np.hstack([Mpri, Msec, Semimajor, Ecc, Inc, Omega, lamref])
+            Inc = Inc.reshape(ndim,1)  # inclination
+            Omega = Omega.reshape(ndim,1)  # longitude of the ascending node
+            little_omega = little_omega.reshape(ndim,1)  # argument of periastron
+            lamref = lamref.reshape(ndim,1)  # mean longitude at the reference epoch
+            chain =np.hstack([Mpri, Msec, Semimajor, Ecc, Inc, little_omega, Omega, lamref])
         else:
             # a custom corner plot for a two planet system.
             labels = [r'$\mathrm{M_{\rm b}\, (M_{\rm Jup})}$', r'$\mathrm{M_{\rm c}\, (M_{\rm Jup})}$',
