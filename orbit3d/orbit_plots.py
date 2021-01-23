@@ -504,8 +504,8 @@ class OrbitPlots:
 
         make_rv_instrument_legend = self.RVinstrument_longnames is not None and len(set(self.RVinstrument_id)) > 1
         if not make_rv_instrument_legend:
-            colors = [self.marker_color]
-            markers = ['o']
+            colors = [self.marker_color] * 10
+            markers = ['o'] * 10
         else:
             colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'][:len(set(self.RVinstrument_id))] # cycle through the matplotlib colors
             markers = ['o', 'v', '^', '8', 's', 'p', 'h', 'D'][:len(set(self.RVinstrument_id))]
@@ -723,7 +723,7 @@ class OrbitPlots:
             all_data_have_a_source = np.all([i.lower() != 'unknown' for i in self.ast_data_source])
             # if there is a large dynamic range in errors, make a smaller O-C plot as well.
             make_smaller_oc = False
-            if np.max(self.relsep_obs_err)/np.min(self.relsep_obs_err) > 5:
+            if np.max(self.relsep_obs_err)/np.min(self.relsep_obs_err) > 50:
                 make_smaller_oc = True
 
             if make_smaller_oc:
@@ -1420,25 +1420,31 @@ class OrbitPlots:
         else:
             Msec = (chain[:,2+di]*1989/1.898).flatten().reshape(ndim,1)
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)',
-                    r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$', '$\mathrm{\Omega\, (^{\circ})}$', r'$\mathrm{\lambda_{\rm ref}\, (^{\circ})}$']
+                    r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$',
+                    r'$\mathrm{\omega\, (^{\circ})}$', r'$\mathrm{\Omega\, (^{\circ})}$',
+                    r'$\mathrm{\lambda_{\rm ref}\, (^{\circ})}$']
         if not self.custom_corner_plot:
             Semimajor = chain[:, 3+di].flatten().reshape(ndim,1)                       # in AU
             Ecc = (chain[:, 4+di]**2 + chain[:, 5+di]**2).flatten().reshape(ndim,1)
 
+            little_omega = (np.arccos(chain[:, 5 + di] / np.sqrt(chain[:, 4+di]**2 + chain[:, 5+di]**2)) * 180 / np.pi).flatten() % 360
+            Inc = (chain[:, 6 + di]*180/np.pi).flatten() % 360
+            Omega = (chain[:, 7 + di]*180/np.pi).flatten() % 360
+            lamref = (chain[:, 8 + di]*180/np.pi).flatten() % 360
+
             # centering the angular distributions about the average so that they look good in plots and so
             # the median values are correct and do not appear in a gap if the posteriors are bimodal (this does not
             # change the posteriors, just changes the range over which they are plotted).
-            little_omega = (np.arccos(chain[:, 5 + di] / np.sqrt(chain[:, 4+di]**2 + chain[:, 5+di]**2)) * 180 / np.pi).flatten()
             little_omega = center_angular_data(little_omega)
-            Inc = center_angular_data((chain[:, 6 + di]*180/np.pi).flatten())
-            Omega = center_angular_data((chain[:, 7 + di]*180/np.pi).flatten())
-            lamref = center_angular_data((chain[:, 8 + di]*180/np.pi).flatten())
+            Inc = center_angular_data(Inc)
+            Omega = center_angular_data(Omega)
+            lamref = center_angular_data(lamref)
 
             Inc = Inc.reshape(ndim,1)  # inclination
             Omega = Omega.reshape(ndim,1)  # longitude of the ascending node
             little_omega = little_omega.reshape(ndim,1)  # argument of periastron
             lamref = lamref.reshape(ndim,1)  # mean longitude at the reference epoch
-            chain =np.hstack([Mpri, Msec, Semimajor, Ecc, Inc, little_omega, Omega, lamref])
+            chain = np.hstack([Mpri, Msec, Semimajor, Ecc, Inc, little_omega, Omega, lamref])
         else:
             # a custom corner plot for a two planet system.
             labels = [r'$\mathrm{M_{\rm b}\, (M_{\rm Jup})}$', r'$\mathrm{M_{\rm c}\, (M_{\rm Jup})}$',
@@ -1458,7 +1464,10 @@ class OrbitPlots:
             chain = np.hstack([mass_b, mass_c, Semimajor_b, Semimajor_c, e_b, e_c])
 
         # in corner_modified, the error is modified to keep 2 significant figures
-        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], hist_bin_factor=3, verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
+        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels],
+                                        hist_bin_factor=3, verbose=False, show_titles=True, title_kwargs={"fontsize": 12},
+                                        hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45),
+                                        ylabcord=(-0.45,0.5),  **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf', transparent=True, pad_inches=0.01)

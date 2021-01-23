@@ -138,6 +138,8 @@ def run():
     
     if checkconv:
         OPs.plot_chains()
+    if plot_corner:
+        OPs.plot_corner()
     if plot_rv:
         OPs.RV()
     if plot_rel_sep:
@@ -152,8 +154,6 @@ def run():
         OPs.relRV()
     if plot_proper_motions:
         OPs.proper_motions()
-    if plot_corner:
-        OPs.plot_corner()
     if make_astrometric_prediction_table:
         OPs.make_astrometric_prediction_table()
     if save_params:
