@@ -17,7 +17,7 @@ from matplotlib.ticker import AutoMinorLocator
 from astropy.table import Table
 from astropy.io import ascii as asciiastropy
 
-#plt.style.use('/home/gmbrandt/Documents/papers/mesa.mplstyle')
+plt.style.use('/home/gmbrandt/Documents/papers/mesa.mplstyle')
 
 
 class Orbit:
@@ -1428,7 +1428,7 @@ class OrbitPlots:
             # centering the angular distributions about the average so that they look good in plots and so
             # the median values are correct and do not appear in a gap if the posteriors are bimodal (this does not
             # change the posteriors, just changes the range over which they are plotted).
-            little_omega = (np.arccos(chain[:, :, 5 + di] / np.sqrt(chain[:, 4+di]**2 + chain[:, 5+di]**2)) * 180 / np.pi).flatten()
+            little_omega = (np.arccos(chain[:, 5 + di] / np.sqrt(chain[:, 4+di]**2 + chain[:, 5+di]**2)) * 180 / np.pi).flatten()
             little_omega = center_angular_data(little_omega)
             Inc = center_angular_data((chain[:, 6 + di]*180/np.pi).flatten())
             Omega = center_angular_data((chain[:, 7 + di]*180/np.pi).flatten())
