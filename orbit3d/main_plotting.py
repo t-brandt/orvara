@@ -13,6 +13,7 @@ plot_orbit --output-dir ./Plots --config-file ./orbit3d/tests/config_Gl758.ini
 
 from __future__ import print_function
 from orbit3d.config import parse_args_plotting
+from astropy.io import fits
 import numpy as np # used in the evaluation of the predicted epoch table positions if the user uses python syntax in the config file
 from configparser import ConfigParser
 from orbit3d import orbit_plots         # import orbit_plots plotting package
@@ -38,8 +39,15 @@ def initialize_plot_options(config):
     OP.HGCAFile = config.get('data_paths', 'HGCAFile', fallback=None)
     
     #read in the mcmc chains
-    OP.burnin = config.getint('plotting', 'burnin', fallback=0)
     OP.MCMCfile = config.get('plotting', 'McmcDataFile', fallback=None)
+
+    # set the burn in
+    OP.burnin = config.getfloat('plotting', 'burnin', fallback=0)
+    if OP.burnin > 0 and OP.burnin < 1:
+        # interpret the burn in as a fraction of the total number of steps in the chain.
+        nsteps = fits.open(OP.MCMCfile)[0].data.shape[1]
+        OP.burnin = int(OP.burnin * nsteps)
+    OP.burnin = int(OP.burnin)
     
     # colorbar settings
     OP.usecolorbar = config.getboolean('plotting', 'use_colorbar', fallback=False)
@@ -58,6 +66,9 @@ def initialize_plot_options(config):
     
     # predicted epoch positions
     OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('1990,2000,2010,2020,2030')).split(",")
+    OP.chisquared_pos = config.get('plotting', 'chisquared_pos', fallback=None)
+    if OP.chisquared_pos is not None:
+        OP.chisquared_pos = eval(OP.chisquared_pos)
     OP.predicted_ep_ast = config.getfloat('plotting', 'position_predict', fallback=2000)
     #
     OP.position_predict_table_epochs = eval(config.get('plotting', 'position_predict_table_epochs', fallback=('2020, 2021')))
@@ -138,10 +149,10 @@ def run():
     
     if checkconv:
         OPs.plot_chains()
-    if plot_corner:
-        OPs.plot_corner()
     if plot_rv:
         OPs.RV()
+    if plot_corner:
+        OPs.plot_corner()
     if plot_rel_sep:
         OPs.relsep()
     if plot_position_angle:

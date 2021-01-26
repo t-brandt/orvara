@@ -548,9 +548,9 @@ class OrbitPlots:
 
         if make_rv_instrument_legend:
             axes[0].legend(loc='best', prop={'size': 8}, frameon=True)
-
         # add the chisquared
-        axes[0].annotate(fr'$\chi^2 = {round(chisq, 2)}$', xy=(0.05, 0.05), xycoords='axes fraction')
+        chisquared_pos = (0.05, 0.05) if self.chisquared_pos is None else self.chisquared_pos
+        axes[0].annotate(fr'$\chi^2 = {round(chisq, 2)}$', xy=chisquared_pos, xycoords='axes fraction')
         
         if self.set_limit and self.user_xlim_rv[0] is not None:
             axes[0].set_xlim(np.float(self.user_xlim_rv[0]), np.float(self.user_xlim_rv[1]))
@@ -797,7 +797,14 @@ class OrbitPlots:
 
             # add the chisquared of the fit
             chisq = np.sum(dat_OC**2/self.relsep_obs_err**2)
-            axes[0].annotate(fr'$\chi^2 = {round(chisq, 2)}$', xy=(0.05, 0.05), xycoords='axes fraction')
+
+            rounded_chisq = round(chisq, 2)
+            i = 0
+            while rounded_chisq == 0:
+                i += 1
+                rounded_chisq = round(chisq, int(2 + i))
+
+            axes[0].annotate(fr'$\chi^2 = {rounded_chisq}$', xy=(0.05, 0.05), xycoords='axes fraction')
 
             # from advanced plotting settings in config.ini
             if self.set_limit and self.user_xlim_ast[0] is not None:
@@ -959,7 +966,13 @@ class OrbitPlots:
 
             # add the chisquared of the fit
             chisq = np.sum(dat_OC**2/self.PA_obs_err**2)
-            axes[0].annotate(fr'$\chi^2 = {round(chisq, 2)}$', xy=(0.05, 0.2), xycoords='axes fraction')
+            rounded_chisq = round(chisq, 2)
+            i = 0
+            while rounded_chisq == 0:
+                i += 1
+                rounded_chisq = round(chisq, int(2 + i))
+
+            axes[0].annotate(fr'$\chi^2 = {rounded_chisq}$', xy=(0.05, 0.2), xycoords='axes fraction')
 
             if self.show_title:
                 axes[0].set_title('Position angle vs. Epoch')
