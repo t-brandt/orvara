@@ -167,7 +167,10 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         orbit.calc_EA_RPP(data, params, model)
         orbit.calc_RV(data, params, model)
         orbit.calc_offsets(data, params, model, i)
-        
+
+        if priors is not None:
+            lnp = lnp - 0.5*(params.msec - priors.get(f'm{i}', 1))**2/priors.get(f'm{i}_sig', np.inf)**2
+
     if use_epoch_astrometry:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
     else:
@@ -215,8 +218,13 @@ def run():
 
     #define priors
     priors = {}
-    priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback = 1.)
-    priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback = np.inf)
+    priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback=1.)
+    priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback=np.inf)
+    # priors on the masses of the companions (labelled 0 though 9). Limit to 10 planet systems.
+    for i in range(10):
+        priors[f'm{i}'] = config.getfloat('priors_settings', f'm{i}', fallback=1.)
+        priors[f'm{i}_sig'] = config.getfloat('priors_settings', f'm{i}_sig', fallback=np.inf)
+    # priors on the RV jitter. Converting from m/s to orvara internal units.
     priors['minjit'] = config.getfloat('priors_settings', 'minjitter', fallback = 1e-5)
     priors['minjit'] = max(priors['minjit'], 1e-20) # effectively zero, but we need the log
     priors['minjit'] = 2*np.log10(priors['minjit'])
