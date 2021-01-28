@@ -155,6 +155,8 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
     model = orbit.Model(data)
     lnp = 0
     for i in range(nplanets):
+        # Note that params.mpri is really the mass contained in the primary + companions inner to the current planet.
+        # params.mpri_true is the real mass of the primary. So params.mpri should really be renamed params.interior_mass
         params = orbit.Params(theta, i, nplanets)
         lnp = lnp + orbit.lnprior(params, minjit=priors['minjit'],
                                   maxjit=priors['maxjit'])
@@ -177,9 +179,9 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         return orbit.calcL(data, params, model, chisq_resids=True, RVoffsets=RVoffsets)
 
     if priors is not None:
-        return lnp - 0.5*(params.mpri - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
+        return lnp - 0.5*(params.mpri_true - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
     else:
-        return lnp - np.log(params.mpri) + orbit.calcL(data, params, model)
+        return lnp - np.log(params.mpri_true) + orbit.calcL(data, params, model)
 
     
 def return_one(theta):

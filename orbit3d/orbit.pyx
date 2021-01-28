@@ -10,7 +10,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 ######################################################################
 
 cdef class Params:
-    cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit
+    cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit, mpri_true
     cdef public double ecc, per, arg, sinarg, cosarg, sqrt1pe, sqrt1me
     cdef public int nplanets
     
@@ -33,12 +33,14 @@ cdef class Params:
         
         self.jit = par[0]
         self.mpri = par[1]
+        self.mpri_true = par[1]
         self.msec = par[2 + 7*iplanet]
         self.sau = par[3 + 7*iplanet]
         
         for i in range(nplanets):
             self.all_sau[i] = par[3 + 7*i]
             if self.sau > self.all_sau[i]:
+                # NOTE: This makes it so that mpri is not truely the primary mass anymore!!!
                 self.mpri += par[2 + 7*i]
 
         self.esino = par[4 + 7*iplanet]
@@ -1402,9 +1404,9 @@ def lnprior(Params par, double minjit=-20, double maxjit=20):
     cdef double pi = 3.14159265358979323846264338327950288 # np.pi
     cdef double zeroprior = -np.inf
 
-    if par.sau <= 0 or par.mpri <= 0 or par.msec <= 0 or par.ecc >= 1:
+    if par.sau <= 0 or par.mpri_true <= 0 or par.msec <= 0 or par.ecc >= 1:
         return zeroprior
-    if par.sau > 2e5 or par.mpri > 1e3 or par.msec > 1e3:
+    if par.sau > 2e5 or par.mpri_true > 1e3 or par.msec > 1e3:
         return zeroprior
     if par.inc < 0 or par.inc > pi or par.asc < -pi or par.asc > 3*pi:
         return zeroprior
