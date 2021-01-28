@@ -1460,21 +1460,22 @@ class OrbitPlots:
             chain = np.hstack([Mpri, Msec, Semimajor, Ecc, Inc, little_omega, Omega, lamref])
         else:
             # a custom corner plot for a two planet system.
-            labels = [r'$\mathrm{M_{\rm b}\, (M_{\rm Jup})}$', r'$\mathrm{M_{\rm c}\, (M_{\rm Jup})}$',
-                      r'$a_{\rm b} {\rm (A.U.)}$', r'$a_{\rm c} {\rm (A.U.)}$',
-                      r'$e_{b}$', r'$e_{c}$',
+            labels = [r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{\rm 0}\, (M_{\rm Jup})}$',
+                      r'$\mathrm{M_{\rm 1}\, (M_{\rm Jup})}$',
+                      r'$a_{\rm 0} {\rm (A.U.)}$', r'$a_{\rm 1} {\rm (A.U.)}$',
+                      r'$e_{0}$', r'$e_{1}$',
                       ]
             #labels = ['jitter (m/s)', r'$e_{c}$', r'$e_{b}$']
 
-            Semimajor_b = chain[:, 3].flatten().reshape(ndim, 1)
-            Semimajor_c = chain[:, 3+7].flatten().reshape(ndim, 1)
+            Semimajor_b = chain[:, 3].flatten().reshape(ndim, 1) # first companion (indexed 0)
+            Semimajor_c = chain[:, 3+7].flatten().reshape(ndim, 1) # second companion (indexed 1)
             mass_b = chain[:, 2].flatten().reshape(ndim, 1)*1989/1.898
             mass_c = chain[:, 2+7].flatten().reshape(ndim, 1)*1989/1.898
             e_b = (chain[:, 4]**2 + chain[:, 5]**2).flatten().reshape(ndim, 1)
             e_c = (chain[:, 4+7]**2 + chain[:, 5+7]**2).flatten().reshape(ndim, 1)
             #jitter = (10**(chain[:, 0]/2)).flatten().reshape(ndim, 1)
             #chain = np.hstack([jitter, e_c, e_b])
-            chain = np.hstack([mass_b, mass_c, Semimajor_b, Semimajor_c, e_b, e_c])
+            chain = np.hstack([Mpri, mass_b, mass_c, Semimajor_b, Semimajor_c, e_b, e_c])
 
         # in corner_modified, the error is modified to keep 2 significant figures
         figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels],

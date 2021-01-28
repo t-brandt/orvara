@@ -203,6 +203,10 @@ def run():
 
     args = parse_args()
     config = ConfigParser()
+    if not os.path.exists(args.config_file):
+        raise FileNotFoundError(f'No config file found at {args.config_file}')
+    if not os.path.exists(args.output_dir):
+        raise FileNotFoundError(f'No output_dir found at {args.output_dir}')
     config.read(args.config_file)
 
     # set the mcmc parameters
@@ -332,7 +336,7 @@ def run():
         out.append(fits.PrimaryHDU(sample0.logprobability[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
     for i in range(1000):
-        filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
+        filename = os.path.join(args.output_dir, f'HIP{HipID}' + os.path.basename(args.config_file).split('.ini')[0] + f'_{i}.fits')
         if not os.path.isfile(filename):
             print('Writing output to {0}'.format(filename))
             out.writeto(filename, overwrite=False)

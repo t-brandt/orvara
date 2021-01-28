@@ -31,7 +31,7 @@ def test_converges_to_accurate_values(fake_args):
         fake_args.return_value = FakeArguments('orbit3d/tests/diagnostic_config.ini', tmp_dir)
         run()
         # load file and check params
-        file = 'HIP3850_chain000.fits'
+        file = 'HIP3850_diagnostic_config_0.fits'
         tt = fits.open(os.path.join(tmp_dir, file))[0].data
         i = -1  # walker index.
         nsteps = 50 * tt.shape[1]
