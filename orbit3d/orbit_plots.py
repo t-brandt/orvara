@@ -1,12 +1,10 @@
 import os
 import numpy as np
-import julian
-from datetime import datetime as dt
+from astropy.time import Time
 import time
 from random import randrange
 from orbit3d import corner_modified
 from scipy.interpolate import interp1d
-import scipy.optimize as op
 from scipy import stats, signal
 from orbit3d import orbit
 from astropy.io import fits
@@ -18,11 +16,12 @@ import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 
+
 class Orbit:
 
     def __init__(self, OP, step='best', epochs='custom'):
 
-        data = orbit.Data(OP.Hip, OP.RVfile, OP.relAstfile, verbose=False)
+        data = orbit.Data(OP.Hip, OP.HGCAFile, OP.RVfile, OP.relAstfile, verbose=False)
 
         if isinstance(epochs, list) or isinstance(epochs, np.ndarray):
             data.custom_epochs(epochs, iplanet=OP.iplanet)
@@ -136,39 +135,10 @@ class OrbitPlots:
 
 ###################################### Define Functions ############################################
     def JD_to_calendar(self, JD):
-        """
-            Function to convert Julian Date to Calendar Date
-        """
-        mjd = JD - 2400000.5
-        date = julian.from_jd(mjd, fmt='mjd')
-        def sinceEpoch(date): # returns seconds since epoch
-            return time.mktime(date.timetuple())
-        s = sinceEpoch
-        year = date.year
-        startOfThisYear = dt(year=year, month=1, day=1)
-        startOfNextYear = dt(year=year+1, month=1, day=1)
-        yearElapsed = s(date) - s(startOfThisYear)
-        yearDuration = s(startOfNextYear) - s(startOfThisYear)
-        fraction = yearElapsed/yearDuration
-        return date.year + fraction
+        return Time(JD, format='jd').decimalyear
 
-    def calendar_to_JD(self, year, M=1, D=1):
-        """
-            Function to convert Calendar Date to Julian Date
-        """
-        if M <= 2:
-            y = year - 1
-            m = M + 12
-        else:
-            y = year
-            m = M
-        if year <= 1583: # more precisely should be less than or equal to 10/4/1582
-            B = -2
-        else:
-            B = int(y/400.) - int(y/100.)
-        UT = 0
-        JD = int(365.25*y) + int(30.6001*(m+1)) + B + 1720996.5  + D + UT/24.
-        return JD
+    def calendar_to_JD(self, year):
+        return Time(year, format='decimalyear').jd
 
     def define_epochs(self):
         """
