@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
+from astropy import units as u
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
@@ -1426,16 +1427,17 @@ class OrbitPlots:
         ndim = chain[:, 0].flatten().shape[0]
         Mpri = chain[:, 1].flatten().reshape(ndim,1)                      # in M_{\odot}
         di = 7*self.iplanet
-        if self.cmref == 'msec_solar':
-            Msec = (chain[:,2+di]).flatten().reshape(ndim,1)         # in M_{\odot}
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$',
-                    r'$\mathrm{i\, (^{\circ})}$', '$\mathrm{\Omega\, (^{\circ})}$', r'$\mathrm{\lambda_{\rm ref}\, (^{\circ})}$']
-        else:
-            Msec = (chain[:,2+di]*1989/1.898).flatten().reshape(ndim,1)
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)',
-                    r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$',
-                    r'$\mathrm{\omega\, (^{\circ})}$', r'$\mathrm{\Omega\, (^{\circ})}$',
-                    r'$\mathrm{\lambda_{\rm ref}\, (^{\circ})}$']
+
+        Msec = (chain[:, 2 + di]).flatten().reshape(ndim, 1)
+        Msec_label = r'$\mathrm{M_{sec}\, (M_{\odot})}$'
+        if self.cmref == 'msec_jup' and np.median(Msec) < 0.2:
+            Msec *= (1 * u.Msun/u.Mjup).decompose().value
+            Msec_label = r'$\mathrm{M_{sec}\, (M_{Jup})}$'
+
+        labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', Msec_label, 'a (AU)',
+                r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$',
+                r'$\mathrm{\omega\, (^{\circ})}$', r'$\mathrm{\Omega\, (^{\circ})}$',
+                r'$\mathrm{\lambda_{\rm ref}\, (^{\circ})}$']
         if not self.custom_corner_plot:
             Semimajor = chain[:, 3+di].flatten().reshape(ndim,1)                       # in AU
             Ecc = (chain[:, 4+di]**2 + chain[:, 5+di]**2).flatten().reshape(ndim,1)
@@ -1469,8 +1471,8 @@ class OrbitPlots:
 
             Semimajor_b = chain[:, 3].flatten().reshape(ndim, 1) # first companion (indexed 0)
             Semimajor_c = chain[:, 3+7].flatten().reshape(ndim, 1) # second companion (indexed 1)
-            mass_b = chain[:, 2].flatten().reshape(ndim, 1)*1989/1.898
-            mass_c = chain[:, 2+7].flatten().reshape(ndim, 1)*1989/1.898
+            mass_b = chain[:, 2].flatten().reshape(ndim, 1) * (1 * u.Msun/u.Mjup).decompose().value
+            mass_c = chain[:, 2+7].flatten().reshape(ndim, 1) * (1 * u.Msun/u.Mjup).decompose().value
             e_b = (chain[:, 4]**2 + chain[:, 5]**2).flatten().reshape(ndim, 1)
             e_c = (chain[:, 4+7]**2 + chain[:, 5+7]**2).flatten().reshape(ndim, 1)
             #jitter = (10**(chain[:, 0]/2)).flatten().reshape(ndim, 1)

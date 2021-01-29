@@ -87,12 +87,22 @@ def initialize_plot_options(config):
     
     # plot axes settings
     OP.set_limit = config.getboolean('plotting', 'set_limit', fallback=True)
-    OP.user_xlim = config.get('plotting', 'xlim', fallback=None).split(",")
-    OP.user_ylim = config.get('plotting', 'ylim', fallback=None).split(",")
-    OP.user_xlim_rv = config.get('plotting', 'xlim_rv', fallback=None).split(",")
-    OP.user_ylim_rv = config.get('plotting', 'ylim_rv', fallback=None).split(",")
-    OP.user_xlim_ast = config.get('plotting', 'xlim_ast', fallback=None).split(",")
-    OP.user_ylim_ast = config.get('plotting', 'ylim_ast', fallback=None).split(",")
+    OP.user_xlim = config.get('plotting', 'xlim', fallback=None)
+    OP.user_ylim = config.get('plotting', 'ylim', fallback=None)
+    OP.user_xlim_rv = config.get('plotting', 'xlim_rv', fallback=None)
+    OP.user_ylim_rv = config.get('plotting', 'ylim_rv', fallback=None)
+    OP.user_xlim_ast = config.get('plotting', 'xlim_ast', fallback=None)
+    OP.user_ylim_ast = config.get('plotting', 'ylim_ast', fallback=None)
+
+    # checking to see if we have a tuple we can split.
+    OP.user_xlim = OP.user_xlim.split(",") if OP.user_xlim is not None else OP.user_xlim
+    OP.user_ylim = OP.user_ylim.split(",") if OP.user_ylim is not None else OP.user_ylim
+
+    OP.user_xlim_rv = OP.user_xlim_rv.split(",") if OP.user_xlim_rv is not None else OP.user_xlim_rv
+    OP.user_ylim_rv = OP.user_ylim_rv.split(",") if OP.user_ylim_rv is not None else OP.user_ylim_rv
+
+    OP.user_xlim_ast = OP.user_xlim_ast.split(",") if OP.user_xlim_ast is not None else OP.user_xlim_ast
+    OP.user_ylim_ast = OP.user_ylim_ast.split(",") if OP.user_ylim_ast is not None else OP.user_ylim_ast
     
     # show or not show title, add a text on the plot
     OP.show_title = config.getboolean('plotting', 'show_title', fallback=True)
