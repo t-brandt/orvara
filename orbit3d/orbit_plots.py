@@ -1345,7 +1345,7 @@ class OrbitPlots:
         plx = self.extras[:, 0]
         plx = np.reshape(plx, -1)
 
-        data = orbit.Data(self.Hip, OP.HGCAFile, self.RVfile, self.relAstfile, verbose=False)
+        data = orbit.Data(self.Hip, self.HGCAFile, self.RVfile, self.relAstfile, verbose=False)
 
         # Solve Kepler's equation in array format given a different
         # eccentricity for each point.  This is the same Newton solver
