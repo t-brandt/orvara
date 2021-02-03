@@ -724,8 +724,9 @@ class OrbitPlots:
             all_data_have_a_source = np.all([i.lower() != 'unknown' for i in self.ast_data_source])
             # if there is a large dynamic range in errors, make a smaller O-C plot as well.
             make_smaller_oc = False
-            if np.max(self.relsep_obs_err)/np.min(self.relsep_obs_err) > 50:
-                make_smaller_oc = True
+            # uncomment the following two lines, or set make_smaller_oc=True to make a zoomed in O-C plot.
+            #if np.max(self.relsep_obs_err)/np.min(self.relsep_obs_err) > 10:
+            #    make_smaller_oc = True
 
             if make_smaller_oc:
                 fig, axes = plt.subplots(3, 1, figsize=(5, 8), sharex=True, gridspec_kw={'height_ratios': [3, 1, 1]})
@@ -880,8 +881,9 @@ class OrbitPlots:
             all_data_have_a_source = np.all([i.lower() != 'unknown' for i in self.ast_data_source])
             # if there is a large dynamic range in errors, make a smaller O-C plot as well.
             make_smaller_oc = False
-            if np.max(self.PA_obs_err)/np.min(self.PA_obs_err) > 5:
-                make_smaller_oc = True
+            # uncomment the following two lines, or set make_smaller_oc=True to make a zoomed in O-C plot.
+            #if np.max(self.PA_obs_err)/np.min(self.PA_obs_err) > 5:
+            #    make_smaller_oc = True
 
             if make_smaller_oc:
                 fig, axes = plt.subplots(3, 1, figsize=(5, 8), sharex=True, gridspec_kw={'height_ratios': [3, 1, 1]})
