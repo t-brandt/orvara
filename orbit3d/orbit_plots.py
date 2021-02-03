@@ -17,6 +17,7 @@ from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 from astropy.table import Table
 from astropy.io import ascii as asciiastropy
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 plt.style.use('/home/gmbrandt/Documents/papers/mesa.mplstyle')
 
@@ -1087,7 +1088,7 @@ class OrbitPlots:
                 
             # plot the highest likelihood curve
             axes[0, 0].plot(T[indx], orb_ml.mu_RA[indx], color='black')
-            axes[0, 1].plot(T[indx], orb_ml.mu_Dec[indx], color='black')
+            plotaxes = axes[0, 1].plot(T[indx], orb_ml.mu_Dec[indx], color='black')
             if make_oc:
                 axes[-1, 0].plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
                 axes[-1, 1].plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
@@ -1102,112 +1103,15 @@ class OrbitPlots:
             axes[-1, 1].set_xlabel('Epoch (year)', labelpad = 6, fontsize = 13)
             axes[-1, 0].set_xlabel('Epoch (year)', labelpad = 6, fontsize = 13)
 
-            if make_oc:
-                # plot the O-C for observed data points
-                dat_OC_RA = self.mualp_obs - orb_ml_RA.mu_RA
-                ax2.errorbar(ep_mualp_obs_calendar, dat_OC_RA, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-                ax2.scatter(ep_mualp_obs_calendar, dat_OC_RA, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
-
-                dat_OC_Dec = self.mudec_obs - orb_ml_Dec.mu_Dec
-                ax4.errorbar(ep_mudec_obs_calendar, dat_OC_Dec, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-                ax4.scatter(ep_mudec_obs_calendar, dat_OC_Dec, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
-
-                # axes settings
-                # ax1
-                ax1.get_shared_x_axes().join(ax1, ax2)
-                ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
-
-
-                # ax3
-                ax3.get_shared_x_axes().join(ax3, ax4)
-                ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
-                range_mudec_obs = max(self.mudec_obs)  - min(self.mudec_obs)
-                ax3.set_ylabel(r'$\mu_{\delta}$ (mas/yr)', labelpad = 6, fontsize = 13)
-                for ax in [ax1, ax3]:
-                    ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-                # ax2
-
-                y1_RA = max(np.abs(dat_OC_RA) + max(self.mualp_obs_err))
-                y1_Dec = max(np.abs(dat_OC_Dec) + max(self.mudec_obs_err))
-
-                ax2.set_ylim(-1.2*y1_RA, 1.2*y1_RA)
-                ax4.set_ylim(-1.2*y1_Dec, 1.2*y1_Dec)
-
-                for ax in [ax2,ax4]:
-                    ax.xaxis.set_minor_locator(AutoMinorLocator())
-                    ax.yaxis.set_minor_locator(AutoMinorLocator())
-                    ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-                    ax.set_xlabel('Epoch (year)', labelpad = 6, fontsize = 13)
-                    ax.set_ylabel('O-C', labelpad = 8, fontsize = 13)
-            for ax in axes.ravel():
-                ax.set_xlim(1990, 2020)
-            # from advanced plotting settings in config.ini
-            if self.set_limit:
-                for ax in axes.ravel():
-                    None # disabled setting plot limits for proper motions.
-                    #ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                    #ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))  # disable y limit set
-            if self.show_title:
-                ax1.set_title('Right Ascension vs. Epoch')
-                ax3.set_title('Declination vs. Epoch')
-            if self.add_text:
-                for ax in [ax1, ax3]:
-                    ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
-            if self.usecolorbar:
-                cbar_ax = fig.add_axes([1.5, 0.16, 0.05, 0.7])
-                if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                else:
-                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=self.colorbar_size) # default value = 12
-                cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                    cbar.ax.get_yaxis().labelpad=20
-                else:
-                    cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
-                fig.delaxes(cbar_ax)
-                fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-        else:
-            fig = plt.figure(figsize=(11, 5.5))
-            ax1 = fig.add_axes((0.10, 0.1, 0.35, 0.77))
-            ax2 = fig.add_axes((0.60, 0.1, 0.35, 0.77))
-
-            # plot the num_orbits randomly selected curves
-            orb_ml = Orbit(self, 'best')
-            
-            for i in range(self.num_orbits):
-                orb = Orbit(self, step=self.rand_idx[i])
-
-                ax1.plot(self.epoch_calendar, orb.mu_RA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                ax2.plot(self.epoch_calendar, orb.mu_Dec, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                
-            # plot the most likely one
-            ax1.plot(self.epoch_calendar, orb_ml.mu_RA, color='black')
-            ax2.plot(self.epoch_calendar, orb_ml.mu_Dec, color='black')
-
-            ax1.set_xlim(self.start_epoch, self.end_epoch)
-            ax1.xaxis.set_minor_locator(AutoMinorLocator())
-            ax1.yaxis.set_minor_locator(AutoMinorLocator())
-            ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            #ax1.set_title(self.title)
-            ax1.set_xlabel('date (yr)')
-            ax1.set_ylabel(r'$\Delta \mu_{\alpha}$ (mas/yr)',labelpad = 1)
-
-            ax2.set_xlim(self.start_epoch, self.end_epoch)
-            ax2.xaxis.set_minor_locator(AutoMinorLocator())
-            ax2.yaxis.set_minor_locator(AutoMinorLocator())
-            ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            #ax2.set_title(self.title)
-            ax2.set_xlabel('date (yr)')
-            ax2.set_ylabel(r'$\Delta \mu_{\delta}$ (mas/yr)')
-        
-        plt.tight_layout()
+        if self.usecolorbar:
+            divider = make_axes_locatable(axes[0, 1])
+            cax = divider.append_axes("right", size="5%", pad=0.2)
+            cbar = fig.colorbar(self.sm, cax=cax)
+            cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref])
+        fig.tight_layout()
         print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
-        
-        if self.pm_separate and not self.usecolorbar:
-            fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-            fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-        elif not self.usecolorbar:
-            fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+
+        fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
             
 ################################################################################################
 
