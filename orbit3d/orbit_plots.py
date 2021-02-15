@@ -75,6 +75,8 @@ class Orbit:
 
         if OP.cmref == 'msec_solar':
             self.colorpar = self.par.msec
+        if OP.cmref == 'mprim_solar':
+            self.colorpar = self.par.mpri_true
         elif OP.cmref == 'msec_jup':
             self.colorpar = self.par.msec*1989/1.898
         elif OP.cmref == 'ecc':
@@ -91,7 +93,8 @@ class OrbitPlots:
         pass        
 
     def start(self):
-        self.cmlabel_dic = {'msec_jup': r'$\mathrm{M_{comp} (M_{Jup})}$','msec_solar': r'$\mathrm{M_{comp} (M_{\odot})}$', 'ecc': 'Eccentricity'}
+        self.cmlabel_dic = {'msec_jup': r'$\mathrm{M_{comp} (M_{Jup})}$','msec_solar': r'$\mathrm{M_{comp} (M_{\odot})}$',
+                            'ecc': 'Eccentricity', 'mprim_solar': r'$\mathrm{M_{primary} (M_{\odot})}$'}
         self.color_list = ['r', 'g', 'b', 'y', 'c', 'b']
         
         ############################### load in data #######################
@@ -124,13 +127,17 @@ class OrbitPlots:
             i = 2 + 7*self.iplanet
             vmin = stats.scoreatpercentile(self.chain[:, i], 1)
             vmax = stats.scoreatpercentile(self.chain[:, i], 99)
+        elif self.cmref == 'mprim_solar':
+            i = 1
+            vmin = stats.scoreatpercentile(self.chain[:, i], 1)
+            vmax = stats.scoreatpercentile(self.chain[:, i], 99)
         elif self.cmref == 'ecc':
             i = 4 + 7*self.iplanet
             ecc = self.chain[:, i]**2 + self.chain[:, i + 1]**2
             vmin = stats.scoreatpercentile(ecc, 1)
             vmax = stats.scoreatpercentile(ecc, 99)
         else:
-            raise ValueError("Reference parameter for color should be 'msec_jup', 'msec_solar', or 'ecc'")
+            raise ValueError("Reference parameter for color should be 'msec_jup', 'mprim_solar', 'msec_solar', or 'ecc'")
             
         self.normalize = mcolors.Normalize(vmin=vmin, vmax=vmax)
         self.colormap = getattr(cm, self.color_map)
