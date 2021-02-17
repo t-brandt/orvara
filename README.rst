@@ -17,7 +17,54 @@ First, assign the appropriate file directories and settings inside of a config.i
 :code:`orbit3d/tests/data/config.ini`. If you are using relative astrometry, you must
 give paths for :code:`GaiaDataDir`, :code:`Hip1DataDir`, and :code:`Hip2DataDir`. Those are the paths
 to the intermediate data for GaiaDR2, the original Hipparcos data reduction, and the second Hipparcos data reduction.
+Note: if your Hip2 intermediate data come from the DVD, you will want to point to the 'resrec' folder. This should be e.g.:
+Hip2_DVD_Book/IntermediateData/resrec
 
+Also in the config.ini file, we recommend always using absolute paths to the various files
+(e.g. /home/username/Documents/Hip2_DVD_Book/IntermediateData/resrec). Relative paths do work, but first fits to any source
+should use absolute paths until you confirm that all the input data work.
+
+
+The config file
+~~~~~~~~~~~~~~~
+Example configuration files can be found in orbit3d/tests/ e.g. orbit3d/tests/config.ini.
+
+This one in particular looks like:
+
+[data_paths]
+# Hipparcos ID of the star in question. This is used for fetching it's intermediate astrometry.
+HipID = 95319
+# The file containing the radial velocity time series for the star.
+RVFile = orbit3d/tests/data/Gl758_RV.dat
+# The Hipparcos Gaia Catalog
+HGCAFile = HGCA_vDR2_corrected.fits
+# The file containing the relative astrometry for the star.
+AstrometryFile = orbit3d/tests/data/Gl758_relAST.txt
+# The path to all the Gaia DR2 intermediate data
+GaiaDataDir = orbit3d/tests/data/gaia
+# The path to all the Hipparcos (original reduction) intermediate data
+Hip1DataDir = orbit3d/tests/data/hip1
+# The path to all the Hipparcos (second reduction) intermediate data
+Hip2DataDir = orbit3d/tests/data/hip2
+# the file path to the initial conditions to the orbit. Set to None for default guess.
+start_file = None
+
+[mcmc_settings]
+# number of temperatures to use in the parallel tempering chain
+ntemps = 5
+# number of walkers. Each walker will have ntemps number of chains.
+nwalkers = 100
+# number of planets to fit.
+nplanets = 1
+# number of steps contained in each chain
+nstep = 100
+# number of threads to use with emcee. Note this built-in parellelization is poor.
+nthreads = 2
+# True if you want to use the epoch astrometry in GaiaDataDir, Hip1DataDir etc... False if not.
+use_epoch_astrometry = True
+
+Notes: We recommend starting with use_epoch_astrometry = False. If this fails, then there is something
+wrong with the RVFile, HGCAFile, or (relative) AstrometryFile. If that chain finishes fine, then set use_epoch_astrometry = True
 Usage
 -----
 After setting paths and MCMC (markov-chain monte-carlo)  settings in a config.ini file,
