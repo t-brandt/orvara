@@ -92,6 +92,33 @@ use_epoch_astrometry = True
 
 Notes: We recommend starting with use_epoch_astrometry = False. If this fails, then there is something
 wrong with the RVFile, HGCAFile, or (relative) AstrometryFile. If that chain finishes fine, then set use_epoch_astrometry = True
+
+Setting priors
+~~~~~~~~~~~~~~
+Adding Gaussian mass priors are supported. As well, uniform priors on the RV jitter are supported.  To add a guassian mass prior on the primary, you will want to add the following
+section to your configuration file:
+
+[priors_settings]
+
+mpri = 1
+
+mpri_sig = inf
+
+minjitter = 1e-5
+
+maxjitter = 1e3
+
+
+minjitter and maxjitter are the lower and upper bounds respectively for the Uniform prior. E.g.
+If you wanted to set a Uniform prior on jitter between 1 and 300 meters/second (and zero outside that prior), you would
+set minjitter = 1 and maxjitter = 300.
+
+mpri is the mean of the gaussian prior on the primary mass. mpri_sig is the standard deviation
+of that distribution. E.g. for a gaussian prior on the primary mass of 1 solar mass and 0.1 solar mass deviation, you would
+set mpri = 1 and mpri_sig = 0.1.
+
+Leaving mpri_sig = inf will turn off the prior.
+
 Usage
 -----
 After setting paths and MCMC (markov-chain monte-carlo)  settings in a config.ini file,
