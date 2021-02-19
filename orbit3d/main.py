@@ -246,7 +246,6 @@ def run():
         'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors}
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
-
     try:
         use_ptemcee = False
         sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
