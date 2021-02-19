@@ -6,10 +6,22 @@ This repo contains orbit3d, the package for fitting orbits of exoplanets.
 
 Installation
 ------------
+To install, we will git clone the repo. Run
+:code:`git clone https://github.com/t-brandt/orbit3d`
+Then:
+:code:`cd orbit3d`
+Then finally:
+:code:`pip install -e .`
 orbit3d is built by running :code:`pip install -e .` while in the the root directory
-of this repo. The :code:`-e` flag builds the Cython modules. HTOF is a requirement
-for this package. Install it using :code:`pip install git+https://www.github.com/gmbrandt/HTOF` or by following
-the installation directions for that repo.
+of this repo. The :code:`-e` flag builds the Cython modules.
+
+verifying
+~~~~~~~~~
+
+Cd to the root directory of the repo (if you are not already there). Run:
+:code:`pytest -sv`
+This will run a small suite of tests. This should take about 5 minutes. If any of the tests fail, something
+is wrong with the install. Try running :code:`pip install -e .` . If the issue persists, please submit an issue ticket!
 
 Configuration
 -------------
@@ -257,6 +269,22 @@ To plot orbits, run the plot_orbit command from the root directory, for example
 .. code-block:: bash
 
     plot_orbit --output-dir ./plots --config-file orbit3d/tests/config_HD4747.ini
+
+Contribution Guidelines
+-----------------------
+We encourage contributions to orbit3d. The workflow for contributing is the following.
+
+First time contributers:
+ * Fork the repository
+ * Checkout a new branch for your feature or bug fix.
+ * Make your changes to that branch.
+ * When you are ready to submit a pull request into the main orbit3d branch (currently called master), run :code:`pytest -sv` to make sure that the required tests pass.
+ * If the tests pass, submit your pull request.
+ * One approving administrator review is required to approve a pull request.
+
+Users who are invited to be collaborators on the repo:
+The same as above, except there is no need to fork the repository once you accept your invite!
+
 
 License
 -------
