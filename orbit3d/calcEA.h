@@ -33,22 +33,16 @@ inline double EAstart(double M, double ecc) {
   double ome = 1. - ecc;
   double sqrt_ome = sqrt(ome);
     
-  if (M < 1e-3*sqrt_ome*ome) {
-    double xi = M/(ome*ome);
-    double xi2_ome = xi*xi*ome;
-    double eta = xi*(1 - xi2_ome*(ecc/6. - xi2_ome*(19*ecc - 9)/120. - xi2_ome/18.));
-    return ome*eta;
-  } else {
-    double chi = M/(sqrt_ome*ome);
-    double Lam = sqrt(8 + 9*chi*chi);
-    //double S = pow(Lam + 3*chi, 1./3);
-    double S = cbrt(Lam + 3*chi);
-    double sigma = 6*chi/(2 + S*S + 4./(S*S));
-    double s2 = sigma*sigma;
-    double denom = s2 + 2;
-    double E = sigma*(1 + s2*ome*((s2 + 20)/(60.*denom) + s2*ome*(s2*s2*s2 + 25*s2*s2 + 340*s2 + 840)/(1400*denom*denom*denom)));
-    return E*sqrt_ome;
-  }
+  double chi = M/(sqrt_ome*ome);
+  double Lam = sqrt(8 + 9*chi*chi);
+  //double S = pow(Lam + 3*chi, 1./3);
+  double S = cbrt(Lam + 3*chi);
+  double sigma = 6*chi/(2 + S*S + 4./(S*S));
+  double s2 = sigma*sigma;
+  double denom = s2 + 2;
+  double E = sigma*(1 + s2*ome*((s2 + 20)/(60.*denom) + s2*ome*(s2*s2*s2 + 25*s2*s2 + 340*s2 + 840)/(1400*denom*denom*denom)));
+  return E*sqrt_ome;
+
 }
 
 /* 
@@ -130,46 +124,65 @@ void getbounds(double bounds[], double EA_tab[], double ecc) {
   bounds[11] = elevenpi_d_12 - g2s_e;
   bounds[12] = pi;
   
+  
+  double x;
+  
   EA_tab[1] = 1/(1. - ecc);
-  EA_tab[7] = 1/(1. - g2c_e);
-  EA_tab[13] = 1/(1. - g3c_e);
-  EA_tab[19] = 1/(1. - g4c_e);
-  EA_tab[25] = 1/(1. - g5c_e);
-  EA_tab[31] = 1/(1. - g6c_e);
-  EA_tab[37] = 1;
-  EA_tab[43] = 1/(1. + g6c_e);
-  EA_tab[49] = 1/(1. + g5c_e);
-  EA_tab[55] = 1/(1. + g4c_e);
-  EA_tab[61] = 1/(1. + g3c_e);
-  EA_tab[67] = 1/(1. + g2c_e);
-  EA_tab[73] = 1/(1. + ecc);
-  
   EA_tab[2] = 0;
-  EA_tab[8] = -0.5*g2s_e/((1. - g2c_e)*(1. - g2c_e)*(1. - g2c_e));
-  EA_tab[14] = -0.5*g3s_e/((1. - g3c_e)*(1. - g3c_e)*(1. - g3c_e));
-  EA_tab[20] = -0.5*g4s_e/((1. - g4c_e)*(1. - g4c_e)*(1. - g4c_e));
-  EA_tab[26] = -0.5*g5s_e/((1. - g5c_e)*(1. - g5c_e)*(1. - g5c_e));
-  EA_tab[32] = -0.5*g6s_e/((1. - g6c_e)*(1. - g6c_e)*(1. - g6c_e));
+
+  x = 1./(1 - g2c_e);
+  EA_tab[7] = x;
+  EA_tab[8] = -0.5*g2s_e*x*x*x;
+  x = 1./(1 - g3c_e);
+  EA_tab[13] = x;
+  EA_tab[14] = -0.5*g3s_e*x*x*x;
+  x = 1./(1 - g4c_e);
+  EA_tab[19] = x;
+  EA_tab[20] = -0.5*g4s_e*x*x*x;
+  x = 1./(1 - g5c_e);
+  EA_tab[25] = x;
+  EA_tab[26] = -0.5*g5s_e*x*x*x;
+  x = 1./(1 - g6c_e);
+  EA_tab[31] = x;
+  EA_tab[32] = -0.5*g6s_e*x*x*x;
+
+  EA_tab[37] = 1;
   EA_tab[38] = -0.5*ecc;
-  EA_tab[44] = -0.5*g6s_e/((1. + g6c_e)*(1. + g6c_e)*(1. + g6c_e));
-  EA_tab[50] = -0.5*g5s_e/((1. + g5c_e)*(1. + g5c_e)*(1. + g5c_e));
-  EA_tab[56] = -0.5*g4s_e/((1. + g4c_e)*(1. + g4c_e)*(1. + g4c_e));
-  EA_tab[62] = -0.5*g3s_e/((1. + g3c_e)*(1. + g3c_e)*(1. + g3c_e));
-  EA_tab[68] = -0.5*g2s_e/((1. + g2c_e)*(1. + g2c_e)*(1. + g2c_e));
-  EA_tab[74] = 0;
   
-  double b0, b1, b2, dx;
+  x = 1./(1 + g6c_e);
+  EA_tab[43] = x;
+  EA_tab[44] = -0.5*g6s_e*x*x*x;
+  x = 1./(1 + g5c_e);
+  EA_tab[49] = x;
+  EA_tab[50] = -0.5*g5s_e*x*x*x;
+  x = 1./(1 + g4c_e);
+  EA_tab[55] = x;
+  EA_tab[56] = -0.5*g4s_e*x*x*x;
+  x = 1./(1 + g3c_e);
+  EA_tab[61] = x;
+  EA_tab[62] = -0.5*g3s_e*x*x*x;
+  x = 1./(1 + g2c_e);
+  EA_tab[67] = x;
+  EA_tab[68] = -0.5*g2s_e*x*x*x;
+  
+  EA_tab[73] = 1./(1 + ecc);
+  EA_tab[74] = 0;
+
+  
+  double B0, B1, B2, idx;
   int i, k;
   for (i = 0; i < 12; i++) {
-    dx = bounds[i + 1] - bounds[i];
+    idx = 1./(bounds[i + 1] - bounds[i]);
     k = 6*i;
     EA_tab[k] = i*pi_d_12;
-    b0 = (pi_d_12 - EA_tab[k + 1]*dx - EA_tab[k + 2]*dx*dx)/(dx*dx*dx);
-    b1 = (EA_tab[k + 7] - EA_tab[k + 1] - 2*EA_tab[k + 2]*dx)/(3*dx*dx);
-    b2 = (EA_tab[k + 8] - EA_tab[k + 2])/(3*dx);
-    EA_tab[k + 3] = 3*b2 - 12*b1 + 10*b0;
-    EA_tab[k + 4] = (-6*b2 + 21*b1 - 15*b0)/dx;
-    EA_tab[k + 5] = (3*b2 - 9*b1 + 6*b0)/(dx*dx);
+
+    B0 = idx*(-EA_tab[k + 2] - idx*(EA_tab[k + 1] - idx*pi_d_12));
+    B1 = idx*(-2*EA_tab[k + 2] - idx*(EA_tab[k + 1] - EA_tab[k + 7]));
+    B2 = idx*(EA_tab[k + 8] - EA_tab[k + 2]);
+    
+    EA_tab[k + 3] = B2 - 4*B1 + 10*B0;
+    EA_tab[k + 4] = (-2*B2 + 7*B1 - 15*B0)*idx;
+    EA_tab[k + 5] = (B2 - 3*B1 + 6*B0)*idx*idx;
   }
   
   return;
