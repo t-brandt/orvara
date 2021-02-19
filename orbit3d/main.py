@@ -95,6 +95,8 @@ def initialize_data(config, companion_gaia):
     # load in items from the ConfigParser object
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     HGCAFile = config.get('data_paths', 'HGCAFile')
+    if not os.path.exists(HGCAFile):
+        raise FileNotFoundError(f'No HGCA file found at {HGCAFile}')
     HGCAVersion = config.get('data_paths', 'HGCAVersion', fallback='GaiaDR2')
     if HGCAVersion.lower() != 'GaiaDR2'.lower() and HGCAVersion.lower() != 'GaiaeDR3'.lower():
         raise ValueError('HGCAVersion in the config file is not GaiaDR2 and is not GaiaeDR3')
@@ -169,7 +171,10 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         orbit.calc_EA_RPP(data, params, model)
         orbit.calc_RV(data, params, model)
         orbit.calc_offsets(data, params, model, i)
-        
+
+        if priors is not None:
+            lnp = lnp - 0.5*(params.msec - priors.get(f'm_secondary{i}', 1))**2/priors.get(f'm_secondary{i}_sig', np.inf)**2
+
     if use_epoch_astrometry:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
     else:
@@ -193,6 +198,35 @@ def avoid_pickle_lnprob(theta):
     return lnprob(theta, **_loglkwargs)
 
 
+def get_priors(config):
+    priors = {}
+    priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback=1.)
+    priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback=np.inf)
+    # priors on the masses of the companions (labelled 0 though 9). Limit to 10 planet systems.
+    for i in range(10):
+        priors[f'm_secondary{i}'] = config.getfloat('priors_settings', f'm_secondary{i}', fallback=1.)
+        priors[f'm_secondary{i}_sig'] = config.getfloat('priors_settings', f'm_secondary{i}_sig', fallback=np.inf)
+    # priors on the RV jitter. Converting from m/s to orvara internal units.
+    priors['minjit'] = config.getfloat('priors_settings', 'minjitter', fallback = 1e-5)
+    priors['minjit'] = max(priors['minjit'], 1e-20) # effectively zero, but we need the log
+    priors['minjit'] = 2*np.log10(priors['minjit'])
+    priors['maxjit'] = config.getfloat('priors_settings', 'maxjitter', fallback = 1e3)
+    priors['maxjit'] = 2*np.log10(priors['maxjit'])
+    if priors['maxjit'] > priors['minjit']:
+        raise ValueError("Requested maximum jitter < minimum jitter")
+    return priors
+
+
+def get_gaia_catalog_companion(config):
+    companion_gaia = {}
+    companion_gaia['ID'] = config.getint('secondary_gaia', 'companion_ID', fallback=-1)
+    companion_gaia['pmra'] = config.getfloat('secondary_gaia', 'pmra', fallback=0)
+    companion_gaia['pmdec'] = config.getfloat('secondary_gaia', 'pmdec', fallback=0)
+    companion_gaia['e_pmra'] = config.getfloat('secondary_gaia', 'epmra', fallback=1)
+    companion_gaia['e_pmdec'] = config.getfloat('secondary_gaia', 'epmdec', fallback=1)
+    companion_gaia['corr_pmra_pmdec'] = config.getfloat('secondary_gaia', 'corr_pmra_pmdec', fallback=0)
+    return companion_gaia
+
 def run():
     """
     Initialize and run the MCMC sampler.
@@ -202,6 +236,10 @@ def run():
 
     args = parse_args()
     config = ConfigParser()
+    if not os.path.exists(args.config_file):
+        raise FileNotFoundError(f'No config file found at {args.config_file}')
+    if not os.path.exists(args.output_dir):
+        raise FileNotFoundError(f'No output_dir found at {args.output_dir}')
     config.read(args.config_file)
 
     # set the mcmc parameters
@@ -214,26 +252,9 @@ def run():
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     start_file = config.get('data_paths', 'start_file', fallback='none')
-
-    #define priors
-    priors = {}
-    priors['mpri'] = config.getfloat('priors_settings', 'mpri', fallback = 1.)
-    priors['mpri_sig'] = config.getfloat('priors_settings', 'mpri_sig', fallback = np.inf)
-    priors['minjit'] = config.getfloat('priors_settings', 'minjitter', fallback = 1e-5)
-    priors['minjit'] = max(priors['minjit'], 1e-20) # effectively zero, but we need the log
-    priors['minjit'] = 2*np.log10(priors['minjit'])
-    priors['maxjit'] = config.getfloat('priors_settings', 'maxjitter', fallback = 1e3)
-    priors['maxjit'] = 2*np.log10(priors['maxjit'])
-    assert priors['maxjit'] > priors['minjit'], "Requested maximum jitter < minimum jitter"
-
-    # Secondary star in Gaia with a measured proper motion?
-    companion_gaia = {}
-    companion_gaia['ID'] = config.getint('secondary_gaia', 'companion_ID', fallback = -1)
-    companion_gaia['pmra'] = config.getfloat('secondary_gaia', 'pmra', fallback = 0)
-    companion_gaia['pmdec'] = config.getfloat('secondary_gaia', 'pmdec', fallback = 0)
-    companion_gaia['e_pmra'] = config.getfloat('secondary_gaia', 'epmra', fallback = 1)
-    companion_gaia['e_pmdec'] = config.getfloat('secondary_gaia', 'epmdec', fallback = 1)
-    companion_gaia['corr_pmra_pmdec'] = config.getfloat('secondary_gaia', 'corr_pmra_pmdec', fallback = 0)
+    #
+    priors = get_priors(config)
+    companion_gaia = get_gaia_catalog_companion(config)
     
     # set initial conditions
     par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
@@ -246,6 +267,7 @@ def run():
         'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors}
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
+
     try:
         use_ptemcee = False
         sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
@@ -325,7 +347,7 @@ def run():
         out.append(fits.PrimaryHDU(sample0.logprobability[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
     for i in range(1000):
-        filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
+        filename = os.path.join(args.output_dir, f'HIP{HipID}' + os.path.basename(args.config_file).split('.ini')[0] + f'_{i}.fits')
         if not os.path.isfile(filename):
             print('Writing output to {0}'.format(filename))
             out.writeto(filename, overwrite=False)
