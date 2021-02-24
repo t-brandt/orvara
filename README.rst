@@ -258,18 +258,79 @@ Diagnostic_plots.ipynb
 Plotting Examples
 -----------------
 
+Usage
+-----
+Once a .fits file from the output of the MCMC is generated, you can produce several plots of 
+an orbit by running the following in the command line in the root directory of the repo. To do
+this, specify the path to the directory containing the .fits MCMC output file. 
+
+.. code-block:: bash
+
+    plot_orbit --output-dir /path/to/output --config-file path/to/config.ini
+    
 You can access the help menu with the --help flag as follows.
 
 .. code-block:: bash
 
     plot_orbit --help
 
-To plot orbits, run the plot_orbit command from the root directory, for example
+Main plots orvara is configured to produce from the orbital fit:
+~~~~~~~~~~~~~~~~~
+1. Astrometry orbit of the companion
+2. Radial Velocity (RV) orbit
+3. Relative RV orbit
+4. Relative separation of the two companions
+5. Position angle between the two companions
+6. Astrometric acceleration or proper motion fit to Hipparocs-Gaia Astrometry
+
+To generate any of these plots, simply set the correspondig parameters under the 
+[plotting section] in the config.ini file to a boolean variable True. If False, 
+a plot would not be produced. Here, for 1. Astrometry orbit plots, you can modify the
+predicted_years parameter to plot random predicted epoch positions on the Astrometry plot.
+For 2. RV orbit of the companion, you can choose to plot a specific instrument (by name) or
+all of the RV instruments by changing the Relative_RV_Instrument parameters to either the
+name of the instrument or All. For 6. Proper motion plots, you can plot the proper motions
+in RA and DEC in one plot (Proper_motion_separate_plots = False) or 
+two (Proper_motion_separate_plots = True). In general, you can also set a customized range of
+epochs you want to plot, as well as number of orbits sampled from the poserior distributions
+and the resolution (step size). 
+
+Other outputs:
+~~~~~~~~~~~~~~~~~
+In addition to the six plots, you can check convergence of fitted parameters in
+the HDU0 extention by setting the parameter check_convergence to True. You can define
+the length of the burn-in phase, note that the parameters are sampled every 50 steps. And you can 
+save the results from the fitted and infered parameters from the HDU1 extention
+with save_params = True in the [save_results] section, with an option of setting 
+the sigma percentages for the errors. 
+
+Color bar settings:
+~~~~~~~~~~~~~~~~~
+User has the options of showing an error bar via use_colorbar = False or True, setting a colormap from 
+matplotlib list of colormaps, and a reference scheme for the colorbar. Three reference schemes
+are avaliable: the eccentricity as ecc, the secondary companion in jupiter mass as msec_jup and
+the secondary companion in solar mass as msec_solar.
+
+Multiple Keplerian orbit fits:
+~~~~~~~~~~~~~~~~~
+In the case of a 3-body or multiple-body fit, you can plot the results for each companion 
+by setting iplanet to the corresponding companion ID used in the fitting. 
+iplanet starts from 0 for the innermost companion.
+
+
+Plotting examples
+--------
+
+To plot orbits, run a quick test with the plot_orbit command from the root directory, for example
 
 .. code-block:: bash
 
     plot_orbit --output-dir ./plots --config-file orbit3d/tests/config_HD4747.ini
 
+Then, plot your MCMC chains by pointing to the paths for the configuration file following -config-file and 
+the output directory for the plots following -output-dir.
+
+    
 Contribution Guidelines
 -----------------------
 We encourage contributions to orbit3d. The workflow for contributing is the following.
