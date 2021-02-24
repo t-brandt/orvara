@@ -318,7 +318,7 @@ by setting iplanet to the corresponding companion ID used in the fitting.
 iplanet starts from 0 for the innermost companion.
 
 
-Plotting examples
+Examples
 --------
 
 To plot orbits, run a quick test with the plot_orbit command from the root directory, for example
