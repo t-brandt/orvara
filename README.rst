@@ -288,7 +288,7 @@ To generate any of these plots, simply set the correspondig parameters under the
 a plot would not be produced. Here, for 1. Astrometry orbit plots, you can modify the
 predicted_years parameter to plot random predicted epoch positions on the Astrometry plot.
 For 2. RV orbit of the companion, you can choose to plot a specific instrument (by name) or
-all of the RV instruments by changing the Relative_RV_Instrument parameters to either the
+all of the RV instruments by changing the Relative_RV_Instrument parameter to either the
 name of the instrument or All. For 6. Proper motion plots, you can plot the proper motions
 in RA and DEC in one plot (Proper_motion_separate_plots = False) or 
 two (Proper_motion_separate_plots = True). In general, you can also set a customized range of
