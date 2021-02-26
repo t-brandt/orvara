@@ -522,7 +522,14 @@ class OrbitPlots:
             data_sources = list(set(self.RVinstrument_id))
             data_sources.sort()
 
+        all_rvs = []
+        all_ominusc = []
+        all_rv_errors = []
         for i in range(self.nInst):
+            all_rvs.extend(self.RV_obs_dic[i] + orb_ml.offset[i])
+            all_ominusc.extend(OC[i])
+            all_rv_errors.extend(np.sqrt(self.RV_obs_err_dic[i] ** 2 + jit_ml**2))
+
             instrument_name = None
             if make_rv_instrument_legend:
                 instrument_name = self.RVinstrument_longnames[self.RVinstrument_id == i][0]
@@ -550,7 +557,10 @@ class OrbitPlots:
         rv_all_epochs_one_list = []
         for i in range(self.nInst):
             rv_all_epochs_one_list.extend(rv_epoch_list[i])
-        axes[0].set_xlim(np.min(rv_all_epochs_one_list)-1, np.max(rv_all_epochs_one_list)+1)
+        axes[0].set_xlim((np.min(rv_all_epochs_one_list)-1, np.max(rv_all_epochs_one_list)+1))
+        # setting y limits
+        typical_rv_error = np.median(all_rv_errors)
+        axes[0].set_ylim((np.min(all_rvs) - typical_rv_error, np.max(all_rvs) + typical_rv_error))
         #x0, x1 = axes[0].get_xlim()
         #y0, y1 = axes[0].get_ylim()
         #axes[0].set_aspect((x1-x0)/(y1-y0))
