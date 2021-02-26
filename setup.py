@@ -7,7 +7,7 @@ modules = [Extension("orbit3d.orbit", source_files, extra_compile_args=['-O3'])]
 
 setup(name='orbit3d',
       ext_modules=cythonize(modules),
-      version='0.1.3',
+      version='0.1.5',
       python_requires='>=3.5',
       package_dir={'orbit3d': 'orbit3d'},
       install_requires=['numpy>=1.13', 'htof>=0.3.3', 'emcee', 'ptemcee',

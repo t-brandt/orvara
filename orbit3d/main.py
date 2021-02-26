@@ -212,7 +212,7 @@ def get_priors(config):
     priors['minjit'] = 2*np.log10(priors['minjit'])
     priors['maxjit'] = config.getfloat('priors_settings', 'maxjitter', fallback = 1e3)
     priors['maxjit'] = 2*np.log10(priors['maxjit'])
-    if priors['maxjit'] > priors['minjit']:
+    if priors['maxjit'] < priors['minjit']:
         raise ValueError("Requested maximum jitter < minimum jitter")
     return priors
 
@@ -226,6 +226,7 @@ def get_gaia_catalog_companion(config):
     companion_gaia['e_pmdec'] = config.getfloat('secondary_gaia', 'epmdec', fallback=1)
     companion_gaia['corr_pmra_pmdec'] = config.getfloat('secondary_gaia', 'corr_pmra_pmdec', fallback=0)
     return companion_gaia
+
 
 def run():
     """

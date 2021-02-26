@@ -1,3 +1,11 @@
+0.1.5 (2021-02-26)
+------------------
+- Added the ability to place mass priors on the secondary, tertiary, etc.. companions.
+
+0.1.4 (2021-02-26)
+------------------
+- No changes, incorrect tag.
+
 0.1.3 (2021-02-21)
 ------------------
 - Added documentation.

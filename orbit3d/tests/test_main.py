@@ -4,7 +4,7 @@ import tempfile
 import mock
 import os
 
-from orbit3d.main import set_initial_parameters, run
+from orbit3d.main import set_initial_parameters, run, get_priors
 from orbit3d.tests.utils import FakeArguments
 from astropy.io import fits
 from configparser import ConfigParser
@@ -17,10 +17,15 @@ def test_set_initial_parameters():
     assert np.isclose(params[0, :, 0].size, nwalkers)
 
 
-def test_get_priors(fake_args):
+def test_get_priors():
     config = ConfigParser()
-    config.read(args.config_file)
-    return True
+    config.read('orbit3d/tests/config_with_secondary_priors.ini')
+    priors = get_priors(config)
+    assert priors['m_secondary1'] == 1
+    assert priors['m_secondary1_sig'] == 2
+    assert priors['m_secondary7'] == 3
+    assert priors['m_secondary7_sig'] == 4
+
 
 @pytest.mark.integration
 @mock.patch('orbit3d.main.parse_args')
