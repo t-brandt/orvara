@@ -348,7 +348,7 @@ def run():
         out.append(fits.PrimaryHDU(sample0.logprobability[0].astype(np.float32)))
     out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
     for i in range(1000):
-        filename = os.path.join(args.output_dir, f'HIP{HipID}' + os.path.basename(args.config_file).split('.ini')[0] + f'_{i}.fits')
+        filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
         if not os.path.isfile(filename):
             print('Writing output to {0}'.format(filename))
             out.writeto(filename, overwrite=False)
