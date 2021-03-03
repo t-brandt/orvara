@@ -215,22 +215,27 @@ velocity offsets for each instrument.
 
 The arrays in these extensions should be treated just like the chains in HDU0.
 
-1. Parallax
-2. center-of-mass RA* (right ascension times cos delta) proper motion
-3. center-of-mass Dec (declination or delta) proper motion
-4. formal chi squared of the fit to the relative separations
-5. formal chi squared of the fit to the position angles
-6. formal chi squared of the fit to the Hipparcos proper motions
-7. formal chi squared of the fit to the Hipparcos-Gaia mean proper motions (from the HGCA)
-8. formal chi squared of the fit to the Gaia proper motions (from the HGCA)
-9. RV offset for instrument labelled 0 in the input data files
-10. RV offset for instrument labelled 1 in the input data files
-11. RV offset etc..
+0. Parallax
+1. center-of-mass RA* (right ascension times cos delta) proper motion
+2. center-of-mass Dec (declination or delta) proper motion
+3. formal chi squared of the fit to the relative separations
+4. formal chi squared of the fit to the position angles
+5. formal chi squared of the fit to the Hipparcos proper motions
+6. formal chi squared of the fit to the Hipparcos-Gaia mean proper motions (from the HGCA)
+7. formal chi squared of the fit to the Gaia proper motions (from the HGCA)
+8. RV offset for instrument labelled 0 in the input data files
+9. RV offset for instrument labelled 1 in the input data files
+10. RV offset etc..
 
 Note that if you have no RV instruments, HDU2 will only have length 8 along the last column.
 
 If you want an overall absolute astrometric chi squared, you would add the values from items (6), (7), and (8) above.
 There are effectively four measurements since the mean proper motion of the system was fit (values (2) and (3)).
+
+For instance, displaying hdu2[:, :, 0] will show all the walkers for the parallax chain (however this parameter
+is marginalized over in orbit3d, it is not fit). numpy.mean(hdu2[:, burn:, 0]), numpy.std(hdu2[:, burn:, 0])
+would give the mean and standard deviation of the parallax (with burn = some integer that is the number of steps/thinning factor
+that you are discarding as burn in)
 
 Examples
 --------
