@@ -215,22 +215,27 @@ velocity offsets for each instrument.
 
 The arrays in these extensions should be treated just like the chains in HDU0.
 
-1. Parallax
-2. center-of-mass RA* (right ascension times cos delta) proper motion
-3. center-of-mass Dec (declination or delta) proper motion
-4. formal chi squared of the fit to the relative separations
-5. formal chi squared of the fit to the position angles
-6. formal chi squared of the fit to the Hipparcos proper motions
-7. formal chi squared of the fit to the Hipparcos-Gaia mean proper motions (from the HGCA)
-8. formal chi squared of the fit to the Gaia proper motions (from the HGCA)
-9. RV offset for instrument labelled 0 in the input data files
-10. RV offset for instrument labelled 1 in the input data files
-11. RV offset etc..
+0. Parallax
+1. center-of-mass RA* (right ascension times cos delta) proper motion
+2. center-of-mass Dec (declination or delta) proper motion
+3. formal chi squared of the fit to the relative separations
+4. formal chi squared of the fit to the position angles
+5. formal chi squared of the fit to the Hipparcos proper motions
+6. formal chi squared of the fit to the Hipparcos-Gaia mean proper motions (from the HGCA)
+7. formal chi squared of the fit to the Gaia proper motions (from the HGCA)
+8. RV offset for instrument labelled 0 in the input data files
+9. RV offset for instrument labelled 1 in the input data files
+10. RV offset etc..
 
 Note that if you have no RV instruments, HDU2 will only have length 8 along the last column.
 
 If you want an overall absolute astrometric chi squared, you would add the values from items (6), (7), and (8) above.
 There are effectively four measurements since the mean proper motion of the system was fit (values (2) and (3)).
+
+For instance, displaying hdu2[:, :, 0] will show all the walkers for the parallax chain (however this parameter
+is marginalized over in orbit3d, it is not fit). numpy.mean(hdu2[:, burn:, 0]), numpy.std(hdu2[:, burn:, 0])
+would give the mean and standard deviation of the parallax (with burn = some integer that is the number of steps/thinning factor
+that you are discarding as burn in)
 
 Examples
 --------
@@ -258,18 +263,79 @@ Diagnostic_plots.ipynb
 Plotting Examples
 -----------------
 
+Usage
+-----
+Once a .fits file from the output of the MCMC is generated, you can produce several plots of 
+an orbit by running the following in the command line in the root directory of the repo. To do
+this, specify the path to the directory containing the .fits MCMC output file. 
+
+.. code-block:: bash
+
+    plot_orbit --output-dir /path/to/output --config-file path/to/config.ini
+    
 You can access the help menu with the --help flag as follows.
 
 .. code-block:: bash
 
     plot_orbit --help
 
-To plot orbits, run the plot_orbit command from the root directory, for example
+Main plots orvara is configured to produce from the orbital fit:
+~~~~~~~~~~~~~~~~~
+1. Astrometry orbit of the companion
+2. Radial Velocity (RV) orbit
+3. Relative RV orbit
+4. Relative separation of the two companions
+5. Position angle between the two companions
+6. Astrometric acceleration or proper motion fit to Hipparocs-Gaia Astrometry
+
+To generate any of these plots, simply set the correspondig parameters under the 
+[plotting section] in the config.ini file to a boolean variable True. If False, 
+a plot would not be produced. Here, for 1. Astrometry orbit plots, you can modify the
+predicted_years parameter to plot random predicted epoch positions on the Astrometry plot.
+For 2. RV orbit of the companion, you can choose to plot a specific instrument (by name) or
+all of the RV instruments by changing the Relative_RV_Instrument parameter to either the
+name of the instrument or All. For 6. Proper motion plots, you can plot the proper motions
+in RA and DEC in one plot (Proper_motion_separate_plots = False) or 
+two (Proper_motion_separate_plots = True). In general, you can also set a customized range of
+epochs you want to plot, as well as number of orbits sampled from the poserior distributions
+and the resolution (step size). 
+
+Other outputs:
+~~~~~~~~~~~~~~~~~
+In addition to the six plots, you can check convergence of fitted parameters in
+the HDU0 extention by setting the parameter check_convergence to True. You can define
+the length of the burn-in phase, note that the parameters are sampled every 50 steps. And you can 
+save the results from the fitted and infered parameters from the HDU1 extention
+with save_params = True in the [save_results] section, with an option of setting 
+the sigma percentages for the errors. 
+
+Color bar settings:
+~~~~~~~~~~~~~~~~~
+User has the options of showing an error bar via use_colorbar = False or True, setting a colormap from 
+matplotlib list of colormaps, and a reference scheme for the colorbar. Three reference schemes
+are avaliable: the eccentricity as ecc, the secondary companion in jupiter mass as msec_jup and
+the secondary companion in solar mass as msec_solar.
+
+Multiple Keplerian orbit fits:
+~~~~~~~~~~~~~~~~~
+In the case of a 3-body or multiple-body fit, you can plot the results for each companion 
+by setting iplanet to the corresponding companion ID used in the fitting. 
+iplanet starts from 0 for the innermost companion.
+
+
+Examples
+--------
+
+To plot orbits, run a quick test with the plot_orbit command from the root directory, for example
 
 .. code-block:: bash
 
     plot_orbit --output-dir ./plots --config-file orbit3d/tests/config_HD4747.ini
 
+Then, plot your MCMC chains by pointing to the paths for the configuration file following -config-file and 
+the output directory for the plots following -output-dir.
+
+    
 Contribution Guidelines
 -----------------------
 We encourage contributions to orbit3d. The workflow for contributing is the following.
