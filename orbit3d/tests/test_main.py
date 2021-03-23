@@ -24,6 +24,7 @@ def test_run(fake_args):
         run()
         assert True
 
+
 @pytest.mark.e2e
 @mock.patch('orbit3d.main.parse_args')
 def test_converges_to_accurate_values(fake_args):

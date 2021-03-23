@@ -166,6 +166,10 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
             except TypeError:
                 q = [0.5 - 0.5*range[i], 0.5 + 0.5*range[i]]
                 range[i] = quantile(xs[i], q, weights=weights)
+                #print('manually setting the eccentricity corner plot range')
+                #if i == 3:
+                #    range[i][1] = 0.9
+                #    range[i][0] = 0
 
     if len(range) != xs.shape[0]:
         raise ValueError("Dimension mismatch between samples and range")
@@ -264,7 +268,7 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
             if title_fmt is not None:
                 # Compute the quantiles for the title. This might redo
                 # unneeded computation but who cares.
-                q_16, q_50, q_84 = quantile(x, [0.16, 0.5, 0.84],
+                q_16, q_50, q_84 = quantile(x, quantiles,
                                             weights=weights)
                 q_m, q_p = q_50-q_16, q_84-q_50
 

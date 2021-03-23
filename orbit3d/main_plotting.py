@@ -12,26 +12,9 @@ plot_orbit --output-dir ./Plots --config-file ./orbit3d/tests/config_Gl758.ini
 """
 
 from __future__ import print_function
-import numpy as np
-import pandas as pd
-import os
-import time
-#import emcee, corner
-import scipy.optimize as op
-from random import randrange
-from astropy.io import fits
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
-import matplotlib.patches as mpatches
-from matplotlib.ticker import NullFormatter
-from matplotlib.ticker import AutoMinorLocator
-from configparser import ConfigParser
-from htof.main import Astrometry
-from orbit3d import orbit
 from orbit3d.config import parse_args_plotting
-import argparse
+from astropy.io import fits
+import numpy as np # used in the evaluation of the predicted epoch table positions if the user uses python syntax in the config file
 from configparser import ConfigParser
 from orbit3d import orbit_plots         # import orbit_plots plotting package
 
@@ -47,7 +30,6 @@ def initialize_plot_options(config):
     OP.target = OP.title = config.get('plotting', 'target')
     OP.Hip = config.getint('data_paths', 'HipID', fallback=0)
     OP.nplanets = config.getint('mcmc_settings', 'nplanets')
-
     # read data
     OP.RVfile = config.get('data_paths', 'RVFile')
     OP.relAstfile = config.get('data_paths', 'AstrometryFile', fallback=None)
@@ -57,8 +39,15 @@ def initialize_plot_options(config):
     OP.HGCAFile = config.get('data_paths', 'HGCAFile', fallback=None)
     
     #read in the mcmc chains
-    OP.burnin = config.getint('plotting', 'burnin', fallback=0)
     OP.MCMCfile = config.get('plotting', 'McmcDataFile', fallback=None)
+
+    # set the burn in
+    OP.burnin = config.getfloat('plotting', 'burnin', fallback=0)
+    if OP.burnin > 0 and OP.burnin < 1:
+        # interpret the burn in as a fraction of the total number of steps in the chain.
+        nsteps = fits.open(OP.MCMCfile)[0].data.shape[1]
+        OP.burnin = int(OP.burnin * nsteps)
+    OP.burnin = int(OP.burnin)
     
     # colorbar settings
     OP.usecolorbar = config.getboolean('plotting', 'use_colorbar', fallback=False)
@@ -73,12 +62,25 @@ def initialize_plot_options(config):
     # customized range of epochs
     OP.start_epoch = config.getfloat('plotting', 'start_epoch', fallback=0)
     OP.end_epoch = config.getfloat('plotting', 'end_epoch', fallback=0)
+    OP.custom_corner_plot = config.getboolean('plotting', 'custom_corner_plot', fallback=False)
     
     # predicted epoch positions
     OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('1990,2000,2010,2020,2030')).split(",")
+    OP.chisquared_pos = config.get('plotting', 'chisquared_pos', fallback=None)
+    if OP.chisquared_pos is not None:
+        OP.chisquared_pos = eval(OP.chisquared_pos)
     OP.predicted_ep_ast = config.getfloat('plotting', 'position_predict', fallback=2000)
+    #
+    OP.position_predict_table_epochs = eval(config.get('plotting', 'position_predict_table_epochs', fallback=('2020, 2021')))
+    OP.position_predict_table_epoch_format = config.get('plotting', 'position_predict_table_epoch_format', fallback='decimalyear')
     # how many random orbits
-    OP.num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
+    make_astrometric_prediction_table = config.getboolean('plotting', 'Astrometric_prediction_table', fallback=False)
+    if make_astrometric_prediction_table:
+        print('forcing the number of random orbits to be 1000 because we are making an astrometric prediction table '
+              'and want the error bars to be correct to within 3% = sqrt(1000)')
+        OP.num_orbits = 1000
+    else:
+        OP.num_orbits = config.getint('plotting', 'num_orbits', fallback=50)
     
     # step size
     OP.num_steps = config.getint('plotting', 'num_steps', fallback = 1000)
@@ -120,8 +122,6 @@ def run():
     """
     Initialize OP and make plots
     """
-    
-    start_time = time.time()
    
     args = parse_args_plotting()
     config = ConfigParser()
@@ -131,14 +131,13 @@ def run():
     OPs = initialize_plot_options(config)
     
     # which plot
-    plot_settings = {}
-    burnin = config.getint('plotting', 'burnin', fallback=0)
     plot_astr = config.getboolean('plotting', 'Astrometry_orbits_plot', fallback=False)
     plot_astr_pred = config.getboolean('plotting', 'Astrometric_prediction_plot', fallback=False)
     plot_rv = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
     plot_rel_rv = config.getboolean('plotting', 'Relative_RV_plot', fallback=False)
     plot_rel_sep = config.getboolean('plotting', 'Relative_separation_plot', fallback=False)
     plot_position_angle = config.getboolean('plotting', 'Position_angle_plot', fallback=False)
+    make_astrometric_prediction_table = config.getboolean('plotting', 'Astrometric_prediction_table', fallback=False)
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
     plot_corner = config.getboolean('plotting', 'Corner_plot', fallback=False)
     save_params = config.getboolean('save_results', 'save_params', fallback=True)
@@ -146,22 +145,24 @@ def run():
     
     if checkconv:
         OPs.plot_chains()
-    if plot_astr:
-        OPs.astrometry()
-    if plot_astr_pred:
-        OPs.astrometric_prediction()
+    if plot_proper_motions:
+        OPs.proper_motions()
     if plot_rv:
         OPs.RV()
-    if plot_rel_rv:
-        OPs.relRV()
+    if plot_corner:
+        OPs.plot_corner()
     if plot_rel_sep:
         OPs.relsep()
     if plot_position_angle:
         OPs.PA()
-    if plot_proper_motions:
-        OPs.proper_motions()
-    if plot_corner:
-        OPs.plot_corner()
+    if plot_astr:
+        OPs.astrometry()
+    if plot_astr_pred:
+        OPs.astrometric_prediction_plot()
+    if plot_rel_rv:
+        OPs.relRV()
+    if make_astrometric_prediction_table:
+        OPs.make_astrometric_prediction_table()
     if save_params:
         OPs.save_data()
 

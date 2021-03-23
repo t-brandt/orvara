@@ -1,11 +1,10 @@
 import os
 import numpy as np
 from astropy.time import Time
-import time
 from random import randrange
+from scipy.stats import kde
 from orbit3d import corner_modified
-from scipy.interpolate import interp1d
-from scipy import stats, signal
+from scipy import stats, optimize
 from orbit3d import orbit
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -15,6 +14,8 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
+from astropy.table import Table
+from astropy.io import ascii as asciiastropy
 
 
 class Orbit:
@@ -76,7 +77,8 @@ class Orbit:
             self.colorpar = self.par.ecc
 
         model.free()
-        
+
+
 class OrbitPlots:
 
 ###################################### Initialize Class ############################################
@@ -101,7 +103,7 @@ class OrbitPlots:
         # load relative astrometry data:
         try: #if os.access(self.relAstfile,os.R_OK):
             self.have_reldat = True
-            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err, self.ast_indx = self.load_relAst_data(self.iplanet)
+            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err, self.ast_indx, self.ast_data_source = self.load_relAst_data(self.iplanet)
         except: #else:
             self.have_reldat = False
         # load HGCA data:
@@ -157,7 +159,6 @@ class OrbitPlots:
         """
             Function to load in the MCMC chain from fit_orbit
         """
-        source = self.MCMCfile.split('_')[0]
         chain, lnp, extras = [fits.open(self.MCMCfile)[i].data for i in range(3)]
         chain = chain[:, self.burnin:, :].reshape(-1, chain.shape[-1])
         self.lnp = lnp[:, self.burnin:].flatten()
@@ -444,9 +445,9 @@ class OrbitPlots:
 
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', transparent=True) # or +'.png'
+        plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', transparent=True, pad_inches=0)
 
-# 2. RV orbits plot
+# 2. RV orbits plot. radial velocity plot
 
     ################################################################################################
     ########################### plot the RV orbits #######################
@@ -749,7 +750,11 @@ class OrbitPlots:
                 
         plt.tight_layout()
         print("Plotting Separation, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+        try:
+            plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', bbox_inches='tight',
+                        dpi=200, pad_inches=0)
+        except:
+            print('saving Separation failed.')
 ################################################################################################
 
 
@@ -860,7 +865,11 @@ class OrbitPlots:
         
         plt.tight_layout()
         print("Plotting Position Angle, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200, transparent=True)
+        try:
+            plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf', bbox_inches='tight',
+                        dpi=200, transparent=True, pad_inches=0)
+        except:
+            print('saving Position Angle failed.')
 ################################################################################################
 
 
@@ -1072,111 +1081,132 @@ class OrbitPlots:
 
 #astrometric prediction plot
 
-    def astrometric_prediction(self, nbins=500):
+    def astrometric_prediction_plot(self):
+        # NOTE ONLY WORKS IN DECIMAL YEAR
+        fig, ax = plt.subplots(figsize=(5, 5))
+        ra, dec = self.astrometric_prediction(self.calendar_to_JD(np.array([self.predicted_ep_ast]).flatten()))
+        ra, dec = ra.flatten(), dec.flatten()
+        nbins = 300
+        k = kde.gaussian_kde([ra, dec])
+        xi, yi = np.mgrid[ra.min():ra.max():nbins * 1j, dec.min(): dec.max():nbins * 1j]
+        zi = k(np.vstack([xi.flatten(), yi.flatten()])).reshape(xi.shape)
+        # commented this out because the contour plots and the imshow levels were not lining up. Very weird.
+        #ax.imshow(zi, extent=(ra.min(), ra.max(), dec.min(), dec.max()),
+        #          interpolation='nearest', aspect='equal', cmap=cm.hot_r, origin='left')
 
-        # Fetch parameters as ndarrays
-        par = self.chain.astype(float)
-        mpri = par[:, 1]
-        msec = par[:, 2 + 7*self.iplanet]
-        sau = par[:, 3 + 7*self.iplanet]
-        esino = par[:, 4 + 7*self.iplanet]
-        ecoso = par[:, 5 + 7*self.iplanet]
-        inc = par[:, 6 + 7*self.iplanet]
-        asc = par[:, 7 + 7*self.iplanet]
-        lam = par[:, 8 + 7*self.iplanet]
-        arg = np.arctan2(esino, ecoso)
-        ecc = esino**2 + ecoso**2
-
-        plx = self.extras[:, 0]
-        plx = np.reshape(plx, -1)
-
-        # The date we want
-        JD_predict = self.calendar_to_JD(self.predicted_ep_ast)
-
-        data = orbit.Data(self.Hip, self.HGCAFile, self.RVfile, self.relAstfile, verbose=False)
-
-        # Solve Kepler's equation in array format given a different
-        # eccentricity for each point.  This is the same Newton solver
-        # used by radvel.
-        
-        period = np.sqrt(sau**3/(mpri + msec))*365.25
-        MA = (2*np.pi/period*(JD_predict - data.refep) + lam - arg)%(2*np.pi)
-        E = MA + np.sign(np.sin(MA))*0.85*ecc
-        fi = E - ecc*np.sin(E) - MA
-
-        for i in range(10):
-            fip = 1 - ecc*np.cos(E)
-            fipp = ecc*np.sin(E)
-            fippp = 1 - fip
-            d1 = -fi/fip
-            d1 = -fi/(fip + d1*fipp/2.)
-            d1 = -fi/(fip + d1*fipp/2. + d1**2*fippp/6.)
-            E += d1
-            fi = E - ecc*np.sin(E) - MA
-
-        # Thiele-Innes constants -> relative separation.
-        A = np.cos(arg)*np.cos(asc) - np.sin(arg)*np.sin(asc)*np.cos(inc)
-        B = np.cos(arg)*np.sin(asc) + np.sin(arg)*np.cos(asc)*np.cos(inc)
-        F = -np.sin(arg)*np.cos(asc) - np.cos(arg)*np.sin(asc)*np.cos(inc)
-        G = -np.sin(arg)*np.sin(asc) + np.cos(arg)*np.cos(asc)*np.cos(inc)
-        
-        X = np.cos(E) - ecc
-        Y = np.sin(E)*np.sqrt(1 - ecc**2)
-        
-        dra = (B*X + G*Y)*(sau)*plx
-        ddec = (A*X + F*Y)*(sau)*plx
-
-        # Set limits on plot to include basically all of the data.
-        
-        ramin = stats.scoreatpercentile(dra, 0.1)
-        ramax = stats.scoreatpercentile(dra, 99.9)
-        decmin = stats.scoreatpercentile(ddec, 0.1)
-        decmax = stats.scoreatpercentile(ddec, 99.9)
-
-        diff = max(ramax - ramin, decmax - decmin)*1.7
-        xmin = 0.5*(ramin + ramax) - diff/2.
-        xmax = xmin + diff
-        ymin = 0.5*(decmin + decmax) - diff/2.
-        ymax = ymin + diff
-
-        x = np.linspace(xmin, xmax, nbins)
-        y = np.linspace(ymin, ymax, nbins)
-
-        # Bin it up, then smooth it.  More points -> less smoothing.
-        
-        dens = np.histogram2d(dra, ddec, bins=[x, y])[0].T
-        
-        _x, _y = np.mgrid[-20:21, -20:21]
-        window = np.exp(-(_x**2 + _y**2)/20.*len(par)/len(x)**2)
-        dens = signal.convolve2d(dens, window, mode='same')
-        dens /= np.amax(dens)
-
-        # Make one-, two-, and three-sigma contours.
-        
-        dens_sorted = np.sort(dens.flatten())
-        cdf = np.cumsum(dens_sorted)/np.sum(dens_sorted)
-        cdf_func = interp1d(cdf, dens_sorted)
-        
-        fig = plt.figure(figsize=(5, 5))
-        ax = fig.add_subplot(111)
-        ax.imshow(dens[::-1], extent=(xmin, xmax, ymin, ymax),
-                  interpolation='nearest', aspect=1, cmap=cm.hot_r)
+        # solving for the chisq values that correspond to 1, 2 and 3 sigma contours.
+        contour1 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.6827), x0=np.median(zi), method='Nelder-Mead').x[0]
+        contour2 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.9545), x0=np.median(zi), method='Nelder-Mead').x[0]
+        contour3 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.9973), x0=np.median(zi), method='Nelder-Mead').x[0]
+        ax.contour(xi, yi, zi, levels=[contour1, contour2, contour3], colors=['k', 'C0', 'b'])
+        ax.contourf(xi, yi, zi, levels=50, cmap=cm.hot_r)
 
         # Mark the central star if (0, 0) is within the axis limits
-        if xmin*xmax < 0 and ymin*ymax < 0:
+        if ra.min() * ra.max() < 0 and dec.min() * dec.max() < 0:
             ax.plot(0, 0, marker='*', markersize=15, color='c')
 
-        x = 0.5*(x[1:] + x[:-1])
-        y = 0.5*(y[1:] + y[:-1])
-        levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
-        ax.contour(x, y, dens, levels=levels, colors=['k', 'C0', 'b'])
-        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (arcsec)', fontsize=14)
-        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
-        ax.text(xmax - 3e-2*(xmax - xmin), ymax - 7e-2*(ymax - ymin),
-                'Location of %s, %.1f' % (self.text_name, self.predicted_ep_ast), fontsize=14)
+        ax.set_aspect('equal')  # change me to 'auto' if the plot is too squeezed.
+        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (mas)', fontsize=14)
+        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ (mas)', fontsize=14)
+        ax.annotate(s='Location of %s, %.4f' % (self.text_name, self.predicted_ep_ast), fontsize=14, xy=(0.1, 0.9), xycoords='axes fraction')
         ax.invert_xaxis()
         plt.tight_layout()
-        plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True)
+        plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True, pad_inches=0)
+
+    def make_astrometric_prediction_table(self):
+        from astropy.table import Column
+        # MAKING the table of relative astrometry predictions
+        # WORKS IN ANY DATE FORMAT, JUST SPECIFY IT IN THE CONFIG WITH position_predict_table_epoch_format
+        #print(self.position_predict_table_epochs, self.position_predict_table_epoch_format)
+        epochs = Time(self.position_predict_table_epochs, format=self.position_predict_table_epoch_format.lower())
+        planet_idx = np.ones_like(epochs) * self.iplanet
+        #planet_idx = np.hstack([np.ones_like(epochs)*i for i in range(self.nplanets)]) # for making a table of all the planets at once
+        #epochs = np.hstack([epochs, epochs]) # for making a table of all the planets at once
+        predicted_positions = Table(self.astrometric_prediction_dict(epochs.jd))
+        print(len(predicted_positions), " total predicted positions")
+        predicted_positions.add_column(Column(epochs.value, name='epoch'), index=0)
+        predicted_positions.add_column(Column(planet_idx, name='planet'))
+
+        outfile = os.path.join(self.outputdir, 'astrometric_prediction_table' + self.title)
+        # save the output as a csv
+        predicted_positions.write(outfile + '.csv', overwrite=True)
+
+        # round to the correct number of sig figs
+        for i in range(len(predicted_positions)):
+            # truncate sig figs on measurements to nearest non zero
+            for err_key, val_key in zip(['ra_err', 'dec_err', 'sep_err'], ['ra', 'dec', 'sep']):
+                places_after0 = num_digits_to_round(predicted_positions[i][err_key])
+                predicted_positions[i][val_key] = np.round(predicted_positions[i][val_key], places_after0)
+                predicted_positions[i][err_key] = round_to(predicted_positions[i][err_key], max(places_after0-1, 1))
+            predicted_positions[i]['ra_dec_correlation_coefficient'] = np.round(predicted_positions[i]['ra_dec_correlation_coefficient'], 3)
+        # construct the latex version of the table suitable for a paper.
+        cols_to_save_latex = ['epoch', 'planet', 'dec', 'dec_err', 'ra', 'ra_err', 'ra_dec_correlation_coefficient', 'sep', 'sep_err']
+        predicted_positions = predicted_positions[cols_to_save_latex]
+        predicted_positions.rename_column('epoch', self.position_predict_table_epoch_format)
+        predicted_positions.rename_column('dec', r'$\delta$ (mas)')
+        predicted_positions.rename_column('dec_err', r'$\sigma_{\delta}$ (mas)')
+        predicted_positions.rename_column('ra', r'$\alpha$ (mas)')
+        predicted_positions.rename_column('ra_err', r'$\sigma_{\alpha}$ (mas)')
+        predicted_positions.rename_column('ra_dec_correlation_coefficient', r'$\rho_{\alpha\delta}$')
+        predicted_positions.rename_column('sep_err', r'$\sigma_{\rm Sep}$')
+        #predicted_positions.rename_column('pa', 'PA (degrees)')
+        #predicted_positions.rename_column('pa_err', r'$\sigma_{\rm PA}$ (degrees)')
+
+        # convert MJD to ISOT dates for the latex write out.
+        ut_date = [t.split('T')[0] for t in Time(predicted_positions[self.position_predict_table_epoch_format],
+                   format=self.position_predict_table_epoch_format.lower()).isot]
+        predicted_positions.add_column(Column(ut_date, name='Date'), index=0)  # Insert before first table column
+        del predicted_positions[self.position_predict_table_epoch_format]
+
+        # remove the planet column if it is not needed:
+        if len(set(predicted_positions['planet'])) == 1:
+            del predicted_positions['planet']
+
+        asciiastropy.write(predicted_positions, output=outfile + '.txt', Writer=asciiastropy.Latex,
+                           #latexdict={'units': {'Time': 'Day', 'planet': '', r'$\rho': 'mas', r'$\sigma_{\rho}$': 'mas',
+                           #                     'PA': 'degrees', r'$\sigma_{\rm PA}$': 'degrees'}},
+                           overwrite=True)
+
+    def astrometric_prediction(self, JDepochs):
+        # version of astrometric_prediction that uses orvara's orbit internals so
+        # that the 3-body approximation is actually used.
+        ra, dec = [], []
+        #sep, pa = [], []  # we dont calculate sep, pa anymore because pa is ill behaved near the star. I.e. just binning pa
+        # we end up binning negative and positive angles together and averaging to 0 which is just nonsensical.
+        print('simulating orbits for astrometric prediction')
+        for i in range(self.num_orbits):
+            if not (i % 50):
+                print(f'orbit {i}/{self.num_orbits}')
+            orb = Orbit(self, step=self.rand_idx[i], epochs=JDepochs)
+            dec.append(orb.relsep * np.cos(orb.PA * np.pi / 180))
+            ra.append(orb.relsep * np.sin(orb.PA * np.pi / 180))
+            #sep.append(orb.relsep)
+            #pa.append(orb.PA)
+        """
+        ra is an array like:
+        [[ra_at_epoch0_and_orbit0, ra_at_epoch1_and_orbit0, ...],
+         [ra_at_epoch0_and_orbit1, ra_at_epoch1_and_orbit1, ...],
+         ...
+         [ra_at_epoch0_and_orbitN, ra_at_epoch1_and_orbitN, ...]]
+        """
+        # convert to mas.
+        ra, dec = np.array(ra)*1000, np.array(dec)*1000
+        return ra, dec
+
+    def astrometric_prediction_dict(self, JDepochs):
+        ra, dec = self.astrometric_prediction(JDepochs)
+        # calculating the ra, dec, pa and separation mean values and errors
+        mean_ra, mean_dec = np.mean(ra, axis=0), np.mean(dec, axis=0)
+        ra_err, dec_err = np.std(ra, axis=0), np.std(dec, axis=0)
+        ra_dec_corr = np.mean((ra - mean_ra)*(dec - mean_dec)/(ra_err * dec_err), axis=0)
+        mean_sep, mean_pa = to_sep_pa(mean_ra, mean_dec)
+        # calculate the separation and its error
+        sep_err = ra_dec_error_to_approx_sep_error(mean_sep, mean_pa, ra_err, dec_err, ra_dec_corr)
+        return {'ra': mean_ra, 'dec': mean_dec, 'ra_err': ra_err, 'dec_err': dec_err,
+                'ra_dec_correlation_coefficient': ra_dec_corr,
+                'sep': mean_sep, 'sep_err': sep_err,
+                # 'pa': mean_pa,  # we do not report pa because we cannot report a meaningful error for it when we are near the star.
+                }
 
 # 7. Corner plot
     ################################################################################################
@@ -1195,10 +1225,12 @@ class OrbitPlots:
         di = 7*self.iplanet
         if self.cmref == 'msec_solar':
             Msec = (chain[:,2+di]).flatten().reshape(ndim,1)         # in M_{\odot}
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
+            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$',
+                    r'$\mathrm{i\, (^{\circ})}$']
         else:
             Msec = (chain[:,2+di]*1989/1.898).flatten().reshape(ndim,1)
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
+            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)',
+                    r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         Semimajor = chain[:,3+di].flatten().reshape(ndim,1)                       # in AU
         Ecc = (chain[:,4+di]**2 + chain[:,5+di]**2).flatten().reshape(ndim,1)
         #Omega=(np.arctan2(chain[:,4+di],chain[:,5+di])).flatten().reshape(ndim,1)
@@ -1210,7 +1242,7 @@ class OrbitPlots:
         figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf', transparent=True)
+        plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf', transparent=True, pad_inches=0.01)
 
 ###################################################################################################
 ###################################################################################################
@@ -1302,11 +1334,10 @@ class OrbitPlots:
         
             chain = self.chain
             extras = self.extras
-            ndim = chain[:, 0].flatten().shape[0]
             di = 7*self.iplanet
             
             #save posterior and derived parameters
-            RV_Jitter = print_par_values(chain[:,0+di],perc_sigmas)
+            RV_Jitter = print_par_values(10**(chain[:,0+di]/2),perc_sigmas)
             Mpri = print_par_values(chain[:,1+di],perc_sigmas)
             if self.cmref == 'msec_solar':
                 Msec = print_par_values(chain[:,2+di],perc_sigmas)
@@ -1349,4 +1380,76 @@ class OrbitPlots:
             print_posterior(list([float(err) for err in self.err_margin]))
             
 #######
-# end of code
+# helper functions for astrometric prediction plots:
+
+
+def probability(y, chisquared):
+    # probability of observing delta_chisq < y
+    norm = np.sum(np.exp(-chisquared / 2))
+    return np.sum(np.exp(-1 / 2 * chisquared[chisquared < y])) / norm
+
+
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    average = np.average(values, weights=weights)
+    # Fast and numerically precise:
+    variance = np.average((values-average)**2, weights=weights)
+    return (average, np.sqrt(variance))
+
+
+def num_digits_to_round(error_value):
+    return int(max(-1, -np.ceil(np.log10(error_value)) + 1))
+
+
+def round_to(value, sig_figs=1):
+    return np.round(value, sig_figs - 1 - int(np.floor(np.log10(abs(value)))))
+
+
+def to_sep_pa(ra, dec):
+    pa = np.arctan2(ra, dec) * 180/np.pi
+    pa[pa < 0] += 360
+    sep = np.sqrt(ra**2 + dec**2)
+    return sep, pa
+
+
+def ra_dec_error_to_approx_sep_error(sep, pa, ra_err, dec_err, ra_dec_corr):
+    # calculates the pa and separation error, with pa and pa_error in degrees
+    #cov = np.array([[dec_err**2, ra_err*dec_err*ra_dec_corr], [ra_err*dec_err*ra_dec_corr, ra_err**2]]).reshape((2, -1, 2))
+    cov = [np.array([[dec_err[i]**2, ra_err[i]*dec_err[i]*ra_dec_corr[i]], [ra_err[i]*dec_err[i]*ra_dec_corr[i], ra_err[i]**2]]) for i in range(len(sep))]
+    sep_err, pa_err, pa_sep_corr = [], [], []
+    for i, _sep, theta in zip(range(len(sep)), sep, pa):
+        c, s = np.cos(-theta), np.sin(-theta)
+        Rot = np.array([[s, -c], [c, s]])
+        cov_inpa_sep_basis = np.matmul(np.matmul(Rot, cov[i]), Rot.T)
+        s_err, p_err = np.sqrt(cov_inpa_sep_basis[0,0]), np.sqrt(cov_inpa_sep_basis[1,1]/_sep**2)
+        sp_corr = cov_inpa_sep_basis[0,1]/np.sqrt(cov_inpa_sep_basis[0,0] * cov_inpa_sep_basis[1,1])
+        sep_err.append(s_err)
+        pa_err.append(p_err)
+        pa_sep_corr.append(sp_corr)
+    # pa_err only works if the errors are small and separation is large. PA has a singularity near 0,0 and the
+    # transformation is not so simple because it is a polar coordinate system.
+    # note that this separation error allows for formally negative separations.
+    return np.array(sep_err)#, np.array(pa_err)*180/np.pi, np.array(pa_sep_corr)
+
+
+# utility function for posteriors for angular values
+def angular_average(angles):
+    # angles in degrees
+    x = np.sum(np.cos(angles * np.pi/180))
+    y = np.sum(np.sin(angles * np.pi/180))
+    average_angle = np.arctan2(y, x) * 180/np.pi
+    return average_angle
+
+
+def center_angular_data(data):
+    avg = angular_average(data)
+    # wrap the data in the interval +- 180 degrees around the average. This should center multimodal angular distributions
+    gt = data > avg + 180
+    lt = data < avg - 180
+    data[gt] -= 360
+    data[lt] += 360
+    return data

@@ -130,7 +130,7 @@ cdef class Data:
             assert np.all(self.RVinst == rvdat[:, 3])
             self.nInst = np.amax(rvdat[:, 3]) + 1
             if verbose:
-                print("Loaded data from %d RV instruments." % (self.nInst))
+                print(f"Loaded {len(rvdat)} data points from {self.nInst} RV instruments.")
         except:
             if self.nRV > 0:
                 if verbose:
