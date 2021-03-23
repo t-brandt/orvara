@@ -103,7 +103,7 @@ class OrbitPlots:
         # load relative astrometry data:
         try: #if os.access(self.relAstfile,os.R_OK):
             self.have_reldat = True
-            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err, self.ast_indx, self.ast_data_source = self.load_relAst_data(self.iplanet)
+            self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err, self.ast_indx = self.load_relAst_data(self.iplanet)
         except: #else:
             self.have_reldat = False
         # load HGCA data:
