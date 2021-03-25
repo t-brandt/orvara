@@ -1,3 +1,7 @@
+0.1.5 (2021-03-25)
+------------------
+- Added an astrometric prediction table.
+
 0.1.3 (2021-02-21)
 ------------------
 - Added documentation.
