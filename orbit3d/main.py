@@ -18,7 +18,7 @@ import sys
 import re
 from orbit3d import orbit
 from orbit3d.config import parse_args
-from orbit3d.format_fits import make_header
+from orbit3d.format_fits import make_header, pack_cols
 import pkg_resources
 
 _loglkwargs = {}
@@ -326,14 +326,24 @@ def run():
             if data.nInst > 0:
                 parfit[i, j, 8:] = RVoffsets
 
-    hdu = fits.PrimaryHDU(sample0.chain[0].astype(np.float32), header)
+    colnames = ['jitter', 'mpri']
+    for i in range(nplanets):
+        colnames += [s + '%d' % (i) for s in ['msec', 'sau', 'esino', 'ecoso',
+                                              'inc', 'asc', 'lam']]
+    colnames += ['lnp']
+    colnames += ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 
+                 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
+    colnames += ['RV_ZP_%d_ML' % (i) for i in range(data.nInst)]
+    
+    out = fits.HDUList(fits.PrimaryHDU(None, header))
 
-    out = fits.HDUList(hdu)
     if not use_ptemcee:
-        out.append(fits.PrimaryHDU(sample0.lnprobability[0].astype(np.float32)))
+        lnp = sample0.lnprobability[0]
     else:
-        out.append(fits.PrimaryHDU(sample0.logprobability[0].astype(np.float32)))
-    out.append(fits.PrimaryHDU(parfit.astype(np.float32)))
+        lnp = sample0.logprobability[0]
+
+    out.append(pack_cols(sample0.chain[0], lnp, parfit, colnames))
+
     for i in range(1000):
         filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
         if not os.path.isfile(filename):

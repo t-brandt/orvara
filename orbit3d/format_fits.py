@@ -25,13 +25,12 @@ def make_header(config_file):
                 header.append(('comment', line[:80]), end=True)
         except:
             continue
-    print(header)
     return header
 
 
-def pack_cols(chains, lnp, extras, names):
+def pack_cols(chains, lnp, parfit, names):
 
-    if chains.shape[-1] + 1 + extra.shape[-1] != len(names):
+    if chains.shape[-1] + 1 + parfit.shape[-1] != len(names):
         raise ValueError('Number of names for fits table does not match number of data fields')
     
     n = 0
@@ -45,8 +44,8 @@ def pack_cols(chains, lnp, extras, names):
     cols += [fits.Column(name=names[n], format=fmt, array=lnp)]
     n += 1
 
-    for i in range(extras.shape[-1]):
-        cols += [fits.Column(name=names[n], format=fmt, array=extras[..., i])]
+    for i in range(parfit.shape[-1]):
+        cols += [fits.Column(name=names[n], format=fmt, array=parfit[..., i])]
         n += 1
 
     return fits.BinTableHDU.from_columns(cols)
