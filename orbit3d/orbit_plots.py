@@ -15,6 +15,7 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
+from orbit3d.format_fits import pull_chain_params, burnin_chain
 
 
 class Orbit:
@@ -34,13 +35,12 @@ class Orbit:
         model = orbit.Model(data)
 
         if step == 'best':
-            idx = int(np.amin(np.where(OP.lnp == np.amax(OP.lnp))))
-        elif step == int(step):
-            idx = step
+            step = np.where(OP.chain['lnp'] == np.amax(OP.chain['lnp']))[0][0]
             
-        self.plx = OP.extras[idx, 0]
+        self.plx = OP.chain['plx_ML'][step]
         for i in range(OP.nplanets):
-            par = orbit.Params(OP.chain[idx], iplanet=i, nplanets=OP.nplanets)
+            par = orbit.Params(pull_chain_params(OP.chain.columns, step), iplanet=i,
+                                                 nplanets=OP.nplanets)
             if i == OP.iplanet:
                 self.par = par
             orbit.calc_EA_RPP(data, par, model)
@@ -61,12 +61,12 @@ class Orbit:
         self.relsep = model.return_relsep()*self.plx
         self.PA = (model.return_PAs()*180/np.pi) % 360
 
-        self.mu_RA_CM = 1e3*OP.extras[idx, 1]
-        self.mu_Dec_CM = 1e3*OP.extras[idx, 2]
+        self.mu_RA_CM = 1e3*OP.chain['pmra_ML'][step]
+        self.mu_Dec_CM = 1e3*OP.chain['pmdec_ML'][step]
         
-        self.mu_RA = 1e3*(self.mu_RA*self.plx*365.25 + OP.extras[idx, 1])
-        self.mu_Dec = 1e3*(self.mu_Dec*self.plx*365.25 + OP.extras[idx, 2])
-        self.offset = OP.calc_RV_offset(idx)
+        self.mu_RA = 1e3*self.mu_RA*self.plx*365.25 + self.mu_RA_CM
+        self.mu_Dec = 1e3*self.mu_Dec*self.plx*365.25 + self.mu_Dec_CM
+        self.offset = OP.calc_RV_offset(step)
 
         if OP.cmref == 'msec_solar':
             self.colorpar = self.par.msec
@@ -92,10 +92,9 @@ class OrbitPlots:
         # define epochs
         self.epoch, self.epoch_calendar = self.define_epochs()
         # load mcmc data
-        self.chain, self.beststep, self.extras = self.load_mcmc_data()
+        self.chain = self.load_mcmc_data()
+        self.rand_idx = [randrange(len(self.chain['lnp'])) for i in range(self.num_orbits)]
 
-        self.rand_idx = [randrange(self.chain.shape[0]) for i in range(self.num_orbits)]
-        
         # load observed RV data
         self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
         # load relative astrometry data:
@@ -110,17 +109,16 @@ class OrbitPlots:
         ################################ set colorbar ######################
         # setup the normalization and the colormap
 
+        msec_name = 'msec%d' % (self.iplanet)
         if self.cmref == 'msec_jup':
-            i = 2 + 7*self.iplanet
-            vmin = 1989/1.898*stats.scoreatpercentile(self.chain[:, i], 1)
-            vmax = 1989/1.898*stats.scoreatpercentile(self.chain[:, i], 99)
+            vmin = 1989/1.898*stats.scoreatpercentile(self.chain[msec_name], 1)
+            vmax = 1989/1.898*stats.scoreatpercentile(self.chain[msec_name], 99)
         elif self.cmref == 'msec_solar':
-            i = 2 + 7*self.iplanet
-            vmin = stats.scoreatpercentile(self.chain[:, i], 1)
-            vmax = stats.scoreatpercentile(self.chain[:, i], 99)
+            vmin = stats.scoreatpercentile(self.chain[msec_name], 1)
+            vmax = stats.scoreatpercentile(self.chain[msec_name], 99)
         elif self.cmref == 'ecc':
-            i = 4 + 7*self.iplanet
-            ecc = self.chain[:, i]**2 + self.chain[:, i + 1]**2
+            ip = '%d' % (self.iplanet)
+            ecc = self.chain['esino' + ip]**2 + self.chain['ecoso' + ip]**2
             vmin = stats.scoreatpercentile(ecc, 1)
             vmax = stats.scoreatpercentile(ecc, 99)
         else:
@@ -158,13 +156,11 @@ class OrbitPlots:
             Function to load in the MCMC chain from fit_orbit
         """
         source = self.MCMCfile.split('_')[0]
-        chain, lnp, extras = [fits.open(self.MCMCfile)[i].data for i in range(3)]
-        chain = chain[:, self.burnin:, :].reshape(-1, chain.shape[-1])
-        self.lnp = lnp[:, self.burnin:].flatten()
-        extras = extras[:, self.burnin:, :].reshape(-1, extras.shape[-1])
-        beststep = np.where(self.lnp == self.lnp.max())
-        self.nplanets = chain.shape[-1]//7
-        return chain, beststep, extras
+        chain = fits.open(self.MCMCfile)[1].data
+        chain = burnin_chain(chain.columns, self.burnin, reshape=True)
+        self.lnp = chain['lnp']
+        self.nplanets = int(fits.open(self.MCMCfile)[0].header['nplanets'])
+        return chain
         
     def load_obsRV_data(self):
         """
@@ -255,7 +251,7 @@ class OrbitPlots:
             self.have_pmdat = False
         return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err
     
-    def calc_RV_offset(self, idx):
+    def calc_RV_offset(self, step):
         """
             Function to calculate the offset of the observed RV data
         """
@@ -263,11 +259,11 @@ class OrbitPlots:
             # calculate the offsets of the RV curves
             assert self.multi_instr
             offset_dic = {}
-            for i in np.arange(8, 8 + self.nInst, 1):
-                offset = self.extras[idx, i]
-                offset_dic[i-8] = offset
+            for i in range(self.nInst):
+                offset = self.chain['RV_ZP_%d_ML' % (i)][step]
+                offset_dic[i] = offset
         except:
-            offset = offset_dic = [self.extras[idx, 8]]
+            offset = offset_dic = [self.chain['RV_ZP_0_ML'][step]]
         return offset_dic
 
 
@@ -1075,20 +1071,19 @@ class OrbitPlots:
     def astrometric_prediction(self, nbins=500):
 
         # Fetch parameters as ndarrays
-        par = self.chain.astype(float)
-        mpri = par[:, 1]
-        msec = par[:, 2 + 7*self.iplanet]
-        sau = par[:, 3 + 7*self.iplanet]
-        esino = par[:, 4 + 7*self.iplanet]
-        ecoso = par[:, 5 + 7*self.iplanet]
-        inc = par[:, 6 + 7*self.iplanet]
-        asc = par[:, 7 + 7*self.iplanet]
-        lam = par[:, 8 + 7*self.iplanet]
+        mpri = self.chain['mpri']
+        msec = self.chain['msec%d' % (self.iplanet)]
+        sau = self.chain['sau%d' % (self.iplanet)]
+        esino = self.chain['esino%d' % (self.iplanet)]
+        ecoso = self.chain['ecoso%d' % (self.iplanet)]
+        inc = self.chain['inc%d' % (self.iplanet)]
+        asc = self.chain['asc%d' % (self.iplanet)]
+        lam = self.chain['lam%d' % (self.iplanet)]
+
         arg = np.arctan2(esino, ecoso)
         ecc = esino**2 + ecoso**2
 
-        plx = self.extras[:, 0]
-        plx = np.reshape(plx, -1)
+        plx = self.chain['plx_ML']
 
         # The date we want
         JD_predict = self.calendar_to_JD(self.predicted_ep_ast)
@@ -1147,7 +1142,7 @@ class OrbitPlots:
         dens = np.histogram2d(dra, ddec, bins=[x, y])[0].T
         
         _x, _y = np.mgrid[-20:21, -20:21]
-        window = np.exp(-(_x**2 + _y**2)/20.*len(par)/len(x)**2)
+        window = np.exp(-(_x**2 + _y**2)/20.*len(mpri)/len(x)**2)
         dens = signal.convolve2d(dens, window, mode='same')
         dens /= np.amax(dens)
 
@@ -1190,22 +1185,20 @@ class OrbitPlots:
         
         chain = self.chain
 
-        ndim = chain[:, 0].flatten().shape[0]
-        Mpri = chain[:, 1].flatten().reshape(ndim,1)                      # in M_{\odot}
-        di = 7*self.iplanet
+        Mpri = chain['mpri']
+        npl = '%d' % (self.iplanet)
         if self.cmref == 'msec_solar':
-            Msec = (chain[:,2+di]).flatten().reshape(ndim,1)         # in M_{\odot}
+            Msec = chain['msec' + npl]         # in M_{\odot}
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
         else:
-            Msec = (chain[:,2+di]*1989/1.898).flatten().reshape(ndim,1)
+            Msec = chain['msec' + npl]*1989/1.898
             labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
-        Semimajor = chain[:,3+di].flatten().reshape(ndim,1)                       # in AU
-        Ecc = (chain[:,4+di]**2 + chain[:,5+di]**2).flatten().reshape(ndim,1)
-        #Omega=(np.arctan2(chain[:,4+di],chain[:,5+di])).flatten().reshape(ndim,1)
-        Inc = (chain[:,6+di]*180/np.pi).flatten().reshape(ndim,1)
+        Semimajor = chain['sau' + npl]
+        Ecc = chain['esino' + npl]**2 + chain['ecoso' + npl]**2
+        Inc = chain['inc' + npl]
         
-        chain =np.hstack([Mpri,Msec,Semimajor,Ecc,Inc])
-        
+        chain = np.vstack([Mpri, Msec, Semimajor, Ecc, Inc]).T
+
         # in corner_modified, the error is modified to keep 2 significant figures
         figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
 
@@ -1221,17 +1214,15 @@ class OrbitPlots:
         labels=['Jitter','Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam' ]
         print("Generating diagonstic plots to check convergence")
 
-        tt, lnp, extras = [fits.open(self.MCMCfile)[i].data for i in range(3)]
-        tt = tt[:, self.burnin:, :]
-        nwalkers = tt.shape[0]
-        chain = tt
-        ndim = chain.shape[2]
-        nwalkers = chain.shape[0]
+        chain = fits.open(self.MCMCfile)[1].data
+        chain = burnin_chain(chain.columns, burnin, reshape=False)
+        nwalkers, nsteps = chain['lnp'].shape
         
         fig, ax = plt.subplots(nrows=ndim,sharex=True, figsize=(10,7))
-        for i in range(ndim):
+        for i in range(len(chain.columns)):
             for walker in range(nwalkers):
-                ax[i].plot(chain[walker,:,i],color="black",alpha=alpha,lw=0.5);
+                ax[i].plot(chain.columns[i].array[walker],
+                           color="black", alpha=alpha, lw=0.5);
             if labels:
                 ax[i].set_ylabel(labels[i],fontsize=15,labelpad = 10)
                 ax[i].margins(y=0.1)
@@ -1253,19 +1244,23 @@ class OrbitPlots:
     def save_data(self):
     
         def print_best_chisq():
-            par_label = ['plx_best', 'pmra_best', 'pmdec_best', 'chisq_sep', 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G', 'RV_off']
+            par_label = ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
             print("Saving beststep parameters to " + self.outputdir)
             text_file = open(os.path.join(self.outputdir, 'beststep_params_' + self.title) +'.txt', "w")
-            indx = self.lnp == np.amax(self.lnp)
-            for i in range(self.extras.shape[-1]):
-                if i<8:
-                    text_file.write(par_label[i])
-                    text_file.write("  %f"%round(self.extras[indx][0][i],10))
+            indx = np.where(self.lnp == np.amax(self.lnp))[0][0]
+            for i in range(len(par_label)):
+                text_file.write(par_label[i])
+                text_file.write("  %.10g" % (self.chain[par_label[i]][indx]))
+                text_file.write("\n")
+
+            for i in range(len(self.chain.columns)):
+                try:
+                    offset = self.chain['RV_ZP_%d_ML' % (i)][indx]
+                    text_file.write('RV_ZP_%d_ML' % (i))
+                    text_file.write("  %.10g" % (offset))
                     text_file.write("\n")
-                if i>=8:
-                    text_file.write(par_label[8]+str(i-8))
-                    text_file.write("  %f"%round(self.extras[indx][0][i],10))
-                    text_file.write("\n")
+                except:
+                    break
             text_file.close()
         
         def print_par_values(x,m):
@@ -1301,37 +1296,35 @@ class OrbitPlots:
         def print_posterior(perc_sigmas):
         
             chain = self.chain
-            extras = self.extras
-            ndim = chain[:, 0].flatten().shape[0]
-            di = 7*self.iplanet
+            npl = '%d' % (self.iplanet)
             
             #save posterior and derived parameters
-            RV_Jitter = print_par_values(chain[:,0+di],perc_sigmas)
-            Mpri = print_par_values(chain[:,1+di],perc_sigmas)
+            RV_Jitter = print_par_values(chain['jitter'],perc_sigmas)
+            Mpri = print_par_values(chain['mpri'],perc_sigmas)
             if self.cmref == 'msec_solar':
-                Msec = print_par_values(chain[:,2+di],perc_sigmas)
+                Msec = print_par_values(chain['msec' + npl],perc_sigmas)
                 unit = '(solar)'
             else:
-                Msec = print_par_values(chain[:,2+di]*1989/1.898,perc_sigmas)
+                Msec = print_par_values(chain['msec' + npl]*1989/1.898,perc_sigmas)
                 unit = '(jup)'
-            a = print_par_values(chain[:,3+di],perc_sigmas)
-            sqesino = print_par_values(chain[:,4+di],perc_sigmas)
-            sqecoso = print_par_values(chain[:,5+di],perc_sigmas)
-            inc = print_par_values((chain[:,6+di]*180/np.pi)%(180),perc_sigmas)
-            asc = print_par_values((chain[:,7+di]*180/np.pi)%(180),perc_sigmas)
-            lam = print_par_values((chain[:,8+di]*180/np.pi)%(180),perc_sigmas)
-            plx = print_par_values(extras[:,0],perc_sigmas)
-            period_data = np.sqrt(chain[:,3+di]**3/(chain[:,1+di] + chain[:,2+di]))
+            a = print_par_values(chain['sau' + npl],perc_sigmas)
+            sqesino = print_par_values(chain['esino' + npl],perc_sigmas)
+            sqecoso = print_par_values(chain['ecoso' + npl],perc_sigmas)
+            inc = print_par_values((chain['inc' + npl]*180/np.pi)%(180),perc_sigmas)
+            asc = print_par_values((chain['asc' + npl]*180/np.pi)%(180),perc_sigmas)
+            lam = print_par_values((chain['lam' + npl]*180/np.pi)%(180),perc_sigmas)
+            plx = print_par_values(chain['plx_ML'],perc_sigmas)
+            period_data = np.sqrt(chain['sau' + npl]**3/(chain['mpri'] + chain['msec' + npl]))
             period = print_par_values(period_data,perc_sigmas)
-            omega_data=(np.arctan2(chain[:,4+di],chain[:,5+di])%(2*np.pi))*180/np.pi
+            omega_data=(np.arctan2(chain['esino' + npl],chain['ecoso' + npl])%(2*np.pi))*180/np.pi
             omega = print_par_values(omega_data,perc_sigmas)
-            e = print_par_values(chain[:,4+di]**2 + chain[:,5+di]**2,perc_sigmas)
-            sma = print_par_values(1e3/206264.80624538*chain[:,3+di],perc_sigmas)
-            t0_data = 2455197.5 - 365.25*period_data*((chain[:,8+di]*180/np.pi)%(180) - omega_data)/360. #reference epoch 2455197.5
+            e = print_par_values(chain['esino' + npl]**2 + chain['ecoso' + npl]**2,perc_sigmas)
+            sma = print_par_values(chain['plx_ML']*chain['sau' + npl],perc_sigmas)
+            t0_data = 2455197.5 - 365.25*period_data*((chain['lam' + npl]*180/np.pi)%(180) - omega_data)/360. #reference epoch 2455197.5
             t0 = print_par_values(t0_data,perc_sigmas)
-            q = print_par_values(chain[:,2+di]/chain[:,1+di],perc_sigmas)
+            q = print_par_values(chain['msec' + npl]/chain['mpri'],perc_sigmas)
             
-            label = ['jit (m/s)', 'Mpri (solar)', 'Msec '+unit, 'sqesinw','sqecosw', 'a (AU)','inclination (deg)','ascending node (deg)', 'mean longitude (deg)','parallax (mas)', 'period (yrs)', 'argument of periastron (deg)', 'eccentricity', 'semimajor axis (mas)', 'T0 (JD)', 'mass ratio' ]
+            label = ['jit (m/s)', 'Mpri (solar)', 'Msec '+unit, 'a (AU)', 'sqesinw','sqecosw', 'inclination (deg)','ascending node (deg)', 'mean longitude (deg)','parallax (mas)', 'period (yrs)', 'argument of periastron (deg)', 'eccentricity', 'semimajor axis (mas)', 'T0 (JD)', 'mass ratio' ]
             result = [RV_Jitter, Mpri, Msec, a, sqesino, sqecoso, inc, asc, lam, plx, period, omega, e, sma, t0, q]
         
             print("Saving posterior parameters to " + self.outputdir)

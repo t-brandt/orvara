@@ -51,20 +51,32 @@ def pack_cols(chains, lnp, parfit, names):
     return fits.BinTableHDU.from_columns(cols)
 
 
-def pull_chain_params(columns, walker=0, step=0, lnp_name='lnp'):
+def pull_chain_params(columns, step=0, lnp_name='lnp'):
 
     params = []
-    if step == 'best':
-        walker, step = np.where(columns[lnp_name] == np.amax(columns[lnp_name]))
         
     for i in range(len(columns)):
         if columns[i].name == lnp_name:
             break
-        params += [float(columns[i][walker, step])]
+        params += [float(columns[i].array[step])]
 
     return params
 
 
+def burnin_chain(columns, burnin=0, reshape=True):
+
+    newcols = []
+    for i in range(len(columns)):
+        if reshape:
+            newcols += [fits.Column(name=columns[i].name,
+                                    format=columns[i].format[-1],
+                                    array=columns[i].array[:, burnin:].flatten())]
+        else:
+            newcols += [fits.Column(name=columns[i].name,
+                                    format=columns[i].format,
+                                    array=columns[i].array[:, burnin:])]
+            
+    return fits.BinTableHDU.from_columns(newcols).data
 
 
 
