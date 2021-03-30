@@ -18,6 +18,7 @@ import sys
 import re
 from orbit3d import orbit
 from orbit3d.config import parse_args
+from orbit3d.format_fits import make_header
 import pkg_resources
 
 _loglkwargs = {}
@@ -257,6 +258,9 @@ def run():
     priors = get_priors(config)
     companion_gaia = get_gaia_catalog_companion(config)
     
+    # Save configuration file in FITS header format
+    header = make_header(args.config_file)
+
     # set initial conditions
     par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
                                   minjit=priors['minjit'], maxjit=priors['maxjit'])
@@ -322,24 +326,7 @@ def run():
             if data.nInst > 0:
                 parfit[i, j, 8:] = RVoffsets
 
-    hdu = fits.PrimaryHDU(sample0.chain[0].astype(np.float32))
-    version = pkg_resources.get_distribution("orbit3d").version
-    hdu.header.append(('version', version, 'Code version'))
-    for line in open(args.config_file):
-        line = line[:-1]
-        try:
-            if '=' in line and not line.startswith('#'):
-                keys = re.split('[ ]*=[ ]*', line)
-                # hierarch and continue cards are incompatible.  Hacky fix.
-                if len(keys[0]) > 8 and len(keys[0]) + len(keys[1]) + 13 > 80:
-                    n_over = len(keys[0]) + len(keys[1]) + 13 - 80
-                    hdu.header.append((keys[0], keys[1][:-n_over]), end=True)
-                else:
-                    hdu.header.append((keys[0], keys[1]), end=True)
-            elif not line.startswith('#'):
-                hdu.header.append(('comment', line[:80]), end=True)
-        except:
-            continue
+    hdu = fits.PrimaryHDU(sample0.chain[0].astype(np.float32), header)
 
     out = fits.HDUList(hdu)
     if not use_ptemcee:
