@@ -12,26 +12,37 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 cdef class Params:
     cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit, mpri_true
     cdef public double ecc, per, arg, sinarg, cosarg, sqrt1pe, sqrt1me
-    cdef public int nplanets
+    cdef public int nplanets, ninst_jit
     
     # Array to hold the semimajor axes of all companions
 
     cdef double *all_sau
+    cdef double *all_jitsq
+    cdef double *all_jit
 
-    def __init__(self, par, int iplanet=0, int nplanets=1):
+    def __init__(self, par, int iplanet=0, int nplanets=1, int ninst_jit=1):
 
         cdef extern from "math.h":
             double atan2(double x, double y)
             double sqrt(double x)
+            double pow(double x, double y)
 
         cdef int i
 
         self.nplanets = nplanets 
+        self.ninst_jit = ninst_jit
         self.all_sau = <double *> PyMem_Malloc(self.nplanets*sizeof(double))
-        if not self.all_sau:
+        self.all_jitsq = <double *> PyMem_Malloc(self.ninst_jit*sizeof(double))
+        self.all_jit = <double *> PyMem_Malloc(self.ninst_jit*sizeof(double))
+        if not self.all_sau or not self.all_jitsq or not self.all_jit:
             raise MemoryError()
         
         self.jit = par[0]
+
+        for i in range(ninst_jit):
+            self.all_jit[i] = self.jit
+            self.all_jitsq[i] = pow(10, self.jit)
+
         self.mpri = par[1]
         self.mpri_true = par[1]
         self.msec = par[2 + 7*iplanet]
@@ -40,7 +51,7 @@ cdef class Params:
         for i in range(nplanets):
             self.all_sau[i] = par[3 + 7*i]
             if self.sau > self.all_sau[i]:
-                # NOTE: This makes it so that mpri is not truely the primary mass anymore!!!
+                # NOTE: This makes it so that mpri is not truly the primary mass anymore!!!
                 self.mpri += par[2 + 7*i]
 
         self.esino = par[4 + 7*iplanet]
@@ -58,6 +69,8 @@ cdef class Params:
     def free(self):
         if self.all_sau:
             PyMem_Free(self.all_sau)
+            PyMem_Free(self.all_jitsq)
+            PyMem_Free(self.all_jit)
         
 ######################################################################
 # A small structure to hold the important components of Mirek's HTOF
@@ -820,11 +833,6 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
             model.dRA_G_B[i - i1] = -par.mpri/par.msec*(B*X + G*Y)
             model.dDec_G_B[i - i1] = -par.mpri/par.msec*(A*X + F*Y)
 
-    # We only use the array of semimajor axes in this routine: free it
-    # after we are done.
-            
-    par.free()
-    
     return
 
 @cython.boundscheck(False)
@@ -1110,7 +1118,10 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     cdef extern from "lstsq.h":
         void lstsq_C(double A_in[], double b[], int m, int n, double coef[])
 
-    cdef double jitsq = pow(10., par.jit)
+    if par.ninst_jit != data.nInst:
+        raise ValueError("Number of jitters must match number of RV instruments")
+
+    #cdef double jitsq = pow(10., par.jit)
     cdef double rv_ivar = 1
     cdef double pi = 3.14159265358979323846264338327950288
     cdef double twopi = 2*pi
@@ -1126,7 +1137,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         A[i] = B[i] = C[i] = RVzero[i] = 0
 
     for i in range(data.nRV):
-        ivar = 1./(data.RV_err[i]**2 + jitsq)
+        ivar = 1./(data.RV_err[i]**2 + par.all_jitsq[data.RVinst[i]])
         dRV = data.RV[i] - model.RV[i]
         rv_ivar *= ivar
 
@@ -1373,13 +1384,16 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         
         PyMem_Free(RVzero)
         model.free()
-        
+        par.free()
+
         if RVoffsets:
             return chisq_struct, RVzero_np
         else:
             return chisq_struct
 
     PyMem_Free(RVzero)
+
+    par.free()
     model.free()
 
     return lnL/2
@@ -1401,6 +1415,7 @@ def lnprior(Params par, double minjit=-20, double maxjit=20):
         double sin(double _x)
         double log(double _x)
 
+    cdef int i
     cdef double pi = 3.14159265358979323846264338327950288 # np.pi
     cdef double zeroprior = -np.inf
 
@@ -1410,7 +1425,10 @@ def lnprior(Params par, double minjit=-20, double maxjit=20):
         return zeroprior
     if par.inc < 0 or par.inc > pi or par.asc < -pi or par.asc > 3*pi:
         return zeroprior
-    if par.lam < -pi or par.lam > 3*pi or par.jit < minjit or par.jit > maxjit:
+    if par.lam < -pi or par.lam > 3*pi:
         return zeroprior
+    for i in range(par.ninst_jit):
+        if par.all_jit[i] < minjit or par.all_jit[i] > maxjit:
+            return zeroprior
 
     return log(sin(par.inc)*1./(par.sau*par.msec))
