@@ -43,20 +43,20 @@ def test_converges_to_accurate_values(fake_args):
         run()
         # load file and check params
         file = 'HIP3850_chain000.fits'
-        tt = fits.open(os.path.join(tmp_dir, file))[0].data
+        tt = fits.open(os.path.join(tmp_dir, file))[1].data
         i = -1  # walker index.
-        nsteps = 50 * tt.shape[1]
+        nsteps = 50 * tt['lnp'].shape[1]
         burn = 250  # number of burn in steps to discard
-        rv_jitter = np.mean(tt[i, burn:, 0])
-        rv_jitter_err = np.std(tt[i, burn:, 0])
-        companion_jup_mass = np.mean(tt[i, burn:, 2]*1989/1.898)
-        companion_mass_stderr = np.std(tt[i, burn:, 2]*1989/1.898)
-        separation_AU = np.mean(tt[i, burn:, 3])
-        separation_stderr = np.std(tt[i, burn:, 3])
-        eccentricity = np.mean(tt[i, burn:, 4]**2 + tt[i, burn:, 5]**2)
-        eccentricity_stderr = np.std(tt[i, burn:, 4]**2 + tt[i, burn:, 5]**2)
-        inclination_deg = np.mean(tt[i, burn:, 6]*180/np.pi)
-        inclination_err = np.std(tt[i, burn:, 6]*180/np.pi)
+        rv_jitter = np.mean(tt['jiiter'][i, burn:])
+        rv_jitter_err = np.std(tt['jitter'][i, burn:])
+        companion_jup_mass = np.mean(tt['msec0'][i, burn:]*1989/1.898)
+        companion_mass_stderr = np.std(tt['msec0'][i, burn:]*1989/1.898)
+        separation_AU = np.mean(tt['sau0'][i, burn:])
+        separation_stderr = np.std(tt['sau0'][i, burn:])
+        eccentricity = np.mean(tt['esino0'][i, burn:]**2 + tt['ecoso0'][i, burn:]**2)
+        eccentricity_stderr = np.std(tt['esino0'][i, burn:]**2 + tt['ecoso0'][i, burn:]**2)
+        inclination_deg = np.mean(tt['inc0'][i, burn:]*180/np.pi)
+        inclination_err = np.std(tt['inc0'][i, burn:]*180/np.pi)
 
         expected_1_sigma_errors = [0.11231, 2.9215, 0.44668, 0.0030392, 2.3431]
         expected_values = [1.37637, 67.04218, 10.189, 0.73568, 49.89184]
