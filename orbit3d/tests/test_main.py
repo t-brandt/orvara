@@ -47,7 +47,7 @@ def test_converges_to_accurate_values(fake_args):
         i = -1  # walker index.
         nsteps = 50 * tt['lnp'].shape[1]
         burn = 250  # number of burn in steps to discard
-        rv_jitter = np.mean(tt['jiiter'][i, burn:])
+        rv_jitter = np.mean(tt['jitter'][i, burn:])
         rv_jitter_err = np.std(tt['jitter'][i, burn:])
         companion_jup_mass = np.mean(tt['msec0'][i, burn:]*1989/1.898)
         companion_mass_stderr = np.std(tt['msec0'][i, burn:]*1989/1.898)
