@@ -38,9 +38,15 @@ class Orbit:
             step = np.where(OP.chain['lnp'] == np.amax(OP.chain['lnp']))[0][0]
             
         self.plx = OP.chain['plx_ML'][step]
+        jit_per_inst = 'jitter0' in [col.name for col in OP.chain.columns]
+        if jit_per_inst:
+            nj = data.nInst
+        else:
+            nj = 1
         for i in range(OP.nplanets):
-            par = orbit.Params(pull_chain_params(OP.chain.columns, step), iplanet=i,
-                                                 nplanets=OP.nplanets)
+            par = orbit.Params(pull_chain_params(OP.chain.columns, step), 
+                               iplanet=i, nplanets=OP.nplanets, 
+                               ninst_RV=data.nInst, ninst_jit=nj)
             if i == OP.iplanet:
                 self.par = par
             orbit.calc_EA_RPP(data, par, model)
@@ -470,10 +476,11 @@ class OrbitPlots:
                 epoch_obs_Inst[j] = self.JD_to_calendar(self.epoch_obs_dic[i][j])
             rv_epoch_list.append(epoch_obs_Inst)
 
-        jit_ml = 10**(0.5*orb_ml.par.jit)
+        #jit_ml = 10**(0.5*orb_ml.par.jit)
+        jit_ml = 10**(0.5*orb_ml.par.return_jitters())
         
         for i in range(self.nInst):
-            ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml**2), fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
+            ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
             ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
             
         ax.set_xlim(self.start_epoch, self.end_epoch)
@@ -561,8 +568,8 @@ class OrbitPlots:
             if not plot_this:
                 continue
             
-            jit_ml = 10**(0.5*orb_ml.par.jit)
-            ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
+            jit_ml = 10**(0.5*orb_ml.par.return_jitters())
+            ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
             ax1.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], s=45, facecolors='none', edgecolors='k', zorder=200+i, alpha = 0.8)
             
             OC = self.RV_obs_dic[i] + orb_ml_obs.offset[i] - orb_ml_obs.RV[self.RVinst == i]
@@ -570,7 +577,7 @@ class OrbitPlots:
             all_OC += list(OC)
             all_OC_err += list(y_err)
             
-            ax2.errorbar(rv_epoch_list[i], OC, yerr=np.sqrt(y_err**2 + jit_ml**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
+            ax2.errorbar(rv_epoch_list[i], OC, yerr=np.sqrt(y_err**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
             ax2.scatter(rv_epoch_list[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
 
             #else:
@@ -1211,7 +1218,7 @@ class OrbitPlots:
 #diagnostic plots
 
     def plot_chains(self,labels=None,burnin=500,thin=1,alpha=0.1):
-        labels=['Jitter','Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam' ]
+        labels=['Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam']
         print("Generating diagonstic plots to check convergence")
 
         chain = fits.open(self.MCMCfile)[1].data
@@ -1219,11 +1226,15 @@ class OrbitPlots:
         nwalkers, nsteps = chain['lnp'].shape
         
         fig, ax = plt.subplots(nrows=ndim,sharex=True, figsize=(10,7))
+        ijit = 0
         for i in range(len(chain.columns)):
             for walker in range(nwalkers):
                 ax[i].plot(chain.columns[i].array[walker],
                            color="black", alpha=alpha, lw=0.5);
             if labels:
+                if i >= len(labels):
+                    labels += 'jiiter%d' % (ijit)
+                    ijit += 1
                 ax[i].set_ylabel(labels[i],fontsize=15,labelpad = 10)
                 ax[i].margins(y=0.1)
             for label in ax[i].get_yticklabels():
@@ -1299,7 +1310,18 @@ class OrbitPlots:
             npl = '%d' % (self.iplanet)
             
             #save posterior and derived parameters
-            RV_Jitter = print_par_values(chain['jitter'],perc_sigmas)
+            if 'jitter' in [col.name for col in chain.columns]:
+                RV_Jitter = [print_par_values(chain['jitter'],perc_sigmas)]
+                jitter_labels = ['Jit (m/s)']
+            else:
+                i = 0
+                RV_Jitter = []
+                jitter_labels = []
+                while 'jitter%d' % (i) in [col.name for col in chain.columns]:
+                    RV_Jitter += [print_par_values(chain['jitter%d' % (i)],perc_sigmas)]
+                    jitter_labels += ['Jit, Inst #%d (m/s)' % (i)]
+                    i += 1
+
             Mpri = print_par_values(chain['mpri'],perc_sigmas)
             if self.cmref == 'msec_solar':
                 Msec = print_par_values(chain['msec' + npl],perc_sigmas)
@@ -1324,9 +1346,11 @@ class OrbitPlots:
             t0 = print_par_values(t0_data,perc_sigmas)
             q = print_par_values(chain['msec' + npl]/chain['mpri'],perc_sigmas)
             
-            label = ['jit (m/s)', 'Mpri (solar)', 'Msec '+unit, 'a (AU)', 'sqesinw','sqecosw', 'inclination (deg)','ascending node (deg)', 'mean longitude (deg)','parallax (mas)', 'period (yrs)', 'argument of periastron (deg)', 'eccentricity', 'semimajor axis (mas)', 'T0 (JD)', 'mass ratio' ]
-            result = [RV_Jitter, Mpri, Msec, a, sqesino, sqecoso, inc, asc, lam, plx, period, omega, e, sma, t0, q]
-        
+            label = jitter_labels
+            label += ['Mpri (solar)', 'Msec '+unit, 'a (AU)', 'sqesinw','sqecosw', 'inclination (deg)','ascending node (deg)', 'mean longitude (deg)','parallax (mas)', 'period (yrs)', 'argument of periastron (deg)', 'eccentricity', 'semimajor axis (mas)', 'T0 (JD)', 'mass ratio' ]
+            result = RV_Jitter
+            result += [Mpri, Msec, a, sqesino, sqecoso, inc, asc, lam, plx, period, omega, e, sma, t0, q]
+
             print("Saving posterior parameters to " + self.outputdir)
             text_file = open(os.path.join(self.outputdir, 'posterior_params_' + self.title) +'.txt', "w")
 

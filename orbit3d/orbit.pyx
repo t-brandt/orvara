@@ -12,7 +12,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 cdef class Params:
     cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit, mpri_true
     cdef public double ecc, per, arg, sinarg, cosarg, sqrt1pe, sqrt1me
-    cdef public int nplanets, ninst_jit
+    cdef public int nplanets, ninst_jit, ninst_RV
     
     # Array to hold the semimajor axes of all companions
 
@@ -20,7 +20,8 @@ cdef class Params:
     cdef double *all_jitsq
     cdef double *all_jit
 
-    def __init__(self, par, int iplanet=0, int nplanets=1, int ninst_jit=1):
+    def __init__(self, par, int iplanet=0, int nplanets=1, 
+                 int ninst_RV=1, int ninst_jit=1):
 
         cdef extern from "math.h":
             double atan2(double x, double y)
@@ -31,40 +32,52 @@ cdef class Params:
 
         self.nplanets = nplanets 
         self.ninst_jit = ninst_jit
+        self.ninst_RV = ninst_RV
         self.all_sau = <double *> PyMem_Malloc(self.nplanets*sizeof(double))
-        self.all_jitsq = <double *> PyMem_Malloc(self.ninst_jit*sizeof(double))
-        self.all_jit = <double *> PyMem_Malloc(self.ninst_jit*sizeof(double))
+        self.all_jitsq = <double *> PyMem_Malloc(self.ninst_RV*sizeof(double))
+        self.all_jit = <double *> PyMem_Malloc(self.ninst_RV*sizeof(double))
         if not self.all_sau or not self.all_jitsq or not self.all_jit:
             raise MemoryError()
         
-        self.jit = par[0]
+        self.jit = par[7*nplanets + 1]
 
-        for i in range(ninst_jit):
-            self.all_jit[i] = self.jit
-            self.all_jitsq[i] = pow(10, self.jit)
+        if ninst_jit == 1:
+            for i in range(ninst_RV):
+                self.all_jit[i] = self.jit
+                self.all_jitsq[i] = pow(10, self.jit)
+        else:
+            for i in range(ninst_RV):
+                self.all_jit[i] = par[7*nplanets + i + 1]
+                self.all_jitsq[i] = pow(10, self.all_jit[i])            
 
-        self.mpri = par[1]
-        self.mpri_true = par[1]
-        self.msec = par[2 + 7*iplanet]
-        self.sau = par[3 + 7*iplanet]
+        self.mpri = par[0]
+        self.mpri_true = par[0]
+        self.msec = par[1 + 7*iplanet]
+        self.sau = par[2 + 7*iplanet]
         
         for i in range(nplanets):
-            self.all_sau[i] = par[3 + 7*i]
+            self.all_sau[i] = par[2 + 7*i]
             if self.sau > self.all_sau[i]:
                 # NOTE: This makes it so that mpri is not truly the primary mass anymore!!!
-                self.mpri += par[2 + 7*i]
+                self.mpri += par[1 + 7*i]
 
-        self.esino = par[4 + 7*iplanet]
-        self.ecoso = par[5 + 7*iplanet]
-        self.inc = par[6 + 7*iplanet]
-        self.asc = par[7 + 7*iplanet]
-        self.lam = par[8 + 7*iplanet]
+        self.esino = par[3 + 7*iplanet]
+        self.ecoso = par[4 + 7*iplanet]
+        self.inc = par[5 + 7*iplanet]
+        self.asc = par[6 + 7*iplanet]
+        self.lam = par[7 + 7*iplanet]
 
         self.ecc = self.ecoso**2 + self.esino**2
         self.per = sqrt(self.sau*self.sau*self.sau/(self.mpri + self.msec))*365.25
         self.arg = atan2(self.esino, self.ecoso)
         self.sinarg = self.esino/sqrt(self.ecc)
         self.cosarg = self.ecoso/sqrt(self.ecc)
+
+    def return_jitters(self):
+        jitters = np.zeros(self.ninst_RV)
+        for i in range(self.ninst_RV):
+            jitters[i] = self.all_jit[i]
+        return jitters
 
     def free(self):
         if self.all_sau:
@@ -1118,7 +1131,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     cdef extern from "lstsq.h":
         void lstsq_C(double A_in[], double b[], int m, int n, double coef[])
 
-    if par.ninst_jit != data.nInst:
+    if par.ninst_RV != data.nInst:
         raise ValueError("Number of jitters must match number of RV instruments")
 
     #cdef double jitsq = pow(10., par.jit)

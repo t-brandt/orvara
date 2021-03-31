@@ -16,6 +16,7 @@ from htof.main import Astrometry
 from astropy.time import Time
 import sys
 import re
+import random
 from orbit3d import orbit
 from orbit3d.config import parse_args
 from orbit3d.format_fits import make_header, pack_cols
@@ -23,7 +24,7 @@ import pkg_resources
 
 _loglkwargs = {}
 
-def set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
+def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
                            minjit=-20, maxjit=20):
     
     par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
@@ -47,7 +48,7 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
 
     else:
         init, sig = np.loadtxt(start_file).T
-        init[0] = 2*np.log10(init[0]) # Convert from m/s to units used in code
+        init[0] = max(2*np.log10(init[0]), minjit) # Convert from m/s to units used in code
         try:
             par0 *= init
         except:
@@ -89,7 +90,14 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
     par0[..., 4::7] *= fac
     par0[..., 5::7] *= fac
 
-    return par0
+    # Move jitter to the end, add (shuffled) realizations if needed.
+    par0_jitlast = np.zeros((ntemps, nwalkers, par0.shape[-1] + njit - 1))
+    par0_jitlast[..., :-njit] = par0[..., 1:]
+    for i in range(njit):
+        random.shuffle(par0[..., 0].T)
+        par0_jitlast[..., -1 - i] = par0[..., 0]
+
+    return par0_jitlast
 
 
 def initialize_data(config, companion_gaia):
@@ -142,7 +150,8 @@ def initialize_data(config, companion_gaia):
 
 
 def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
-           data=None, nplanets=1, H1f=None, H2f=None, Gf=None, priors=None):
+           data=None, nplanets=1, H1f=None, H2f=None, Gf=None, priors=None, 
+           njitters=1):
     """
     Log likelihood function for the joint parameters
     :param theta:
@@ -160,7 +169,7 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
     for i in range(nplanets):
         # Note that params.mpri is really the mass contained in the primary + companions inner to the current planet.
         # params.mpri_true is the real mass of the primary. So params.mpri should really be renamed params.interior_mass
-        params = orbit.Params(theta, i, nplanets)
+        params = orbit.Params(theta, i, nplanets, data.nInst, njitters)
         lnp = lnp + orbit.lnprior(params, minjit=priors['minjit'],
                                   maxjit=priors['maxjit'])
 
@@ -248,6 +257,7 @@ def run():
     nwalkers = config.getint('mcmc_settings', 'nwalkers')
     ntemps = config.getint('mcmc_settings', 'ntemps')
     nplanets = config.getint('mcmc_settings', 'nplanets')
+    jit_per_inst = config.getboolean('mcmc_settings', 'jit_per_inst', fallback=False)
     nstep = config.getint('mcmc_settings', 'nstep')
     thin = config.getint('mcmc_settings', 'thin', fallback=50)
     nthreads = config.getint('mcmc_settings', 'nthreads')
@@ -261,15 +271,22 @@ def run():
     # Save configuration file in FITS header format
     header = make_header(args.config_file)
 
-    # set initial conditions
-    par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers,
-                                  minjit=priors['minjit'], maxjit=priors['maxjit'])
-    ndim = par0[0, 0, :].size
     data, H1f, H2f, Gf = initialize_data(config, companion_gaia)
+
+    # set initial conditions
+    if jit_per_inst:
+        njit = data.nInst
+    else:
+        njit = 1
+    par0 = set_initial_parameters(start_file, ntemps, nplanets, nwalkers, 
+                                  njit=njit, minjit=priors['minjit'], 
+                                  maxjit=priors['maxjit'])
+    ndim = par0[0, 0, :].size
+
     # set arguments for emcee PTSampler and the log-likelyhood (lnprob)
     samplekwargs = {'thin': thin}
     loglkwargs = {'returninfo': False, 'use_epoch_astrometry': use_epoch_astrometry,
-        'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors}
+                  'data': data, 'nplanets': nplanets, 'H1f': H1f, 'H2f': H2f, 'Gf': Gf, 'priors': priors, 'njitters': njit}
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
 
@@ -326,10 +343,16 @@ def run():
             if data.nInst > 0:
                 parfit[i, j, 8:] = RVoffsets
 
-    colnames = ['jitter', 'mpri']
+    colnames = ['mpri']
     for i in range(nplanets):
         colnames += [s + '%d' % (i) for s in ['msec', 'sau', 'esino', 'ecoso',
                                               'inc', 'asc', 'lam']]
+    if njit == 1:
+        colnames += ['jitter']
+    else:
+        for i in range(njit):
+            colnames += ['jitter%d' % (i)]
+
     colnames += ['lnp']
     colnames += ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 
                  'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
