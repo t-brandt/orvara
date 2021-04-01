@@ -480,7 +480,8 @@ class OrbitPlots:
         jit_ml = 10**(0.5*orb_ml.par.return_jitters())
         
         for i in range(self.nInst):
-            ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
+            ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
+                        fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
             ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
             
         ax.set_xlim(self.start_epoch, self.end_epoch)
@@ -1204,7 +1205,7 @@ class OrbitPlots:
         Ecc = chain['esino' + npl]**2 + chain['ecoso' + npl]**2
         Inc = chain['inc' + npl]
         
-        chain = np.vstack([Mpri, Msec, Semimajor, Ecc, Inc]).T
+        chain = np.vstack([Mpri, Msec, Semimajor, Ecc, Inc * 180/np.pi]).T
 
         # in corner_modified, the error is modified to keep 2 significant figures
         figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
@@ -1311,14 +1312,14 @@ class OrbitPlots:
             
             #save posterior and derived parameters
             if 'jitter' in [col.name for col in chain.columns]:
-                RV_Jitter = [print_par_values(chain['jitter'],perc_sigmas)]
+                RV_Jitter = [print_par_values(10**(0.5*chain['jitter']),perc_sigmas)]
                 jitter_labels = ['Jit (m/s)']
             else:
                 i = 0
                 RV_Jitter = []
                 jitter_labels = []
                 while 'jitter%d' % (i) in [col.name for col in chain.columns]:
-                    RV_Jitter += [print_par_values(chain['jitter%d' % (i)],perc_sigmas)]
+                    RV_Jitter += [print_par_values(10**(0.5*chain['jitter%d' % (i)]),perc_sigmas)]
                     jitter_labels += ['Jit, Inst #%d (m/s)' % (i)]
                     i += 1
 
