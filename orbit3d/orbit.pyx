@@ -27,6 +27,8 @@ cdef class Params:
             double atan2(double x, double y)
             double sqrt(double x)
             double pow(double x, double y)
+            double sin(double x)
+            double cos(double x)
 
         cdef int i
 
@@ -70,8 +72,8 @@ cdef class Params:
         self.ecc = self.ecoso**2 + self.esino**2
         self.per = sqrt(self.sau*self.sau*self.sau/(self.mpri + self.msec))*365.25
         self.arg = atan2(self.esino, self.ecoso)
-        self.sinarg = self.esino/sqrt(self.ecc)
-        self.cosarg = self.ecoso/sqrt(self.ecc)
+        self.sinarg = sin(self.arg)
+        self.cosarg = cos(self.arg)
 
     def return_jitters(self):
         jitters = np.zeros(self.ninst_RV)
