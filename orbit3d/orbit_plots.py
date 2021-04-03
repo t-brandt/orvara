@@ -599,7 +599,7 @@ class OrbitPlots:
         ax1.xaxis.set_minor_locator(AutoMinorLocator())
         ax1.yaxis.set_minor_locator(AutoMinorLocator())
         ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-        ax1.set_ylabel('Relative RV (m/s)', fontsize=13)
+        ax1.set_ylabel('RV (m/s)', fontsize=13)
         # ax2
 
         min_OC = np.amin(np.asarray(all_OC) - np.asarray(all_OC_err))
@@ -624,7 +624,7 @@ class OrbitPlots:
             ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
             ax2.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
         if self.show_title:
-            ax1.set_title('Relative RV vs. Epoch')
+            ax1.set_title('RV vs. Epoch')
         if self.add_text:
             ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
