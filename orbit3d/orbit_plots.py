@@ -964,12 +964,12 @@ class OrbitPlots:
             ax1.get_shared_x_axes().join(ax1, ax2)
             ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
 
-            ax1.set_ylabel(r'$\Delta \mu_{\alpha}$ (mas/yr)', labelpad = 5, fontsize = 13)
+            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)', labelpad = 5, fontsize = 13)
             # ax3
             ax3.get_shared_x_axes().join(ax3, ax4)
             ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
             range_mudec_obs = max(self.mudec_obs)  - min(self.mudec_obs)
-            ax3.set_ylabel(r'$\Delta \mu_{\delta}$ (mas/yr)', labelpad = 6, fontsize = 13)
+            ax3.set_ylabel(r'$\mu_{\delta}$ (mas/yr)', labelpad = 6, fontsize = 13)
             for ax in [ax1, ax3]:
                 ax.xaxis.set_major_formatter(NullFormatter())
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1053,7 +1053,7 @@ class OrbitPlots:
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             #ax1.set_title(self.title)
             ax1.set_xlabel('date (yr)')
-            ax1.set_ylabel(r'$\Delta \mu_{\alpha}$ (mas/yr)',labelpad = 1)
+            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)',labelpad = 1)
 
             ax2.set_xlim(self.start_epoch, self.end_epoch)
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1061,7 +1061,7 @@ class OrbitPlots:
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             #ax2.set_title(self.title)
             ax2.set_xlabel('date (yr)')
-            ax2.set_ylabel(r'$\Delta \mu_{\delta}$ (mas/yr)')
+            ax2.set_ylabel(r'$\mu_{\delta}$ (mas/yr)')
         
         plt.tight_layout()
         print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
