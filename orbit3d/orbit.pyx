@@ -347,6 +347,11 @@ cdef class Data:
         self.refep = refep
         self.ast_planetID = (np.ones(len(epochs))*iplanet).astype(np.int32)
 
+    def custom_epochs_test(self, epochs, refep=2455197.5000, iplanet=0):
+        self.epochs = np.asarray(list(epochs))
+        self.refep = refep
+        self.nTot = len(self.epochs)
+
 
 cdef class Model:
 
@@ -1447,3 +1452,105 @@ def lnprior(Params par, double minjit=-20, double maxjit=20):
             return zeroprior
 
     return log(sin(par.inc)*1./(par.sau*par.msec))
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+
+def calc_EA_compare(Data data, Params par, Model model, solver='r',
+                    int Nit=0, tol=1e-12):
+    
+    cdef extern from "calcEA.h":
+        double MAmod(double x)
+        void calcEA(double M, double e, double *E, double *sE, double *cE)
+    cdef extern from "math.h":
+        double fabs(double x)
+        double sqrt(double x)
+        double sin(double x)
+        double cos(double x)
+    cdef extern from "radvelsolver.h":
+        double kepler(double M, double e)
+    cdef extern from "batman_solver.h":
+        double kepler_batman(double M, double e)
+    cdef extern from "nijenhuis.h":
+        double solve_kepler(double M, double e)
+    cdef extern from "goatherd.h":
+        void kepler_goatherd(int n1, int n2, double M[], double e, double E[])
+        
+    cdef double pi = 3.14159265358979323846264338327950288
+    cdef int i, j, k, n
+
+    #################################################################
+    # These are for computing the mean anomaly.  Cheaper to do this
+    # within the calculation of eccentric anomaly and not write to its
+    # own array, since we never need it again.
+    #################################################################
+
+    cdef double twopi_d_per = 2*pi/par.per
+    cdef double MA0 = par.lam - par.arg
+    cdef double _MA, dMA, MA_last
+        
+    n = data.nTot
+
+    cdef double *Marr = <double *> PyMem_Malloc(n * sizeof(double))
+    if not Marr:
+        raise MemoryError()
+
+    for i in range(n):
+        if i > 0:
+            _MA = MA_last + twopi_d_per*(data.epochs[i] - data.epochs[i-1])
+            _MA = MAmod(_MA)
+        else:
+            _MA = MAmod(twopi_d_per*(data.epochs[i] - data.refep) + MA0)
+        MA_last = _MA
+        Marr[i] = _MA
+
+    if solver == 'g':
+        if Nit == 0:
+            for j in range(2, 256):
+                kepler_goatherd(j, n, Marr, par.ecc, model.EA)
+                err = 0            
+                for k in range(n):
+                    err = err + fabs(Marr[k] - model.EA[k] + par.ecc*sin(model.EA[k]))/n
+                if err < tol:
+                    Nit = j
+                    break
+        else:
+            kepler_goatherd(Nit, n, Marr, par.ecc, model.EA)
+    elif solver == 'r':
+        for i in range(n):
+            model.EA[i] = kepler(Marr[i], par.ecc)
+    elif solver == 'b':
+        for i in range(n):
+            model.EA[i] = kepler_batman(Marr[i], par.ecc)
+    elif solver == 'e':
+        for i in range(n):
+            model.EA[i] = solve_kepler(Marr[i], par.ecc)
+        
+    for i in range(n):
+        model.sinEA[i] = sin(model.EA[i])
+        model.cosEA[i] = cos(model.EA[i])
+        
+    PyMem_Free(Marr)
+
+    if solver == 'g':
+        return Nit
+    return 
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+
+def sincos(Model model, int n):
+
+    cdef extern from "math.h":
+        double sin(double x)
+        double cos(double x)
+
+    cdef int i
+    for i in range(n):
+        model.sinEA[i] = sin(model.EA[i])
+        model.cosEA[i] = cos(model.EA[i])
+
+    return
