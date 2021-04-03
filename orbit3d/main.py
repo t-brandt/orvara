@@ -117,7 +117,7 @@ def initialize_data(config, companion_gaia):
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
-    if use_epoch_astrometry:
+    if use_epoch_astrometry and data.use_abs_ast == 1:
         to_jd = lambda x: Time(x, format='decimalyear').jd + 0.5
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=to_jd(data.epRA_G),
@@ -143,8 +143,17 @@ def initialize_data(config, companion_gaia):
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                           epochs_Gaia=Gaia_fitter.data.julian_day_epoch(),
                           companion_gaia=companion_gaia, verbose=False)
+    elif data.use_abs_ast == 1:
+        hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter = None, None, None
     else:
         hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter = None, None, None
+        try:
+            data.plx = 1e-3*config.getfloat('priors_settings', 'parallax')
+            data.plx_err = 1e-3*config.getfloat('priors_settings', 'parallax_error')
+        except:
+            print("Cannot load absolute astrometry.")
+            print("Please supply a prior for parallax and parallax_error")
+            print("in the priors_settings area of the configuration file.")
 
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 
@@ -185,9 +194,9 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         if priors is not None:
             lnp = lnp - 0.5*(params.msec - priors.get(f'm_secondary{i}', 1))**2/priors.get(f'm_secondary{i}_sig', np.inf)**2
 
-    if use_epoch_astrometry:
+    if use_epoch_astrometry and data.use_abs_ast:
         orbit.calc_PMs_epoch_astrometry(data, model, H1f, H2f, Gf)
-    else:
+    elif data.use_abs_ast:
         orbit.calc_PMs_no_epoch_astrometry(data, model)
 
     if returninfo:

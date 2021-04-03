@@ -244,7 +244,9 @@ cdef class Data:
                 self.refep = self.epochs[0]
             self.Cinv_H = np.zeros((2, 2))
             self.Cinv_G = np.zeros((2, 2))
+            self.Cinv_G_B = np.zeros((2, 2))
             self.Cinv_HG = np.identity(2)
+            self.nHip1 = self.nHip2 = self.nGaia = 0
             return
 
         self.plx = 1e-3*t['parallax_gaia']
