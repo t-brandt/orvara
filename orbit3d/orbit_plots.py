@@ -255,6 +255,7 @@ class OrbitPlots:
                 ep_mudec_obs[i] = self.calendar_to_JD(ep_mudec_obs[i])
         except:
             self.have_pmdat = False
+            return [None, None, None, None, None, None]
         return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err
     
     def calc_RV_offset(self, step):
