@@ -1,3 +1,7 @@
+1.0.0 (2021-04-04)
+------------------
+- Changed format of chain files, incompatible with previous versions.  Support for stars not in HGCA, ability to set one jitter per instrument.  Various small changes and bug fixes.
+
 0.1.5 (2021-02-26)
 ------------------
 - Added the ability to place mass priors on the secondary, tertiary, etc.. companions.
