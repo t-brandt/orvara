@@ -63,7 +63,7 @@ def initialize_plot_options(config):
     # colorbar settings
     OP.usecolorbar = config.getboolean('plotting', 'use_colorbar', fallback=False)
     OP.color_map = config.get('plotting', 'colormap', fallback= 'viridis')
-    OP.cmref = config.get('plotting', 'reference')
+    OP.cmref = config.get('plotting', 'reference', fallback='msec_jup')
     OP.colorbar_size = config.getfloat('plotting', 'fraction', fallback=0.046)
     OP.colorbar_pad = config.getfloat('plotting', 'pad', fallback=0.04)
 
