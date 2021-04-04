@@ -69,11 +69,16 @@ if __name__ == "__main__":
                       0.75, 0.8, 0.85, 0.9, 0.95, 0.98, 0.99])
 
     n = np.asarray([25, 100, 500])
-    
+
+    print('# Nep is the number of epochs at fixed eccentricity.')
+    print('# All times are in nanoseconds per epoch.\n#')
+    print('# Nep    Ecc%11s%11s%11s%11s%11s%11s' %
+          ('orvara', 'goatherd', 'radvel', 'batman', 'nijenhuis', 'sincos'))
+
     for _n in n:
         for _ecc in ecc:
             tvals = []
             for k in range(3):
                 tvals += [calc_times(_n, _ecc, N=1000000//_n, n_rand=50)]
-            print('%3d %6.2g %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f' %
+            print('  %3d %6.2g %10.1f %10.1f %10.1f %10.1f %10.1f %10.1f' %
                   tuple([_n, _ecc] + list(np.amin(np.asarray(tvals), axis=0))))
