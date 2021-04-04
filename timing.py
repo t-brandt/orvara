@@ -13,7 +13,7 @@ def calc_times(n, ecc, N=None, n_rand=100):
     
     alldata = []
     for k in range(n_rand):
-        data = orbit.Data(1, 'HGCA_vDR2_corrected.fits', '', '', verbose=False)
+        data = orbit.Data(0, '', '', '', verbose=False)
         data.custom_epochs(np.sort(np.random.rand(n))*365.25 + t0, iplanet=0)
         data.nTot = n
         alldata += [data]
