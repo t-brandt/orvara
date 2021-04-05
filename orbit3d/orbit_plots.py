@@ -9,13 +9,15 @@ from scipy import stats, signal
 from orbit3d import orbit
 from astropy.io import fits
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
+from matplotlib import rcParams, rc
 import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 from orbit3d.format_fits import pull_chain_params, burnin_chain
+
+rc('font',**{'size':11.5})
 
 
 class Orbit:
@@ -274,6 +276,17 @@ class OrbitPlots:
         return offset_dic
 
 
+    def align_ylabels(self, fig, axes, pad=0.02):
+        xmin = np.inf
+        for axis in axes:
+            xmin = min(xmin, axis.yaxis.get_ticklabel_extents(fig.canvas.get_renderer())[0].get_points()[0, 0])
+        for axis in axes:
+            bb = axis.get_window_extent(fig.canvas.get_renderer()).get_points()
+            dx = bb[1, 0] - bb[0, 0]
+            x0 = bb[0, 0]
+            axis.yaxis.set_label_coords((xmin - x0)/dx - pad, 0.5)
+        return
+
 
 ########################################## Plotting ################################################
 
@@ -314,7 +327,7 @@ class OrbitPlots:
 
     def astrometry(self):
 
-        fig = plt.figure(figsize=(5, 5))
+        fig = plt.figure(figsize=(5, 4))
         ax = fig.add_subplot(111)
 
         # plot the num_orbits randomly selected curves
@@ -400,16 +413,16 @@ class OrbitPlots:
 
             # if the point you are labeling has x value larger than the corresponding x value on the semimajor axis (same y), and has y value larger than the corresponding y value on the semiminor axis (same x), then it's in the first quardret and the labels should be aligned to the left and rotated by -angle (here the angle is already corrected by 90 degrees in line 486)
             if x < (y-b_semimajor)/m_semimajor and y > m_semiminor*x + b_semiminor:
-                ax.annotate('  ' + str(year), xy=(x, y), verticalalignment='bottom', horizontalalignment='left',rotation =-angle)
+                ax.annotate('  ' + str(year), xy=(x, y), verticalalignment='bottom', horizontalalignment='left',rotation =-angle, size=9.5)
             # if the point you are labeling has x value larger than the corresponding x value on the semimajor axis (same y), and has y value smaller than the corresponding y value on the semiminor axis (same x), then it's in the fourth quardret and the labels should be aligned to the left rotated by +angle
             elif x < (y-b_semimajor)/m_semimajor and y < m_semiminor*x + b_semiminor:
-                ax.annotate('  ' + str(year), xy=(x, y), verticalalignment='top', horizontalalignment='left',rotation =angle)
+                ax.annotate('  ' + str(year), xy=(x, y), verticalalignment='top', horizontalalignment='left',rotation =angle, size=9.5)
             # if the point you are labeling has x value smaller than the corresponding x value on the semimajor axis (same y), and has y value larger than the corresponding y value on the semiminor axis (same x), then it's in the second quardret and the labels should be aligned to the right and rotated by -angle
             elif x > (y-b_semimajor)/m_semimajor and y < m_semiminor*x + b_semiminor:
-                ax.annotate(str(year)+'  ', xy=(x, y), verticalalignment='top', horizontalalignment='right',rotation= -angle)
+                ax.annotate(str(year)+'  ', xy=(x, y), verticalalignment='top', horizontalalignment='right',rotation= -angle, size=9.5)
             # if the point you are labeling has x value smaller than the corresponding x value on the semimajor axis (same y), and has y value smaller than the corresponding y value on the semiminor axis (same x), then it's in the third quardret and the labels should be aligned to the right and rotated by +angle
             elif x > (y-b_semimajor)/m_semimajor and y > m_semiminor*x + b_semiminor:
-                ax.annotate(str(year)+'  ', xy=(x, y), verticalalignment='bottom', horizontalalignment='right', rotation=angle)
+                ax.annotate(str(year)+'  ', xy=(x, y), verticalalignment='bottom', horizontalalignment='right', rotation=angle, size=9.5)
 
         # plot line of nodes, periastron and the direction of motion of the companion
         dra_nd, ddec_nd = self.closed_orbit(orb_ml.par, orb_ml.plx, nodes=True)
@@ -629,7 +642,7 @@ class OrbitPlots:
         if self.add_text:
             ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
-            cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
+            cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
             if self.colorbar_size < 0 or self.colorbar_pad < 0:
                 cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
             else:
@@ -642,6 +655,11 @@ class OrbitPlots:
             fig.delaxes(cbar_ax)
 
         print("Plotting relative RV, your plot is generated at " + self.outputdir)
+        try:
+            self.align_ylabels(fig, [ax1, ax2])
+        except:
+            pass                            
+
         plt.savefig(os.path.join(self.outputdir, 'relRV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
@@ -677,13 +695,13 @@ class OrbitPlots:
             ep_relAst_obs_calendar = []
             for i in range(len(self.ep_relAst_obs)):
                 ep_relAst_obs_calendar.append(self.JD_to_calendar(self.ep_relAst_obs[i]))
-            ax1.errorbar(ep_relAst_obs_calendar, self.relsep_obs, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
-            ax1.scatter(ep_relAst_obs_calendar, self.relsep_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
+            ax1.errorbar(ep_relAst_obs_calendar, self.relsep_obs, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=4, markersize=5, zorder=299)
+            ax1.scatter(ep_relAst_obs_calendar, self.relsep_obs, s=60, facecolors=self.marker_color, edgecolors='k', alpha=1, zorder=300)
 
             dat_OC = self.relsep_obs - orb_ml.relsep[self.ast_indx]
             
-            ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
-            ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
+            ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.relsep_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=4, markersize=5, zorder=299)
+            ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=60, facecolors=self.marker_color, edgecolors='k', alpha=1, zorder=300)
                 
             # axes settings
             # ax1
@@ -696,7 +714,7 @@ class OrbitPlots:
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
             ax1.yaxis.set_minor_locator(AutoMinorLocator())
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax1.set_ylabel('Separation (arcsec)', labelpad=13, fontsize=13)
+            lab1 = ax1.set_ylabel('Separation (arcsec)', fontsize=13)
             # ax2
             range_datOC = max(dat_OC) - min(dat_OC)
             if np.abs(min(dat_OC)) <= np.abs(max(dat_OC)):
@@ -706,8 +724,9 @@ class OrbitPlots:
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
-            ax2.set_ylabel('O-C', labelpad=-2, fontsize=13)
-            
+            lab2 = ax2.set_ylabel('O-C', fontsize=13)
+            #ax2.get_yaxis().set_label_coords()
+
             # from advanced plotting settings in config.ini
             if self.set_limit:
                 ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
@@ -717,7 +736,7 @@ class OrbitPlots:
             if self.add_text:
                 ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
-                cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
+                cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
                 if self.colorbar_size < 0 or self.colorbar_pad < 0:
                     cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                 else:
@@ -751,9 +770,13 @@ class OrbitPlots:
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax.set_ylabel('Separation (arcsec)', fontsize=13)
             ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
-                
+            
         plt.tight_layout()
         print("Plotting Separation, your plot is generated at " + self.outputdir)
+        try:
+            self.align_ylabels(fig, [ax1, ax2])
+        except:
+            pass
         plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
@@ -790,12 +813,12 @@ class OrbitPlots:
             ep_relAst_obs_calendar = []
             for i in range(len(self.ep_relAst_obs)):
                 ep_relAst_obs_calendar.append(self.JD_to_calendar(self.ep_relAst_obs[i]))
-            ax1.errorbar(ep_relAst_obs_calendar, self.PA_obs, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
-            ax1.scatter(ep_relAst_obs_calendar, self.PA_obs, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
+            ax1.errorbar(ep_relAst_obs_calendar, self.PA_obs, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=4, markersize=5, zorder=299)
+            ax1.scatter(ep_relAst_obs_calendar, self.PA_obs, s=60, facecolors=self.marker_color, edgecolors='k', alpha=1, zorder=300)
             dat_OC = self.PA_obs - orb_ml.PA[self.ast_indx]
 
-            ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize=5, zorder=299)
-            ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=45, facecolors='none', edgecolors='k', alpha=1, zorder=300)
+            ax2.errorbar(ep_relAst_obs_calendar, dat_OC, yerr=self.PA_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=4, markersize=5, zorder=299)
+            ax2.scatter(ep_relAst_obs_calendar, dat_OC, s=60, facecolors=self.marker_color, edgecolors='k', alpha=1, zorder=300)
 
             # axes settings
             # ax1
@@ -818,7 +841,7 @@ class OrbitPlots:
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
-            ax2.set_ylabel('O-C', labelpad=17, fontsize=13)
+            ax2.set_ylabel('O-C', labelpad=6, fontsize=13)
 
             # from advanced plotting settings in config.ini
             if self.set_limit:
@@ -829,7 +852,7 @@ class OrbitPlots:
             if self.add_text:
                 ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
-                cbar_ax = fig.add_axes([1.6, 0.16, 0.05, 0.7])
+                cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
                 if self.colorbar_size < 0 or self.colorbar_pad < 0:
                     cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                 else:
@@ -865,6 +888,10 @@ class OrbitPlots:
         
         plt.tight_layout()
         print("Plotting Position Angle, your plot is generated at " + self.outputdir)
+        try:
+            self.align_ylabels(fig, [ax1, ax2])
+        except:
+            pass
         plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200, transparent=True)
 ################################################################################################
 
@@ -889,8 +916,8 @@ class OrbitPlots:
                 fig = plt.figure(figsize=(11, 5.5))
                 ax1 = fig.add_axes((0.10, 0.30, 0.35, 0.60))
                 ax2 = fig.add_axes((0.10, 0.12, 0.35, 0.15))
-                ax3 = fig.add_axes((0.56, 0.30, 0.35, 0.60))
-                ax4 = fig.add_axes((0.56, 0.12, 0.35, 0.15))
+                ax3 = fig.add_axes((0.54, 0.30, 0.35, 0.60))
+                ax4 = fig.add_axes((0.54, 0.12, 0.35, 0.15))
 
                 
             # set up the observed data points
@@ -946,26 +973,26 @@ class OrbitPlots:
             ax3.plot(T[indx], orb_ml.mu_Dec[indx], color='black')
             ax4.plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
             
-            ax1.errorbar(ep_mualp_obs_calendar, self.mualp_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax1.scatter(ep_mualp_obs_calendar, self.mualp_obs, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
-            ax3.errorbar(ep_mudec_obs_calendar, self.mudec_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax3.scatter(ep_mudec_obs_calendar, self.mudec_obs, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            ax1.errorbar(ep_mualp_obs_calendar, self.mualp_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
+            ax1.scatter(ep_mualp_obs_calendar, self.mualp_obs, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
+            ax3.errorbar(ep_mudec_obs_calendar, self.mudec_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
+            ax3.scatter(ep_mudec_obs_calendar, self.mudec_obs, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
             
             # plot the O-C for observed data points
             dat_OC_RA = self.mualp_obs - orb_ml_RA.mu_RA
-            ax2.errorbar(ep_mualp_obs_calendar, dat_OC_RA, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax2.scatter(ep_mualp_obs_calendar, dat_OC_RA, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            ax2.errorbar(ep_mualp_obs_calendar, dat_OC_RA, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
+            ax2.scatter(ep_mualp_obs_calendar, dat_OC_RA, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
 
             dat_OC_Dec = self.mudec_obs - orb_ml_Dec.mu_Dec
-            ax4.errorbar(ep_mudec_obs_calendar, dat_OC_Dec, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=3, markersize = 5, zorder = 299)
-            ax4.scatter(ep_mudec_obs_calendar, dat_OC_Dec, s=45, facecolors='none', edgecolors='k', zorder = 300, alpha=1)
+            ax4.errorbar(ep_mudec_obs_calendar, dat_OC_Dec, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
+            ax4.scatter(ep_mudec_obs_calendar, dat_OC_Dec, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
 
             # axes settings
             # ax1
             ax1.get_shared_x_axes().join(ax1, ax2)
             ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
 
-            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)', labelpad = 5, fontsize = 13)
+            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)', labelpad = 6, fontsize = 13)
             # ax3
             ax3.get_shared_x_axes().join(ax3, ax4)
             ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
@@ -989,7 +1016,7 @@ class OrbitPlots:
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
                 ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
                 ax.set_xlabel('Epoch (year)', labelpad = 6, fontsize = 13)
-                ax.set_ylabel('O-C', labelpad = 8, fontsize = 13)
+                ax.set_ylabel('O-C', labelpad = 6, fontsize = 13)
                 
             # from advanced plotting settings in config.ini
             if self.set_limit:
@@ -1005,7 +1032,7 @@ class OrbitPlots:
             if self.usecolorbar:
                 if self.pm_separate:
                     for figure, name in [[fig, 'RA_'], [fig1, 'Dec_']]:
-                        cbar_ax = figure.add_axes([1.6, 0.16, 0.05, 0.7])
+                        cbar_ax = figure.add_axes([1.55, 0.16, 0.05, 0.7])
                         if self.colorbar_size < 0 or self.colorbar_pad < 0:
                             cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                         else:
@@ -1016,9 +1043,16 @@ class OrbitPlots:
                         else:
                             cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
                         figure.delaxes(cbar_ax)
+                        try:
+                            if name == 'RA_':
+                                self.align_ylabels(figure, [ax1, ax2], pad=0.02)
+                            else:
+                                self.align_ylabels(figure, [ax3, ax4], pad=0.02)
+                        except:
+                            pass                            
                         figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
                 else:
-                    cbar_ax = fig.add_axes([1.5, 0.16, 0.05, 0.7])
+                    cbar_ax = fig.add_axes([1.46, 0.16, 0.05, 0.7])
                     if self.colorbar_size < 0 or self.colorbar_pad < 0:
                         cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                     else:
@@ -1029,6 +1063,13 @@ class OrbitPlots:
                     else:
                         cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
                     fig.delaxes(cbar_ax)
+
+                    try:
+                        self.align_ylabels(fig, [ax1, ax2], pad=0.02)
+                        self.align_ylabels(fig, [ax3, ax4], pad=0.02)
+                    except:
+                        pass                            
+                            
                     fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
         else:
             fig = plt.figure(figsize=(11, 5.5))
@@ -1054,7 +1095,7 @@ class OrbitPlots:
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             #ax1.set_title(self.title)
             ax1.set_xlabel('date (yr)')
-            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)',labelpad = 1)
+            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)',labelpad = 6)
 
             ax2.set_xlim(self.start_epoch, self.end_epoch)
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1063,9 +1104,14 @@ class OrbitPlots:
             #ax2.set_title(self.title)
             ax2.set_xlabel('date (yr)')
             ax2.set_ylabel(r'$\mu_{\delta}$ (mas/yr)')
-        
+            try:
+                self.align_ylabels(fig, [ax1, ax3])
+                self.align_ylabels(fig, [ax2, ax4])
+            except:
+                pass                            
+
         plt.tight_layout()
-        print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
+        print("Prlotting Proper Motions, your plot is generated at " + self.outputdir)
         
         if self.pm_separate and not self.usecolorbar:
             fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
@@ -1178,6 +1224,9 @@ class OrbitPlots:
         ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
         ax.text(xmax - 3e-2*(xmax - xmin), ymax - 7e-2*(ymax - ymin),
                 'Location of %s, %.1f' % (self.text_name, self.predicted_ep_ast), fontsize=14)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
         ax.invert_xaxis()
         plt.tight_layout()
         plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True)
@@ -1198,10 +1247,10 @@ class OrbitPlots:
         npl = '%d' % (self.iplanet)
         if self.cmref == 'msec_solar':
             Msec = chain['msec' + npl]         # in M_{\odot}
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
+            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'e', r'$\mathrm{i\, (^{\circ})}$']
         else:
             Msec = chain['msec' + npl]*1989/1.898
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'$\mathrm{e}$', r'$\mathrm{i\, (^{\circ})}$']
+            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'e', r'$\mathrm{i\, (^{\circ})}$']
         Semimajor = chain['sau' + npl]
         Ecc = chain['esino' + npl]**2 + chain['ecoso' + npl]**2
         Inc = chain['inc' + npl]
