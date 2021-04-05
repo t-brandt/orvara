@@ -440,10 +440,7 @@ class OrbitPlots:
         if self.add_text:
             ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
-            if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                cbar = fig.colorbar(self.sm, ax=ax, fraction=0.046, pad=0.04)
-            else:
-                cbar = fig.colorbar(self.sm, ax=ax, fraction=self.colorbar_size, pad=self.colorbar_pad)
+            cbar = fig.colorbar(self.sm, ax=ax, fraction=0.046, pad=0.04)
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
             cbar.ax.get_yaxis().labelpad=20
         
@@ -465,9 +462,9 @@ class OrbitPlots:
 # 2. RV orbits plot
 
     ################################################################################################
-    ########################### plot the RV orbits #######################
+    ########################### plot the RV full orbits #######################
     
-    def RV(self):
+    def RV_fullorbit(self):
         fig = plt.figure(figsize=(5.7, 6.5))
         ax = fig.add_axes((0.15, 0.3, 0.8, 0.6))
         orb_ml = Orbit(self, 'best')
@@ -512,15 +509,9 @@ class OrbitPlots:
             ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
             cbar_ax = fig.add_axes([1.3, 0.325, 0.03, 0.55])
-            if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-            else:
-                cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12) # default value = 12
+            cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-            if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                cbar.ax.get_yaxis().labelpad=20
-            else:
-                cbar.ax.get_yaxis().labelpad=self.colorbar_pad
+            cbar.ax.get_yaxis().labelpad=20
             fig.delaxes(cbar_ax)
             
         ax.xaxis.set_minor_locator(AutoMinorLocator())
@@ -537,9 +528,9 @@ class OrbitPlots:
 # 3. relative RV plot
 
     ################################################################################################
-    ############### plot the relative RV and O-C #####################
+    ############### plot the RV and O-C #####################
 
-    def relRV(self):
+    def RV(self):
         fig = plt.figure(figsize=(4.7, 5.5))
         ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
         ax2 = fig.add_axes((0.15, 0.12, 0.8, 0.16)) # X, Y, width, height
@@ -569,7 +560,7 @@ class OrbitPlots:
         orb_ml_obs = Orbit(self, 'best', epochs='observed')
         
         #if self.whichInst == np.str('All'):
-        #    print('You have chosen to plot relative RV for all the Instruments')
+        #    print('You have chosen to plot RV for all the Instruments')
         all_OC = []
         all_OC_err = []
         
@@ -643,24 +634,18 @@ class OrbitPlots:
             ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
             cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
-            if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-            else:
-                cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=self.colorbar_size) # default value = 12
+            cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-            if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                cbar.ax.get_yaxis().labelpad=20
-            else:
-                cbar.ax.get_yaxis().labelpad=self.colorbar_pad
+            cbar.ax.get_yaxis().labelpad=20
             fig.delaxes(cbar_ax)
 
-        print("Plotting relative RV, your plot is generated at " + self.outputdir)
+        print("Plotting RV, your plot is generated at " + self.outputdir)
         try:
             self.align_ylabels(fig, [ax1, ax2])
         except:
             pass                            
 
-        plt.savefig(os.path.join(self.outputdir, 'relRV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
+        plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
@@ -737,15 +722,9 @@ class OrbitPlots:
                 ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
                 cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
-                if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                else:
-                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=self.colorbar_size) # default value = 12
+                cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                 cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                    cbar.ax.get_yaxis().labelpad=20
-                else:
-                    cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
+                cbar.ax.get_yaxis().labelpad=20
                 fig.delaxes(cbar_ax)
 
         else:
@@ -853,15 +832,9 @@ class OrbitPlots:
                 ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
             if self.usecolorbar:
                 cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
-                if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                else:
-                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=self.colorbar_size) # default value = 12
+                cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                 cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                    cbar.ax.get_yaxis().labelpad=20
-                else:
-                    cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
+                cbar.ax.get_yaxis().labelpad=20
                 fig.delaxes(cbar_ax)
 
         else:
@@ -1033,15 +1006,9 @@ class OrbitPlots:
                 if self.pm_separate:
                     for figure, name in [[fig, 'RA_'], [fig1, 'Dec_']]:
                         cbar_ax = figure.add_axes([1.55, 0.16, 0.05, 0.7])
-                        if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                            cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                        else:
-                            cbar = figure.colorbar(self.sm, ax=cbar_ax, fraction=self.colorbar_size) # default value = 12
+                        cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                         cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                        if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                            cbar.ax.get_yaxis().labelpad=20
-                        else:
-                            cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
+                        cbar.ax.get_yaxis().labelpad=20
                         figure.delaxes(cbar_ax)
                         try:
                             if name == 'RA_':
@@ -1053,15 +1020,9 @@ class OrbitPlots:
                         figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
                 else:
                     cbar_ax = fig.add_axes([1.46, 0.16, 0.05, 0.7])
-                    if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                        cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                    else:
-                        cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=self.colorbar_size) # default value = 12
+                    cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
                     cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                    if self.colorbar_size < 0 or self.colorbar_pad < 0:
-                        cbar.ax.get_yaxis().labelpad=20
-                    else:
-                        cbar.ax.get_yaxis().labelpad=self.colorbar_pad # defult value = 20
+                    cbar.ax.get_yaxis().labelpad=20
                     fig.delaxes(cbar_ax)
 
                     try:

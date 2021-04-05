@@ -98,8 +98,8 @@ def initialize_plot_options(config):
     # marker settings
     OP.marker_color = config.get('plotting', 'marker_color', fallback= 'coral')
     
-    # plot which instrument for the relative RV plot, starting from 1,2 ... n
-    OP.whichInst = config.get('plotting', 'Relative_RV_Instrument', fallback=False)
+    # plot which instrument for the RV plot, starting from 1,2 ... n
+    OP.whichInst = config.get('plotting', 'RV_Instrument', fallback=False)
     
     # plot the two proper motion plots separately or together
     OP.pm_separate = config.getboolean('plotting', 'Proper_motion_separate_plots', fallback=False)
@@ -135,8 +135,8 @@ def run():
     burnin = config.getint('plotting', 'burnin', fallback=0)
     plot_astr = config.getboolean('plotting', 'Astrometry_orbits_plot', fallback=False)
     plot_astr_pred = config.getboolean('plotting', 'Astrometric_prediction_plot', fallback=False)
-    plot_rv = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
-    plot_rel_rv = config.getboolean('plotting', 'Relative_RV_plot', fallback=False)
+    plot_rv_full = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
+    plot_rv = config.getboolean('plotting', 'RV_plot', fallback=False)
     plot_rel_sep = config.getboolean('plotting', 'Relative_separation_plot', fallback=False)
     plot_position_angle = config.getboolean('plotting', 'Position_angle_plot', fallback=False)
     plot_proper_motions = config.getboolean('plotting', 'Proper_motion_plot', fallback=False)
@@ -150,10 +150,10 @@ def run():
         OPs.astrometry()
     if plot_astr_pred:
         OPs.astrometric_prediction()
+    if plot_rv_full:
+        OPs.RV_fullorbit()
     if plot_rv:
         OPs.RV()
-    if plot_rel_rv:
-        OPs.relRV()
     if plot_rel_sep:
         OPs.relsep()
     if plot_position_angle:
