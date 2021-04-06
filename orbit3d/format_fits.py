@@ -65,6 +65,9 @@ def pull_chain_params(columns, step=0, lnp_name='lnp'):
 
 def burnin_chain(columns, burnin=0, reshape=True):
 
+    if columns[0].array.shape[1] <= burnin:
+        raise ValueError("Cannot use a burnin length longer than the chain.")
+        
     newcols = []
     for i in range(len(columns)):
         if reshape:
