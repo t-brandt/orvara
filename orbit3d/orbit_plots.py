@@ -1236,7 +1236,7 @@ class OrbitPlots:
         chain = fits.open(self.MCMCfile)[1].data
         chain = burnin_chain(chain.columns, self.burnin, reshape=False)
         nwalkers, nsteps = chain['lnp'].shape
-        ndim = len(pull_chain_params(OP.chain.columns, 0)) + 1
+        ndim = len(pull_chain_params(chain.columns, 0)) + 1
         fig, ax = plt.subplots(nrows=ndim,sharex=True, figsize=(10,10))
         ijit = 0
         for i in range(len(chain.columns)):
