@@ -523,6 +523,21 @@ cdef class Model:
             dDec_dt[i] = A * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + F * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
         return dRA_dt, dDec_dt
 
+    def return_EAs(self):
+        cdef int i
+
+        EA = np.zeros(self.nEA)
+        sinEA = np.zeros(self.nEA)
+        cosEA = np.zeros(self.nEA)
+        
+        for i in range(self.nEA):
+            EA[i] = self.EA[i]
+            sinEA[i] = self.sinEA[i]
+            cosEA[i] = self.cosEA[i]
+
+        return [EA, sinEA, cosEA]
+
+
     def free(self):
         PyMem_Free(self.dRA_H1)
         PyMem_Free(self.dDec_H1)
@@ -553,7 +568,7 @@ cdef class Chisq_resids:
 @cython.wraparound(False)
 @cython.nonecheck(False)
 
-def calc_EA_RPP(Data data, Params par, Model model):
+def calc_EA_RPP(Data data, Params par, Model model, bint input_MA=False):
 
     cdef extern from "calcEA.h":
         double shortsin(double x)
@@ -620,6 +635,14 @@ def calc_EA_RPP(Data data, Params par, Model model):
                 _MA = twopi - _MA
             else:
                 EAsign = 1
+
+            if input_MA:
+                if data.epochs[i] > 0:
+                    EAsign = 1
+                    _MA = data.epochs[i]
+                else:
+                    EAsign = -1
+                    _MA = -data.epochs[i]            
 
             #############################################################
             # Use the lookup table for the initial guess.
@@ -691,6 +714,14 @@ def calc_EA_RPP(Data data, Params par, Model model):
                 _MA = twopi - _MA
             else:
                 EAsign = 1
+
+            if input_MA:
+                if data.epochs[i] > 0:
+                    EAsign = 1
+                    _MA = data.epochs[i]
+                else:
+                    EAsign = -1
+                    _MA = -data.epochs[i]
 
             #############################################################
             # Use the lookup table for the initial guess as long as we
