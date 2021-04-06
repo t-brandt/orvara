@@ -60,6 +60,8 @@ def calc_times(n, ecc, N=None, n_rand=100):
         orbit.sincos(model, alldata[0].nTot)
     t_sincos = (time.perf_counter_ns() - t1)/(N*n)
 
+    model.free()
+
     return [t_RPP, t_goatherd, t_radvel, t_batman, t_nijenhuis, t_sincos]
 
 
