@@ -1230,29 +1230,27 @@ class OrbitPlots:
 #diagnostic plots
 
     def plot_chains(self,labels=None,thin=1,alpha=0.1):
-        labels=['Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam']
+        #labels=['Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam']
         print("Generating diagonstic plots to check convergence")
 
         chain = fits.open(self.MCMCfile)[1].data
         chain = burnin_chain(chain.columns, self.burnin, reshape=False)
         nwalkers, nsteps = chain['lnp'].shape
-        ndim = len(chain.columns)
-        fig, ax = plt.subplots(nrows=ndim,sharex=True, figsize=(10,7))
+        ndim = len(pull_chain_params(OP.chain.columns, 0)) + 1
+        fig, ax = plt.subplots(nrows=ndim,sharex=True, figsize=(10,10))
         ijit = 0
         for i in range(len(chain.columns)):
             for walker in range(nwalkers):
                 ax[i].plot(chain.columns[i].array[walker],
                            color="black", alpha=alpha, lw=0.5);
-            if labels:
-                if i >= len(labels):
-                    labels += ['jiiter%d' % (ijit)]
-                    ijit += 1
-                ax[i].set_ylabel(labels[i],fontsize=15,labelpad = 10)
-                ax[i].margins(y=0.1)
+            ax[i].set_ylabel(chain.columns[i].name,fontsize=15,labelpad = 10)
+            ax[i].margins(y=0.1)
             for label in ax[i].get_yticklabels():
                 label.set_fontsize(15)
                 
             ax[i].yaxis.set_label_coords(-0.1, 0.5)
+            if chain.columns[i].name == 'lnp':
+                break
 
         ax[i].set_xlabel("sample",fontsize=15)
         ax[i].minorticks_on()
