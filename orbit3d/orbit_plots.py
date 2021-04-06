@@ -1245,7 +1245,7 @@ class OrbitPlots:
                            color="black", alpha=alpha, lw=0.5);
             if labels:
                 if i >= len(labels):
-                    labels += 'jiiter%d' % (ijit)
+                    labels += ['jiiter%d' % (ijit)]
                     ijit += 1
                 ax[i].set_ylabel(labels[i],fontsize=15,labelpad = 10)
                 ax[i].margins(y=0.1)
