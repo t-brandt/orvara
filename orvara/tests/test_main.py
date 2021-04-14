@@ -4,8 +4,8 @@ import tempfile
 import mock
 import os
 
-from orbit3d.main import set_initial_parameters, run, get_priors
-from orbit3d.tests.utils import FakeArguments
+from orvara.main import set_initial_parameters, run, get_priors
+from orvara.tests.utils import FakeArguments
 from astropy.io import fits
 from configparser import ConfigParser
 
@@ -19,7 +19,7 @@ def test_set_initial_parameters():
 
 def test_get_priors():
     config = ConfigParser()
-    config.read('orbit3d/tests/config_with_secondary_priors.ini')
+    config.read('orvara/tests/config_with_secondary_priors.ini')
     priors = get_priors(config)
     assert priors['m_secondary1'] == 1
     assert priors['m_secondary1_sig'] == 2
@@ -28,18 +28,18 @@ def test_get_priors():
 
 
 @pytest.mark.integration
-@mock.patch('orbit3d.main.parse_args')
+@mock.patch('orvara.main.parse_args')
 def test_run(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
-        fake_args.return_value = FakeArguments('orbit3d/tests/config.ini', tmp_dir)
+        fake_args.return_value = FakeArguments('orvara/tests/config.ini', tmp_dir)
         run()
         assert True
 
 @pytest.mark.e2e
-@mock.patch('orbit3d.main.parse_args')
+@mock.patch('orvara.main.parse_args')
 def test_converges_to_accurate_values(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
-        fake_args.return_value = FakeArguments('orbit3d/tests/diagnostic_config.ini', tmp_dir)
+        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
         run()
         # load file and check params
         file = 'HIP3850_chain000.fits'
