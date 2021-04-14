@@ -119,8 +119,8 @@ def initialize_data(config, companion_gaia):
     except:
         raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
 
-    RVFile = config.get('data_paths', 'RVFile')
-    AstrometryFile = config.get('data_paths', 'AstrometryFile')
+    RVFile = config.get('data_paths', 'RVFile', fallback=None)
+    AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback=None)
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
@@ -273,13 +273,13 @@ def run():
     config.read(args.config_file)
 
     # set the mcmc parameters
-    nwalkers = config.getint('mcmc_settings', 'nwalkers')
-    ntemps = config.getint('mcmc_settings', 'ntemps')
+    nwalkers = config.getint('mcmc_settings', 'nwalkers', fallback=100)
+    ntemps = config.getint('mcmc_settings', 'ntemps', fallback=10)
     nplanets = config.getint('mcmc_settings', 'nplanets')
     jit_per_inst = config.getboolean('mcmc_settings', 'jit_per_inst', fallback=False)
     nstep = config.getint('mcmc_settings', 'nstep')
     thin = config.getint('mcmc_settings', 'thin', fallback=50)
-    nthreads = config.getint('mcmc_settings', 'nthreads')
+    nthreads = config.getint('mcmc_settings', 'nthreads', fallback=1)
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     start_file = config.get('data_paths', 'start_file', fallback='none')
