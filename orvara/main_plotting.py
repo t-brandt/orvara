@@ -7,7 +7,7 @@ accessed by calling plot_orbit from the command line.
 
 Example:
 
-plot_orbit --output-dir ./Plots --config-file ./orbit3d/tests/config_Gl758.ini
+plot_orbit --output-dir ./Plots --config-file ./orvara/tests/config_Gl758.ini
 
 """
 
@@ -29,11 +29,11 @@ from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 from configparser import ConfigParser
 from htof.main import Astrometry
-from orbit3d import orbit
-from orbit3d.config import parse_args_plotting
+from orvara import orbit
+from orvara.config import parse_args_plotting
 import argparse
 from configparser import ConfigParser
-from orbit3d import orbit_plots         # import orbit_plots plotting package
+from orvara import orbit_plots         # import orbit_plots plotting package
 
 
 def initialize_plot_options(config):

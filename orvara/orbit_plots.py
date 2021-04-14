@@ -3,10 +3,10 @@ import numpy as np
 from astropy.time import Time
 import time
 from random import randrange
-from orbit3d import corner_modified
+from orvara import corner_modified
 from scipy.interpolate import interp1d
 from scipy import stats, signal
-from orbit3d import orbit
+from orvara import orbit
 from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib import rcParams, rc
@@ -15,7 +15,7 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
-from orbit3d.format_fits import pull_chain_params, burnin_chain
+from orvara.format_fits import pull_chain_params, burnin_chain
 
 rc('font',**{'size':11.5})
 
