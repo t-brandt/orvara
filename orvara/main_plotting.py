@@ -44,12 +44,12 @@ def initialize_plot_options(config):
     OP = orbit_plots.OrbitPlots()
 
     # target information
-    OP.target = OP.title = config.get('plotting', 'target')
+    OP.target = OP.title = config.get('plotting', 'target', fallback='')
     OP.Hip = config.getint('data_paths', 'HipID', fallback=0)
     OP.nplanets = config.getint('mcmc_settings', 'nplanets')
 
     # read data
-    OP.RVfile = config.get('data_paths', 'RVFile')
+    OP.RVfile = config.get('data_paths', 'RVFile', fallback=None)
     OP.relAstfile = config.get('data_paths', 'AstrometryFile', fallback=None)
     OP.GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
     OP.Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
@@ -69,11 +69,11 @@ def initialize_plot_options(config):
     OP.iplanet = config.getint('plotting', 'iplanet', fallback=0)
     
     # customized range of epochs
-    OP.start_epoch = config.getfloat('plotting', 'start_epoch', fallback=0)
-    OP.end_epoch = config.getfloat('plotting', 'end_epoch', fallback=0)
+    OP.start_epoch = config.getfloat('plotting', 'start_epoch', fallback=1950)
+    OP.end_epoch = config.getfloat('plotting', 'end_epoch', fallback=2030)
     
     # predicted epoch positions
-    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('1990,2000,2010,2020,2030')).split(",")
+    OP.predicted_ep = config.get('plotting', 'predicted_years', fallback=('2010,2020')).split(",")
     OP.predicted_ep_ast = config.getfloat('plotting', 'position_predict', fallback=2000)
     # how many random orbits
     OP.num_orbits = config.getint('plotting', 'num_orbits', fallback = 50)
@@ -82,12 +82,12 @@ def initialize_plot_options(config):
     OP.num_steps = config.getint('plotting', 'num_steps', fallback = 1000)
     
     # plot axes settings
-    OP.set_limit = config.getboolean('plotting', 'set_limit', fallback=True)
+    OP.set_limit = config.getboolean('plotting', 'set_limit', fallback=False)
     OP.user_xlim = config.get('plotting', 'xlim', fallback=None).split(",")
     OP.user_ylim = config.get('plotting', 'ylim', fallback=None).split(",")
     
     # show or not show title, add a text on the plot
-    OP.show_title = config.getboolean('plotting', 'show_title', fallback=True)
+    OP.show_title = config.getboolean('plotting', 'show_title', fallback=False)
     OP.add_text = config.getboolean('plotting', 'add_text', fallback=False)
     OP.text_name = config.get('plotting', 'text_name', fallback=None)
     OP.x_text = config.getfloat('plotting', 'x_text', fallback=None)
