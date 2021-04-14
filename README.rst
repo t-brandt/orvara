@@ -1,24 +1,24 @@
-orbit3d
+orvara
 ===============
 
-This repo contains orbit3d, the package for fitting orbits of exoplanets.
+This repo contains orvara, the package for fitting orbits of exoplanets.
 
 
 Installation
 ------------
 To install, we will git clone the repo. Run
-:code:`git clone https://github.com/t-brandt/orbit3d`
+:code:`git clone https://github.com/t-brandt/orvara`
 Then:
-:code:`cd orbit3d`
+:code:`cd orvara`
 Then finally:
 :code:`pip install -e .`
-orbit3d is built by running :code:`pip install -e .` while in the the root directory
+orvara is built by running :code:`pip install -e .` while in the the root directory
 of this repo. The :code:`-e` flag builds the Cython modules.
 
 verifying
 ~~~~~~~~~
 
-Cd to the root directory of the repo (if you are not already there). Run:
+cd to the root directory of the repo (if you are not already there). Run:
 :code:`pytest -sv`
 This will run a small suite of tests. This should take about 5 minutes. If any of the tests fail, something
 is wrong with the install. Try running :code:`pip install -e .` . If the issue persists, please submit an issue ticket!
@@ -26,7 +26,7 @@ is wrong with the install. Try running :code:`pip install -e .` . If the issue p
 Configuration
 -------------
 First, assign the appropriate file directories and settings inside of a config.ini file. See the example config.ini file in
-:code:`orbit3d/tests/data/config.ini`. If you are using relative astrometry, you must
+:code:`orvara/tests/data/config.ini`. If you are using relative astrometry, you must
 give paths for :code:`GaiaDataDir`, :code:`Hip1DataDir`, and :code:`Hip2DataDir`. Those are the paths
 to the intermediate data for GaiaDR2, the original Hipparcos data reduction, and the second Hipparcos data reduction.
 Note: if your Hip2 intermediate data come from the DVD, you will want to point to the 'resrec' folder. This should be e.g.:
@@ -39,7 +39,7 @@ should use absolute paths until you confirm that all the input data work.
 
 The config file
 ~~~~~~~~~~~~~~~
-Example configuration files can be found in orbit3d/tests/ e.g. orbit3d/tests/config.ini.
+Example configuration files can be found in orvara/tests/ e.g. orvara/tests/config.ini.
 
 This one in particular looks like:
 
@@ -50,7 +50,7 @@ HipID = 95319
 
 # The file containing the radial velocity time series for the star.
 
-RVFile = orbit3d/tests/data/Gl758_RV.dat
+RVFile = orvara/tests/data/Gl758_RV.dat
 
 # The Hipparcos Gaia Catalog
 
@@ -58,19 +58,19 @@ HGCAFile = HGCA_vDR2_corrected.fits
 
 # The file containing the relative astrometry for the star.
 
-AstrometryFile = orbit3d/tests/data/Gl758_relAST.txt
+AstrometryFile = orvara/tests/data/Gl758_relAST.txt
 
 # The path to all the Gaia DR2 intermediate data
 
-GaiaDataDir = orbit3d/tests/data/gaia
+GaiaDataDir = orvara/tests/data/gaia
 
 # The path to all the Hipparcos (original reduction) intermediate data
 
-Hip1DataDir = orbit3d/tests/data/hip1
+Hip1DataDir = orvara/tests/data/hip1
 
 # The path to all the Hipparcos (second reduction) intermediate data
 
-Hip2DataDir = orbit3d/tests/data/hip2
+Hip2DataDir = orvara/tests/data/hip2
 
 # the file path to the initial conditions to the orbit. Set to None for default guess.
 
@@ -141,7 +141,7 @@ you fit an orbit by running the following from the command line (while in the ro
     fit_orbit --output-dir /path/to/output --config-file path/to/config.ini
 
 One can set the number of threads in the config.ini file via :code:`nthreads`. Note that the built-in parallelization
-is poor. It is better to set nthreads to 1 then simply run multiple instances of orbit3d
+is poor. It is better to set nthreads to 1 then simply run multiple instances of orvara
 on separate cores. One can set the initial conditions of the orbit via the config.ini file.
 You can access the help menu with the --help flag as follows.
 
@@ -233,18 +233,18 @@ If you want an overall absolute astrometric chi squared, you would add the value
 There are effectively four measurements since the mean proper motion of the system was fit (values (2) and (3)).
 
 For instance, displaying hdu2[:, :, 0] will show all the walkers for the parallax chain (however this parameter
-is marginalized over in orbit3d, it is not fit). numpy.mean(hdu2[:, burn:, 0]), numpy.std(hdu2[:, burn:, 0])
+is marginalized over in orvara, it is not fit). numpy.mean(hdu2[:, burn:, 0]), numpy.std(hdu2[:, burn:, 0])
 would give the mean and standard deviation of the parallax (with burn = some integer that is the number of steps/thinning factor
 that you are discarding as burn in)
 
 Examples
 --------
-To run a quick test using the test data and test config.txt in orbit3d/tests, I would cd
-to the root directory of orbit3d, then run the following
+To run a quick test using the test data and test config.txt in orvara/tests, I would cd
+to the root directory of orvara, then run the following
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ~/Downloads --config-file orbit3d/tests/config.ini
+    fit_orbit --output-dir ~/Downloads --config-file orvara/tests/config.ini
 
 This will create a .fits file in the downloads folder. The MCMC should terminate in less than
 one second because of the short number of steps indicated in the example config file.
@@ -255,7 +255,7 @@ check the results yourself against those in misc/Diagnostic_plots.ipynb, you can
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ~/Downloads --config-file orbit3d/tests/diagnostic_config.ini
+    fit_orbit --output-dir ~/Downloads --config-file orvara/tests/diagnostic_config.ini
 
 The diagnostic_config.ini has the same parameters as those used to create the plots in
 Diagnostic_plots.ipynb
@@ -330,7 +330,7 @@ To plot orbits, run a quick test with the plot_orbit command from the root direc
 
 .. code-block:: bash
 
-    plot_orbit --output-dir ./plots --config-file orbit3d/tests/config_HD4747.ini
+    plot_orbit --output-dir ./plots --config-file orvara/tests/config_HD4747.ini
 
 Then, plot your MCMC chains by pointing to the paths for the configuration file following -config-file and 
 the output directory for the plots following -output-dir.
@@ -338,13 +338,13 @@ the output directory for the plots following -output-dir.
     
 Contribution Guidelines
 -----------------------
-We encourage contributions to orbit3d. The workflow for contributing is the following.
+We encourage contributions to orvara. The workflow for contributing is the following.
 
 First time contributers:
  * Fork the repository
  * Checkout a new branch for your feature or bug fix.
  * Make your changes to that branch.
- * When you are ready to submit a pull request into the main orbit3d branch (currently called master), run :code:`pytest -sv` to make sure that the required tests pass.
+ * When you are ready to submit a pull request into the main orvara branch (currently called master), run :code:`pytest -sv` to make sure that the required tests pass.
  * If the tests pass, submit your pull request.
  * One approving administrator review is required to approve a pull request.
 
