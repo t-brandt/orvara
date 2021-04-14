@@ -17,9 +17,9 @@ from astropy.time import Time
 import sys
 import re
 import random
-from orbit3d import orbit
-from orbit3d.config import parse_args
-from orbit3d.format_fits import make_header, pack_cols
+from orvara import orbit
+from orvara.config import parse_args
+from orvara.format_fits import make_header, pack_cols
 import pkg_resources
 
 _loglkwargs = {}
@@ -353,20 +353,29 @@ def run():
                 parfit[i, j, 8:] = RVoffsets
 
     colnames = ['mpri']
+    units = ['msun']
     for i in range(nplanets):
         colnames += [s + '%d' % (i) for s in ['msec', 'sau', 'esino', 'ecoso',
                                               'inc', 'asc', 'lam']]
+        units += ['msun', 'au', '', '', 'radians', 'radians', 'radians']
+
     if njit == 1:
         colnames += ['jitter']
+        units += ['m/s']
+        sample0.chain[0][..., -1] = 10**(0.5*sample0.chain[0][..., -1])
     else:
         for i in range(njit):
             colnames += ['jitter%d' % (i)]
+            units += ['m/s']
+        sample0.chain[0][..., -njit:] = 10**(0.5*sample0.chain[0][..., -njit:])
 
     colnames += ['lnp']
     colnames += ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 
                  'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
+    units += ['', 'arcsec', 'arcsec/yr', 'arcsec/yr', '', '', '', '', '']
     colnames += ['RV_ZP_%d_ML' % (i) for i in range(data.nInst)]
-    
+    units += ['m/s' for i in range(data.nInst)]
+
     out = fits.HDUList(fits.PrimaryHDU(None, header))
 
     if not use_ptemcee:
@@ -374,7 +383,7 @@ def run():
     else:
         lnp = sample0.logprobability[0]
 
-    out.append(pack_cols(sample0.chain[0], lnp, parfit, colnames))
+    out.append(pack_cols(sample0.chain[0], lnp, parfit, colnames, units))
 
     for i in range(1000):
         filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))

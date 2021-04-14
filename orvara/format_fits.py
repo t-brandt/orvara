@@ -8,7 +8,7 @@ def make_header(config_file):
 
     header = fits.PrimaryHDU().header
     
-    version = pkg_resources.get_distribution("orbit3d").version
+    version = pkg_resources.get_distribution("orvara").version
     header.append(('version', version, 'Code version'))
     for line in open(config_file):
         line = line[:-1]
@@ -28,7 +28,7 @@ def make_header(config_file):
     return header
 
 
-def pack_cols(chains, lnp, parfit, names):
+def pack_cols(chains, lnp, parfit, names, units):
 
     if chains.shape[-1] + 1 + parfit.shape[-1] != len(names):
         raise ValueError('Number of names for fits table does not match number of data fields')
@@ -38,14 +38,14 @@ def pack_cols(chains, lnp, parfit, names):
     cols = []
     
     for i in range(chains.shape[-1]):
-        cols += [fits.Column(name=names[n], format=fmt, array=chains[..., i])]
+        cols += [fits.Column(name=names[n], format=fmt, array=chains[..., i], unit=units[n])]
         n += 1
 
-    cols += [fits.Column(name=names[n], format=fmt, array=lnp)]
+    cols += [fits.Column(name=names[n], format=fmt, array=lnp, unit=units[n])]
     n += 1
 
     for i in range(parfit.shape[-1]):
-        cols += [fits.Column(name=names[n], format=fmt, array=parfit[..., i])]
+        cols += [fits.Column(name=names[n], format=fmt, array=parfit[..., i], unit=units[n])]
         n += 1
 
     return fits.BinTableHDU.from_columns(cols)
