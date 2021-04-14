@@ -1,0 +1,8 @@
+# Instrument: NIRC2 on Keck
+# Published in Hirsch, L. A., Ciardi, D. R., Howard, A. W., et al. 2019, ApJ, 878, 50
+##
+# File format
+#   Date       Sep  Err_sep      PA  Err_PA  Corr_Sep_PA  PlanetID  
+ 2012.48     2.594    0.014   298.6     0.1            0         0
+ 2014.78     2.637    0.014   299.5     0.1            0         0
+ 2018.32     2.673    0.003  301.27    0.04            0         0
