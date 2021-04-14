@@ -182,7 +182,7 @@ The column names and descriptions are:
 
 If there is more than one companion, then there are additional fields with, e.g., 'msec1', 'msec2', etc.
 
-'jitter' : log RV jitter (jitter in m/s is 10**(0.5*hdulist[1].data['jitter']))
+'jitter' : log RV jitter in m/s
 
 'jitter0' : log RV jitter for instrument 0 
 
