@@ -1,6 +1,6 @@
 1.0.0 (2021-04-04)
 ------------------
-- Changed format of chain files, incompatible with previous versions.  Support for stars not in HGCA, ability to set one jitter per instrument.  Various small changes and bug fixes.
+- Changed format of chain files, incompatible with previous versions.  Support for stars not in HGCA, ability to set one jitter per instrument.  Various small changes and bug fixes.  Renamed repo and orbit3d directory to orvara.
 
 0.1.5 (2021-02-26)
 ------------------
