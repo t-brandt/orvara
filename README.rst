@@ -165,30 +165,47 @@ lnlike = hdulist[1].data['lnp']
 The column names and descriptions are:
 
 'mpri' : Primary mass (Solar masses)
+
 'msec0' : Secondary mass of the first (index 0) companion, Solar masses
+
 'sau0' : Semimajor axis of the first companion, Solar masses
+
 'esino0' : sqrt(ecc)*sin(omega) for the first companion
+
 'ecoso0' : sqrt(ecc)*cos(omega) for the first companion
+
 'inc0' : inclination (radians) for the first companion
+
 'asc0' : PA of the ascending node (radians) for the first companion
+
 'lam0' : Mean longitude at reference epoch for the first companion
 
 If there is more than one companion, then there are additional fields with, e.g., 'msec1', 'msec2', etc.
 
 'jitter' : log RV jitter (jitter in m/s is 10**(0.5*hdulist[1].data['jitter']))
+
 'jitter0' : log RV jitter for instrument 0 
+
 Note that 'jitter0', 'jitter1', etc. are present and 'jitter' is not if using one jitter per instrument.  The default is to use the same jitter for all instruments.  In this case 'jitter' is present but 'jitter0', 'jitter1', etc. are not.
 
 'lnp' : natural log of the (unnormalized) probability.  Note that this includes matrix determinants and is not simply chi squared.
 
 'plx_ML' : maximum likelihood (ML) parallax at this chain step
+
 'pmra_ML' : ML proper motion in RA at this chain step
+
 'pmdec_ML' : ML proper motion in Dec at this chain step
+
 'chisq_sep' : The chi squared in separation at the ML parallax at this chain step
+
 'chisq_PA' : The chi squared in position angle at this chain step
+
 'chisq_H' : The chi squared for the two Hipparcos proper motions
+
 'chisq_HG' : The chi squared for the two long-term Hipparcos-Gaia proper motions
+
 'chisq_G' : The chi squared for the two Gaia proper motions
+
 'RV_ZP_0_ML' : The ML zero point (barycenter RV) for instrument 0
 
 There will be an 'RV_ZP_1_ML' for instrument 1, etc., up to the number of RV instruments.  
