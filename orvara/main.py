@@ -106,9 +106,19 @@ def initialize_data(config, companion_gaia):
     HGCAFile = config.get('data_paths', 'HGCAFile')
     if not os.path.exists(HGCAFile):
         raise FileNotFoundError(f'No HGCA file found at {HGCAFile}')
-    HGCAVersion = config.get('data_paths', 'HGCAVersion', fallback='GaiaDR2')
-    if HGCAVersion.lower() != 'GaiaDR2'.lower() and HGCAVersion.lower() != 'GaiaeDR3'.lower():
-        raise ValueError('HGCAVersion in the config file is not GaiaDR2 and is not GaiaeDR3')
+
+    try:
+        table = fits.open(HGCAFile)[1].data
+        epoch_ra_gaia = table[table['hip_id'] == 1]['epoch_ra_gaia']
+        if np.isclose(epoch_ra_gaia, 2015.60211565):
+            HGCAVersion = 'GaiaDR2'
+        elif np.isclose(epoch_ra_gaia, 2015.92749023):
+            HGCAVersion = 'GaiaeDR3'
+        else:
+            raise ValueError("Cannot match %s to either DR2 or eDR3 based on RA epoch of Gaia" % (HGCAFile))
+    except:
+        raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
+
     RVFile = config.get('data_paths', 'RVFile')
     AstrometryFile = config.get('data_paths', 'AstrometryFile')
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
