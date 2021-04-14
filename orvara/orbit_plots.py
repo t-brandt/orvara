@@ -487,8 +487,7 @@ class OrbitPlots:
                 epoch_obs_Inst[j] = self.JD_to_calendar(self.epoch_obs_dic[i][j])
             rv_epoch_list.append(epoch_obs_Inst)
 
-        #jit_ml = 10**(0.5*orb_ml.par.jit)
-        jit_ml = 10**(0.5*orb_ml.par.return_jitters())
+        jit_ml = orb_ml.par.return_jitters()
         
         for i in range(self.nInst):
             ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
@@ -574,7 +573,7 @@ class OrbitPlots:
             if not plot_this:
                 continue
             
-            jit_ml = 10**(0.5*orb_ml.par.return_jitters())
+            jit_ml = orb_ml.par.return_jitters()
             ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
             ax1.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], s=45, facecolors='none', edgecolors='k', zorder=200+i, alpha = 0.8)
             
