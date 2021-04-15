@@ -1351,7 +1351,7 @@ class OrbitPlots:
             omega = print_par_values(omega_data,perc_sigmas)
             e = print_par_values(chain['esino' + npl]**2 + chain['ecoso' + npl]**2,perc_sigmas)
             sma = print_par_values(chain['plx_ML']*chain['sau' + npl],perc_sigmas)
-            t0_data = 2455197.5 - 365.25*period_data*((chain['lam' + npl]*180/np.pi)%(180) - omega_data)/360. #reference epoch 2455197.5
+            t0_data = 2455197.5 + 365.25*period_data/(2*np.pi)*((omega_data -chain['lam' + npl])%(2*np.pi)) #reference epoch 2455197.5
             t0 = print_par_values(t0_data,perc_sigmas)
             q = print_par_values(chain['msec' + npl]/chain['mpri'],perc_sigmas)
             
