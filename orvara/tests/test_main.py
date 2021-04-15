@@ -58,8 +58,8 @@ def test_converges_to_accurate_values(fake_args):
         inclination_deg = np.mean(tt['inc0'][i, burn:]*180/np.pi)
         inclination_err = np.std(tt['inc0'][i, burn:]*180/np.pi)
 
-        expected_1_sigma_errors = [0.11231, 2.9215, 0.44668, 0.0030392, 2.3431]
-        expected_values = [1.37637, 67.04218, 10.189, 0.73568, 49.89184]
+        expected_1_sigma_errors = [0.6282, 2.9215, 0.44668, 0.0030392, 2.3431]
+        expected_values = [4.9378, 67.04218, 10.189, 0.73568, 49.89184]
         values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg]
         errors = [rv_jitter_err, companion_mass_stderr, separation_stderr,
                   eccentricity_stderr, inclination_err]
