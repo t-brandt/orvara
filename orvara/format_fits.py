@@ -2,9 +2,14 @@ import numpy as np
 from astropy.io import fits
 import re
 import pkg_resources
+import warnings
 
 
 def make_header(config_file):
+
+    warnings.filterwarnings(action='ignore', 
+                            category=fits.verify.VerifyWarning,
+                            module=r'astropy.io.fits')
 
     header = fits.PrimaryHDU().header
     
