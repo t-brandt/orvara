@@ -74,8 +74,10 @@ class Orbit:
         
         self.mu_RA = 1e3*self.mu_RA*self.plx*365.25 + self.mu_RA_CM
         self.mu_Dec = 1e3*self.mu_Dec*self.plx*365.25 + self.mu_Dec_CM
-        self.offset = OP.calc_RV_offset(step)
-
+        try:
+            self.offset = OP.calc_RV_offset(step)
+        except:
+            self.offset = 0
         if OP.cmref == 'msec_solar':
             self.colorpar = self.par.msec
         elif OP.cmref == 'msec_jup':
@@ -104,7 +106,11 @@ class OrbitPlots:
         self.rand_idx = [randrange(len(self.chain['lnp'])) for i in range(self.num_orbits)]
 
         # load observed RV data
-        self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
+        try:
+            self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
+            self.have_RVdat = True
+        except:
+            self.have_RVdat = False
         # load relative astrometry data:
         try: #if os.access(self.relAstfile,os.R_OK):
             self.have_reldat = True
@@ -480,19 +486,20 @@ class OrbitPlots:
         ax.plot(self.epoch_calendar, orb_ml.RV, color='black')
 
         # plot the observed data points (RV & relAst)
-        rv_epoch_list = []
-        for i in range(self.nInst):
-            epoch_obs_Inst = np.zeros(len(self.epoch_obs_dic[i]))
-            for j in range(len(self.epoch_obs_dic[i])):
-                epoch_obs_Inst[j] = self.JD_to_calendar(self.epoch_obs_dic[i][j])
-            rv_epoch_list.append(epoch_obs_Inst)
+        if self.have_RVdat:
+            rv_epoch_list = []
+            for i in range(self.nInst):
+                epoch_obs_Inst = np.zeros(len(self.epoch_obs_dic[i]))
+                for j in range(len(self.epoch_obs_dic[i])):
+                    epoch_obs_Inst[j] = self.JD_to_calendar(self.epoch_obs_dic[i][j])
+                rv_epoch_list.append(epoch_obs_Inst)
 
-        jit_ml = orb_ml.par.return_jitters()
+            jit_ml = orb_ml.par.return_jitters()
         
-        for i in range(self.nInst):
-            ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
-                        fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
-            ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+            for i in range(self.nInst):
+                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
+                            fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
+                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
             
         ax.set_xlim(self.start_epoch, self.end_epoch)
         x0, x1 = ax.get_xlim()
@@ -503,7 +510,7 @@ class OrbitPlots:
             ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
             ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
         if self.show_title:
-            ax.set_title('Relative RV vs. Epoch')
+            ax.set_title('RV vs. Epoch')
         if self.add_text:
             ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
         if self.usecolorbar:
@@ -530,6 +537,9 @@ class OrbitPlots:
     ############### plot the RV and O-C #####################
 
     def RV(self):
+        if not self.have_RVdat:
+            print("Cannot plot RV with O-C: no RV observations")
+            return
         fig = plt.figure(figsize=(4.7, 5.5))
         ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
         ax2 = fig.add_axes((0.15, 0.12, 0.8, 0.16)) # X, Y, width, height
