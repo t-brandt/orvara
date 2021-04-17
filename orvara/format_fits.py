@@ -80,9 +80,11 @@ def burnin_chain(columns, burnin=0, reshape=True):
                                     format=columns[i].format[-1],
                                     array=columns[i].array[:, burnin:].flatten())]
         else:
+            arr = columns[i].array[:, burnin:]
+            fmt = '%d' % (arr.shape[1]) + columns[i].format[-1]
             newcols += [fits.Column(name=columns[i].name,
-                                    format=columns[i].format,
-                                    array=columns[i].array[:, burnin:])]
+                                    format=fmt,
+                                    array=arr)]
             
     return fits.BinTableHDU.from_columns(newcols).data
 
