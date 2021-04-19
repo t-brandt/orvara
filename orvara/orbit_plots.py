@@ -468,8 +468,10 @@ class OrbitPlots:
         ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
 
         print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', transparent=True) # or +'.png'
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', transparent=True) # or +'.png'
 
 # 2. RV orbits plot
 
@@ -532,9 +534,11 @@ class OrbitPlots:
         ax.set_xlabel('Epoch (year)', labelpad = 10, fontsize=13)
         ax.set_ylabel('RV (m/s)', fontsize=13)
 
-        plt.tight_layout()
-        print("Plotting RV orbits, your plot is generated at " + self.outputdir)
-        plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200) # or +'.pdf'
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.tight_layout()
+            print("Plotting RV orbits, your plot is generated at " + self.outputdir)
+            plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200) # or +'.pdf'
 
 
 # 3. relative RV plot
@@ -660,7 +664,9 @@ class OrbitPlots:
         except:
             pass                            
 
-        plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
@@ -764,14 +770,16 @@ class OrbitPlots:
             ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax.set_ylabel('Separation (arcsec)', fontsize=13)
             ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
-            
-        plt.tight_layout()
-        print("Plotting Separation, your plot is generated at " + self.outputdir)
-        try:
-            self.align_ylabels(fig, [ax1, ax2])
-        except:
-            pass
-        plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)    
+            plt.tight_layout()
+            print("Plotting Separation, your plot is generated at " + self.outputdir)
+            try:
+                self.align_ylabels(fig, [ax1, ax2])
+            except:
+                pass
+            plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
@@ -874,14 +882,18 @@ class OrbitPlots:
             ax.set_ylabel(r'Position Angle ($^{\circ}$)', fontsize=13)
             ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
         
-        plt.tight_layout()
-        print("Plotting Position Angle, your plot is generated at " + self.outputdir)
-        try:
-            self.align_ylabels(fig, [ax1, ax2])
-        except:
-            pass
-        plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200, transparent=True)
-################################################################################################
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.tight_layout()
+            print("Plotting Position Angle, your plot is generated at " + self.outputdir)
+            try:
+                self.align_ylabels(fig, [ax1, ax2])
+            except:
+                pass
+            plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200, transparent=True)
+#############################################################################with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            ###################
 
 
 
@@ -1032,7 +1044,9 @@ class OrbitPlots:
                                 self.align_ylabels(figure, [ax3, ax4], pad=0.02)
                         except:
                             pass                            
-                        figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+                        with warnings.catch_warnings():
+                             warnings.simplefilter("ignore", category=UserWarning)
+                             figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
                 else:
                     cbar_ax = fig.add_axes([1.46, 0.16, 0.05, 0.7])
                     cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
@@ -1046,7 +1060,9 @@ class OrbitPlots:
                     except:
                         pass                            
                             
-                    fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=UserWarning)
+                        fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
         else:
             fig = plt.figure(figsize=(11, 5.5))
             ax1 = fig.add_axes((0.10, 0.1, 0.35, 0.77))
@@ -1086,14 +1102,16 @@ class OrbitPlots:
             except:
                 pass                            
 
-        plt.tight_layout()
-        print("Prlotting Proper Motions, your plot is generated at " + self.outputdir)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.tight_layout()
+            print("Prlotting Proper Motions, your plot is generated at " + self.outputdir)
         
-        if self.pm_separate and not self.usecolorbar:
-            fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-            fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-        elif not self.usecolorbar:
-            fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+            if self.pm_separate and not self.usecolorbar:
+                fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+                fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+            elif not self.usecolorbar:
+                fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
             
 ################################################################################################
 
@@ -1204,11 +1222,12 @@ class OrbitPlots:
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
         ax.invert_xaxis()
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True)
-
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True)
 # 7. Corner plot
-    ################################################################################################
+   ################################################################################################
     ############### plot a nicer corner plot###############
     
     def plot_corner(self, **kwargs):
