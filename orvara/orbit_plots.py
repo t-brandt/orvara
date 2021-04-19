@@ -1,6 +1,8 @@
 import os
 import numpy as np
 from astropy.time import Time
+import astropy
+import warnings
 import time
 from random import randrange
 from orvara import corner_modified
@@ -147,10 +149,14 @@ class OrbitPlots:
 
 ###################################### Define Functions ############################################
     def JD_to_calendar(self, JD):
-        return Time(JD, format='jd').decimalyear
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=astropy.utils.exceptions.ErfaWarning)
+            return Time(JD, format='jd').decimalyear
 
     def calendar_to_JD(self, year):
-        return Time(year, format='decimalyear').jd
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=astropy.utils.exceptions.ErfaWarning)
+            return Time(year, format='decimalyear').jd
 
     def define_epochs(self):
         """
