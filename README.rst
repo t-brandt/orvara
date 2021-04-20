@@ -238,7 +238,7 @@ at each of those two modes.
 
 Examples
 --------
-To run a quick test using the test data and test config.txt in orvara/tests, I would cd
+To run a quick test using the test data and test config.ini in orvara/tests, I would cd
 to the root directory of orvara, then run the following
 
 .. code-block:: bash
