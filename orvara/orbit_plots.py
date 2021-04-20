@@ -645,8 +645,8 @@ class OrbitPlots:
         
         # from advanced plotting settings in config.ini
         if self.set_limit:
-            ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax2.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+            ax1.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+            ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
         if self.show_title:
             ax1.set_title('RV vs. Epoch')
         if self.add_text:
