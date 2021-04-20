@@ -450,7 +450,7 @@ class OrbitPlots:
         if self.show_title:
             ax.set_title('Astrometric Orbits')
         if self.add_text:
-            ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
+            ax.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax.transAxes,fontsize=15)
         if self.usecolorbar:
             cbar = fig.colorbar(self.sm, ax=ax, fraction=0.046, pad=0.04)
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
@@ -520,7 +520,7 @@ class OrbitPlots:
         if self.show_title:
             ax.set_title('RV vs. Epoch')
         if self.add_text:
-            ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
+            ax.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax.transAxes,fontsize=15)
         if self.usecolorbar:
             cbar_ax = fig.add_axes([1.3, 0.325, 0.03, 0.55])
             cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
@@ -650,7 +650,7 @@ class OrbitPlots:
         if self.show_title:
             ax1.set_title('RV vs. Epoch')
         if self.add_text:
-            ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
+            ax1.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax1.transAxes,fontsize=15)
         if self.usecolorbar:
             cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
             cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
@@ -740,7 +740,7 @@ class OrbitPlots:
             if self.show_title:
                 ax1.set_title('Relative Separation vs. Epoch')
             if self.add_text:
-                ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
+                ax1.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax1.transAxes,fontsize=15)
             if self.usecolorbar:
                 cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
                 cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
@@ -852,7 +852,7 @@ class OrbitPlots:
             if self.show_title:
                 ax1.set_title('Position angle vs. Epoch')
             if self.add_text:
-                ax1.text(self.x_text,self.y_text, self.text_name, fontsize=15)
+                ax1.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax1.transAxes,fontsize=15)
             if self.usecolorbar:
                 cbar_ax = fig.add_axes([1.55, 0.16, 0.05, 0.7])
                 cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
@@ -1028,7 +1028,7 @@ class OrbitPlots:
                 ax3.set_title('Declination vs. Epoch')
             if self.add_text:
                 for ax in [ax1,ax3]:
-                    ax.text(self.x_text,self.y_text, self.text_name, fontsize=15)
+                    ax.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax.transAxes,fontsize=15)
             if self.usecolorbar:
                 if self.pm_separate:
                     for figure, name in [[fig, 'RA_'], [fig1, 'Dec_']]:
