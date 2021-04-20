@@ -508,15 +508,16 @@ class OrbitPlots:
                 ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
                             fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
                 ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+           
+        if self.set_limit:
+            ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+            ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             
         ax.set_xlim(self.start_epoch, self.end_epoch)
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
         ax.set_aspect((x1-x0)/(y1-y0))
-        
-        if self.set_limit:
-            ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+
         if self.show_title:
             ax.set_title('RV vs. Epoch')
         if self.add_text:
@@ -634,6 +635,10 @@ class OrbitPlots:
         
         ax2.set_ylim(min_OC - range_OC/7., max_OC + range_OC/7.)
 
+        if self.set_limit:
+            ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+            ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+            
         ax2.xaxis.set_minor_locator(AutoMinorLocator())
         ax2.yaxis.set_minor_locator(AutoMinorLocator())
 
@@ -644,9 +649,6 @@ class OrbitPlots:
         ax2.set_ylabel('O-C', fontsize=13)
         
         # from advanced plotting settings in config.ini
-        if self.set_limit:
-            ax1.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
         if self.show_title:
             ax1.set_title('RV vs. Epoch')
         if self.add_text:
@@ -727,6 +729,10 @@ class OrbitPlots:
                 ax2.set_ylim(-np.abs(max(dat_OC)) - range_datOC, max(dat_OC) + range_datOC)
             elif np.abs(min(dat_OC)) > np.abs(max(dat_OC)):
                 ax2.set_ylim(min(dat_OC) - range_datOC, np.abs(min(dat_OC)) + range_datOC)
+                
+            if self.set_limit:
+                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+                ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
@@ -734,9 +740,6 @@ class OrbitPlots:
             #ax2.get_yaxis().set_label_coords()
 
             # from advanced plotting settings in config.ini
-            if self.set_limit:
-                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                ax2.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             if self.show_title:
                 ax1.set_title('Relative Separation vs. Epoch')
             if self.add_text:
@@ -840,15 +843,17 @@ class OrbitPlots:
                 ax2.set_ylim(-np.abs(max(dat_OC)) - range_datOC, max(dat_OC) + range_datOC)
             elif np.abs(min(dat_OC)) > np.abs(max(dat_OC)):
                 ax2.set_ylim(min(dat_OC) - range_datOC, np.abs(min(dat_OC)) + range_datOC)
+                
+            if self.set_limit:
+                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+                ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
             ax2.set_ylabel('O-C', labelpad=6, fontsize=13)
 
             # from advanced plotting settings in config.ini
-            if self.set_limit:
-                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                ax2.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             if self.show_title:
                 ax1.set_title('Position angle vs. Epoch')
             if self.add_text:
@@ -989,6 +994,12 @@ class OrbitPlots:
 
             # axes settings
             # ax1
+            
+            if self.set_limit:
+                for ax in [ax1, ax3]:
+                    ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
+                    ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                    
             ax1.get_shared_x_axes().join(ax1, ax2)
             ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
 
@@ -1019,10 +1030,6 @@ class OrbitPlots:
                 ax.set_ylabel('O-C', labelpad = 6, fontsize = 13)
                 
             # from advanced plotting settings in config.ini
-            if self.set_limit:
-                for ax in [ax1, ax3]:
-                    ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                    ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             if self.show_title:
                 ax1.set_title('Right Ascension vs. Epoch')
                 ax3.set_title('Declination vs. Epoch')
