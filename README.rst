@@ -1,7 +1,7 @@
 orvara
 ===============
 
-This repo contains orvara, the package for fitting orbits of exoplanets.
+This repo contains orvara, the package for fitting orbits of bright stars and their faint companions (exoplanets, brown dwarfs, white dwarfs, and low-mass stars).
 
 
 Installation
