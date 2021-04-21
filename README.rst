@@ -15,7 +15,7 @@ Then finally:
 orvara is built by running :code:`pip install -e .` while in the the root directory
 of this repo. The :code:`-e` flag builds the Cython modules.
 
-verifying
+Verifying
 ~~~~~~~~~
 
 cd to the root directory of the repo (if you are not already there). Run:
@@ -96,7 +96,7 @@ nstep = 100
 
 # number of threads to use with emcee. Note this built-in parellelization is poor.
 
-nthreads = 2
+nthreads = 1
 
 # True if you want to use the epoch astrometry in GaiaDataDir, Hip1DataDir etc... False if not.
 
@@ -138,8 +138,9 @@ you fit an orbit by running the following from the command line (while in the ro
 
 .. code-block:: bash
 
-    fit_orbit --output-dir /path/to/output --config-file path/to/config.ini
+    fit_orbit --output-dir /path/to/output path/to/config.ini
 
+If you do not specify an output directory using :code:`--output-dir`, then orvara will write its output files to the current working directory.
 One can set the number of threads in the config.ini file via :code:`nthreads`. Note that the built-in parallelization
 is poor. It is better to set nthreads to 1 then simply run multiple instances of orvara
 on separate cores. One can set the initial conditions of the orbit via the config.ini file.
@@ -238,14 +239,14 @@ at each of those two modes.
 
 Examples
 --------
-To run a quick test using the test data and test config.ini in orvara/tests, I would cd
+To run a quick test using the test data and test config.ini in orvara/tests, you could cd
 to the root directory of orvara, then run the following
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ~/Downloads --config-file orvara/tests/config.ini
+    fit_orbit --output-dir ~/Downloads orvara/tests/config.ini
 
-This will create a .fits file in the downloads folder. The MCMC should terminate in less than
+This will create a .fits file in the Downloads folder. The MCMC should terminate in less than
 one second because of the short number of steps indicated in the example config file.
 
 The end-to-end tests in test_e2e check that the code is converging to previously accepted
@@ -254,7 +255,7 @@ check the results yourself against those in misc/Diagnostic_plots.ipynb, you can
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ~/Downloads --config-file orvara/tests/diagnostic_config.ini
+    fit_orbit --output-dir ~/Downloads orvara/tests/diagnostic_config.ini
 
 The diagnostic_config.ini has the same parameters as those used to create the plots in
 Diagnostic_plots.ipynb
@@ -266,11 +267,11 @@ Usage
 -----
 Once a .fits file from the output of the MCMC is generated, you can produce several plots of 
 an orbit by running the following in the command line in the root directory of the repo. To do
-this, specify the path to the directory containing the .fits MCMC output file. 
+this, specify the path to the .fits MCMC output file within the configuration file. 
 
 .. code-block:: bash
 
-    plot_orbit --output-dir /path/to/output --config-file path/to/config.ini
+    plot_orbit --output-dir /path/to/output path/to/config.ini
     
 You can access the help menu with the --help flag as follows.
 
@@ -281,11 +282,12 @@ You can access the help menu with the --help flag as follows.
 Main plots orvara is configured to produce from the orbital fit:
 ~~~~~~~~~~~~~~~~~
 1. Astrometry orbit of the companion
-2. Radial Velocity (RV) orbit
-3. Relative RV orbit
+2. Radial Velocity (RV) orbit over an extended time baseline
+3. RV orbit over the observed baseline with O-C
 4. Relative separation of the two companions
 5. Position angle between the two companions
-6. Astrometric acceleration or proper motion fit to Hipparocs-Gaia Astrometry
+6. Astrometric acceleration or proper motion fit to Hipparcos-Gaia Astrometry
+7. A density plot showing the predicted position at a chosen epoch
 
 To generate any of these plots, simply set the correspondig parameters under the 
 [plotting section] in the config.ini file to a boolean variable True. If False, 
@@ -302,24 +304,24 @@ and the resolution (step size).
 Other outputs:
 ~~~~~~~~~~~~~~~~~
 In addition to the six plots, you can check convergence of fitted parameters in
-the HDU0 extention by setting the parameter check_convergence to True. You can define
-the length of the burn-in phase, note that the parameters are sampled every 50 steps. And you can 
+the HDU1 extention by setting the parameter check_convergence to True. You can define
+the length of the burn-in phase, note that the parameters are sampled every :code:`thin` steps (as set in the configuration file; default 50). And you can 
 save the results from the fitted and infered parameters from the HDU1 extention
 with save_params = True in the [save_results] section, with an option of setting 
-the sigma percentages for the errors. 
+the quantiles for the uncertainties. 
 
 Color bar settings:
 ~~~~~~~~~~~~~~~~~
-User has the options of showing an error bar via use_colorbar = False or True, setting a colormap from 
-matplotlib list of colormaps, and a reference scheme for the colorbar. Three reference schemes
+To color-code orbits with a key, set a colormap from 
+matplotlib list of colormaps and a reference scheme for the colorbar. Three reference schemes
 are avaliable: the eccentricity as ecc, the secondary companion in jupiter mass as msec_jup and
-the secondary companion in solar mass as msec_solar.
+the secondary companion in solar mass as msec_solar.  Use :code:`use_colorbar` to toggle the colorbar key on and off with :code:`True` or :code:`False`.
 
 Multiple Keplerian orbit fits:
 ~~~~~~~~~~~~~~~~~
 In the case of a 3-body or multiple-body fit, you can plot the results for each companion 
 by setting iplanet to the corresponding companion ID used in the fitting. 
-iplanet starts from 0 for the innermost companion.
+iplanet starts from 0.
 
 
 Examples
@@ -329,10 +331,10 @@ To plot orbits, run a quick test with the plot_orbit command from the root direc
 
 .. code-block:: bash
 
-    plot_orbit --output-dir ./plots --config-file orvara/tests/config_HD4747.ini
+    plot_orbit --output-dir ./plots orvara/tests/config_HD4747.ini
 
-Then, plot your MCMC chains by pointing to the paths for the configuration file following -config-file and 
-the output directory for the plots following -output-dir.
+Then, plot your MCMC chains by using a different configuration file and (optionally) specifying
+an output directory for the plots following :code:`--output-dir`.
 
     
 Contribution Guidelines
