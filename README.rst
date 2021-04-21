@@ -26,15 +26,15 @@ is wrong with the install. Try running :code:`pip install -e .` . If the issue p
 Configuration
 -------------
 First, assign the appropriate file directories and settings inside of a config.ini file. See the example config.ini file in
-:code:`orvara/tests/data/config.ini`. If you are using relative astrometry, you must
+:code:`orvara/tests/data/config.ini`. If you are using epoch astrometry (observational epochs and scan angles), you must
 give paths for :code:`GaiaDataDir`, :code:`Hip1DataDir`, and :code:`Hip2DataDir`. Those are the paths
 to the intermediate data for GaiaDR2, the original Hipparcos data reduction, and the second Hipparcos data reduction.
 Note: if your Hip2 intermediate data come from the DVD, you will want to point to the 'resrec' folder. This should be e.g.:
 Hip2_DVD_Book/IntermediateData/resrec
 
 Also in the config.ini file, we recommend always using absolute paths to the various files
-(e.g. /home/username/Documents/Hip2_DVD_Book/IntermediateData/resrec). Relative paths do work, but first fits to any source
-should use absolute paths until you confirm that all the input data work.
+(e.g. /home/username/Documents/Hip2_DVD_Book/IntermediateData/resrec). Relative paths do work, but you might want to first fit any source
+using absolute paths to confirm that all the input data work.
 
 
 The config file
@@ -44,7 +44,7 @@ Example configuration files can be found in orvara/tests/ e.g. orvara/tests/conf
 This one in particular looks like:
 
 [data_paths]
-# Hipparcos ID of the star in question. This is used for fetching it's intermediate astrometry.
+# Hipparcos ID of the star in question. This is used for fetching its intermediate astrometry.
 
 HipID = 95319
 
@@ -312,8 +312,8 @@ the quantiles for the uncertainties.
 
 Color bar settings:
 ~~~~~~~~~~~~~~~~~
-To color-code orbits with a key, set a colormap from 
-matplotlib list of colormaps and a reference scheme for the colorbar. Three reference schemes
+To color-code orbits with a key, choose a colormap from the
+matplotlib list of colormaps (default viridis) and a reference scheme for the colorbar. Three reference schemes
 are avaliable: the eccentricity as ecc, the secondary companion in jupiter mass as msec_jup and
 the secondary companion in solar mass as msec_solar.  Use :code:`use_colorbar` to toggle the colorbar key on and off with :code:`True` or :code:`False`.
 
@@ -356,4 +356,4 @@ The same as above, except there is no need to fork the repository once you accep
 License
 -------
 
-...
+BSD
