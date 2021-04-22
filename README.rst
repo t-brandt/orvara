@@ -153,7 +153,9 @@ You can access the help menu with the --help flag as follows.
 
     fit_orbit --help
 
-The output of the MCMC is a .fits file and is contained within your given output directory. The output file
+The output of the MCMC is a .fits file contained within your given output directory (default current working directory). The name of the file will be given by the :code:`target` field within the :code:`[plotting]` field of the config file, with :code:`_chain000.fits` appended (the integer will be incremented to the next free filename).  If this field is empty, the backup target name will follow the form :code:`HIP%d_chain%03d.fits`. 
+
+The output file
 contains two .fits extensions: an empty one, and a fits table with all the MCMC parameters at each step of the chain, together with the log of the (unnormalized) posterior probability and some additional quantities.
 
 HDU0: empty
