@@ -284,6 +284,7 @@ def run():
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
     HipID = config.getint('data_paths', 'HipID', fallback=0)
     start_file = config.get('data_paths', 'start_file', fallback='none')
+    starname = config.get('plotting', 'target', fallback='HIP%d' % (HipID))
     #
     priors = get_priors(config)
     companion_gaia = get_gaia_catalog_companion(config)
@@ -397,7 +398,7 @@ def run():
     out.append(pack_cols(sample0.chain[0], lnp, parfit, colnames, units))
 
     for i in range(1000):
-        filename = os.path.join(args.output_dir, 'HIP%d_chain%03d.fits' % (HipID, i))
+        filename = os.path.join(args.output_dir, '%s_chain%03d.fits' % (starname, i))
         if not os.path.isfile(filename):
             print('Writing output to {0}'.format(filename))
             out.writeto(filename, overwrite=False)
