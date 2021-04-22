@@ -28,7 +28,7 @@ Configuration
 First, assign the appropriate file directories and settings inside of a config.ini file. See the example config.ini file in
 :code:`orvara/tests/data/config.ini`. If you are using epoch astrometry (observational epochs and scan angles), you must
 give paths for :code:`GaiaDataDir`, :code:`Hip1DataDir`, and :code:`Hip2DataDir`. Those are the paths
-to the intermediate data for GaiaDR2, the original Hipparcos data reduction, and the second Hipparcos data reduction.
+to the intermediate data for Gaia, the original Hipparcos data reduction, and the second Hipparcos data reduction.
 Note: if your Hip2 intermediate data come from the DVD, you will want to point to the 'resrec' folder. This should be e.g.:
 Hip2_DVD_Book/IntermediateData/resrec
 
@@ -60,7 +60,7 @@ HGCAFile = HGCA_vDR2_corrected.fits
 
 AstrometryFile = orvara/tests/data/Gl758_relAST.txt
 
-# The path to all the Gaia DR2 intermediate data
+# The path to all the Gaia intermediate epochs and scan angles from GOST
 
 GaiaDataDir = orvara/tests/data/gaia
 
@@ -107,7 +107,7 @@ wrong with the RVFile, HGCAFile, or (relative) AstrometryFile. If that chain fin
 
 Setting priors
 ~~~~~~~~~~~~~~
-Adding Gaussian mass priors are supported. As well, uniform priors on the RV jitter are supported.  To add a guassian mass prior on the primary, you will want to add the following
+Adding Gaussian mass priors are supported. As well, bounded log-uniform priors on the RV jitter are supported.  To add a guassian mass prior on the primary, you will want to add the following
 section to your configuration file:
 
 [priors_settings]
@@ -121,15 +121,15 @@ minjitter = 1e-5
 maxjitter = 1e3
 
 
-minjitter and maxjitter are the lower and upper bounds respectively for the Uniform prior. E.g.
-If you wanted to set a Uniform prior on jitter between 1 and 300 meters/second (and zero outside that prior), you would
+minjitter and maxjitter are the lower and upper bounds respectively for the log-uniform prior. E.g.
+If you wanted to set a log-uniform prior on jitter between 1 and 300 meters/second (and zero outside that prior), you would
 set minjitter = 1 and maxjitter = 300.
 
 mpri is the mean of the gaussian prior on the primary mass. mpri_sig is the standard deviation
 of that distribution. E.g. for a gaussian prior on the primary mass of 1 solar mass and 0.1 solar mass deviation, you would
 set mpri = 1 and mpri_sig = 0.1.
 
-Leaving mpri_sig = inf will turn off the prior.
+Leaving mpri_sig = inf will turn off the prior and default to a 1/m prior.
 
 Usage
 -----
@@ -142,8 +142,11 @@ you fit an orbit by running the following from the command line (while in the ro
 
 If you do not specify an output directory using :code:`--output-dir`, then orvara will write its output files to the current working directory.
 One can set the number of threads in the config.ini file via :code:`nthreads`. Note that the built-in parallelization
-is poor. It is better to set nthreads to 1 then simply run multiple instances of orvara
-on separate cores. One can set the initial conditions of the orbit via the config.ini file.
+is poor, and that parallelization might not work at all on some systems. If you get an error when running the code check to see if it goes away when setting :code:`nthreads=1`. It is often better to set nthreads to 1 then simply run multiple instances of orvara
+on separate cores. 
+
+You can set the initial conditions of the orbit via a starting file specified in the config.ini file.  There is an example starting file provided in the :code:`orvara/tests`.  
+
 You can access the help menu with the --help flag as follows.
 
 .. code-block:: bash
@@ -151,7 +154,7 @@ You can access the help menu with the --help flag as follows.
     fit_orbit --help
 
 The output of the MCMC is a .fits file and is contained within your given output directory. The output file
-contains two .fits extensions: an empty one, and a fits table with all the MCMC parameters sample.
+contains two .fits extensions: an empty one, and a fits table with all the MCMC parameters at each step of the chain, together with the log of the (unnormalized) posterior probability and some additional quantities.
 
 HDU0: empty
 ~~~~~~~~~~~~~~~~~
@@ -214,10 +217,10 @@ There will be an 'RV_ZP_1_ML' for instrument 1, etc., up to the number of RV ins
 If you want an overall absolute astrometric chi squared, you would add the values from items 'chisq_H', 'chisq_HG', and 'chisq_G' above.
 There are effectively four measurements since the mean proper motion of the system was fit ('pmra_ML' and 'pmdec_ML').
 
-For instance, displaying hdulist[1].data['plx_ML'] will show all the walkers for the parallax chain (however this parameter
-is marginalized over in orvara, it is not fit). numpy.mean(hdulist[1].data['plx_ML'][:, burn:]), numpy.std(hdulist[1].data['plx_ML'][:, burn:])
-would give the mean and standard deviation of the parallax (with burn = some integer that is the number of steps/thinning factor
-that you are discarding as burn in)
+For instance, displaying :code:`hdulist[1].data['plx_ML']` will show all the walkers for the parallax chain (however this parameter
+is marginalized over in orvara, it is not fit). :code:`numpy.mean(hdulist[1].data['plx_ML'][:, burn:])` and :code:`numpy.std(hdulist[1].data['plx_ML'][:, burn:])`
+would give the mean and standard deviation of the maximum likelihood parallax (with burn = some integer that is the number of steps/thinning factor
+that you are discarding as burn in).  You should add the measurement error of the parallax in quadrature with this particular uncertainty.
 
 One can use the 'lnp' column to compare the likelihoods of the best orbits if a certain posterior is multimodal.
 Assume that the marginalized posterior in PA is multimodal, with a mode at a value > 180 degrees, and
