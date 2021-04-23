@@ -1362,14 +1362,14 @@ class OrbitPlots:
             
             #save posterior and derived parameters
             if 'jitter' in [col.name for col in chain.columns]:
-                RV_Jitter = [print_par_values(10**(0.5*chain['jitter']),perc_sigmas)]
+                RV_Jitter = [print_par_values(chain['jitter'],perc_sigmas)]
                 jitter_labels = ['Jit (m/s)']
             else:
                 i = 0
                 RV_Jitter = []
                 jitter_labels = []
                 while 'jitter%d' % (i) in [col.name for col in chain.columns]:
-                    RV_Jitter += [print_par_values(10**(0.5*chain['jitter%d' % (i)]),perc_sigmas)]
+                    RV_Jitter += [print_par_values(chain['jitter%d' % (i)],perc_sigmas)]
                     jitter_labels += ['Jit, Inst #%d (m/s)' % (i)]
                     i += 1
 
