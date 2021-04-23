@@ -128,19 +128,21 @@ def initialize_data(config, companion_gaia):
 
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
     if use_epoch_astrometry and data.use_abs_ast == 1:
+        # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
+        #  but would matter if we wanted to fit companions with shorter orbital arcs.
         to_jd = lambda x: Time(x, format='decimalyear').jd + 0.5
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=to_jd(data.epRA_G),
                                  central_epoch_dec=to_jd(data.epDec_G),
-                                 format='jd', normed=False)
+                                 format='jd')
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=to_jd(data.epRA_H),
                                  central_epoch_dec=to_jd(data.epDec_H),
-                                 format='jd', normed=False)
+                                 format='jd')
         Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
                                  central_epoch_ra=to_jd(data.epRA_H),
                                  central_epoch_dec=to_jd(data.epDec_H),
-                                 format='jd', normed=False)
+                                 format='jd')
         # instantiate C versions of the astrometric fitter which are much faster than HTOF's Astrometry
         #print(Gaia_fitter.fitter.astrometric_solution_vector_components['ra'])
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)

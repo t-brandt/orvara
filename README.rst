@@ -249,7 +249,7 @@ to the root directory of orvara, then run the following
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ~/Downloads orvara/tests/config.ini
+    fit_orbit orvara/tests/config.ini --output-dir ~/Downloads
 
 This will create a .fits file in the Downloads folder. The MCMC should terminate in less than
 one second because of the short number of steps indicated in the example config file.
@@ -260,7 +260,7 @@ check the results yourself against those in misc/Diagnostic_plots.ipynb, you can
 
 .. code-block:: bash
 
-    fit_orbit --output-dir ~/Downloads orvara/tests/diagnostic_config.ini
+    fit_orbit orvara/tests/diagnostic_config.ini --output-dir ~/Downloads
 
 The diagnostic_config.ini has the same parameters as those used to create the plots in
 Diagnostic_plots.ipynb
@@ -276,7 +276,7 @@ this, specify the path to the .fits MCMC output file within the configuration fi
 
 .. code-block:: bash
 
-    plot_orbit --output-dir /path/to/output path/to/config.ini
+    plot_orbit path/to/config.ini --output-dir /path/to/output
     
 You can access the help menu with the --help flag as follows.
 
