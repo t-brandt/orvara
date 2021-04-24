@@ -1112,7 +1112,7 @@ class OrbitPlots:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             plt.tight_layout()
-            print("Prlotting Proper Motions, your plot is generated at " + self.outputdir)
+            print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
         
             if self.pm_separate and not self.usecolorbar:
                 fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
