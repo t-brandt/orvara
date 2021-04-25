@@ -471,7 +471,7 @@ class OrbitPlots:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             plt.tight_layout()
-            plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', transparent=True) # or +'.png'
+            plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', bbox_inches='tight',transparent=True) # or +'.png'
 
 # 2. RV orbits plot
 
