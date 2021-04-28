@@ -11,9 +11,11 @@ To install, we will git clone the repo. Run
 Then:
 :code:`cd orvara`
 Then finally:
+:code:`pip install cython`
 :code:`pip install -e .`
 orvara is built by running :code:`pip install -e .` while in the the root directory
 of this repo. The :code:`-e` flag builds the Cython modules.
+NOTE: you must have Cython installed prior to installing orvara.
 
 Verifying
 ~~~~~~~~~
