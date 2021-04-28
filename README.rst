@@ -6,16 +6,22 @@ This repo contains orvara, the package for fitting orbits of bright stars and th
 
 Installation
 ------------
+NOTE: you must have Cython installed prior to installing orvara. The following instructions
+accomplish that for you.
 To install, we will git clone the repo. Run
+
 :code:`git clone https://github.com/t-brandt/orvara`
+
 Then:
+
 :code:`cd orvara`
+
 Then finally:
+
 :code:`pip install cython`
+
 :code:`pip install -e .`
-orvara is built by running :code:`pip install -e .` while in the the root directory
-of this repo. The :code:`-e` flag builds the Cython modules.
-NOTE: you must have Cython installed prior to installing orvara.
+
 
 Verifying
 ~~~~~~~~~
