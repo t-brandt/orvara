@@ -1,3 +1,8 @@
+1.0.1 (2021-04-28)
+------------------
+- Fixed the diagnostic test in test_main.py so that it will work on windows. File i/o failed on the
+test due to https://github.com/astropy/astropy/issues/7404 
+
 1.0.0 (2021-04-04)
 ------------------
 - Changed format of chain files, incompatible with previous versions.  Support for stars not in HGCA, ability to set one jitter per instrument.  Various small changes and bug fixes.  Renamed repo and orbit3d directory to orvara.
