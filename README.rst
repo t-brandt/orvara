@@ -29,10 +29,12 @@ Verifying
 cd to the root directory of the repo (if you are not already there). Run:
 :code:`pytest -sv`
 This will run a small suite of tests. This should take about 5 minutes. If any of the tests fail, something
-is wrong with the install. Try running :code:`pip install -e .` . If the issue persists, please submit an issue ticket!
+is wrong with the install. Maybe you recently switched branches? Try running :code:`pip install -e .` again.
+If the issue persists, please submit an issue ticket!
 
 Configuration
 -------------
+
 First, assign the appropriate file directories and settings inside of a config.ini file. See the example config.ini file in
 :code:`orvara/tests/data/config.ini`. If you are using epoch astrometry (observational epochs and scan angles), you must
 give paths for :code:`GaiaDataDir`, :code:`Hip1DataDir`, and :code:`Hip2DataDir`. Those are the paths
@@ -47,6 +49,7 @@ using absolute paths to confirm that all the input data work.
 
 The config file
 ~~~~~~~~~~~~~~~
+
 Example configuration files can be found in orvara/tests/ e.g. orvara/tests/config.ini.
 
 This one in particular looks like:
