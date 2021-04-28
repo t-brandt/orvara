@@ -3,6 +3,7 @@ import pytest
 import tempfile
 import mock
 import os
+import time
 
 from orvara.main import set_initial_parameters, run, get_priors
 from orvara.tests.utils import FakeArguments
@@ -41,6 +42,7 @@ def test_converges_to_accurate_values(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
         run()
+        time.sleep(3)
         # load file and check params
         file = 'HIP3850_chain000.fits'
         tt = fits.open(os.path.join(tmp_dir, file))[1].data
