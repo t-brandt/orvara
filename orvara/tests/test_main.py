@@ -41,11 +41,10 @@ def test_run(fake_args):
 def test_converges_to_accurate_values(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
-        run()
-        time.sleep(3)
+        tt = run()[1].data
         # load file and check params
-        file = 'HIP3850_chain000.fits'
-        tt = fits.open(os.path.join(tmp_dir, file))[1].data
+        #file = 'HIP3850_chain000.fits'
+        #tt = fits.open(os.path.join(tmp_dir, file))[1].data
         i = -1  # walker index.
         nsteps = 50 * tt['lnp'].shape[1]
         burn = 250  # number of burn in steps to discard

@@ -406,6 +406,8 @@ def run():
             out.writeto(filename, overwrite=False)
             break
 
+    return out
+
 
 if __name__ == "__main__":
     run()
