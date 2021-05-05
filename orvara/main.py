@@ -119,11 +119,11 @@ def initialize_data(config, companion_gaia):
     except:
         raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
 
-    RVFile = config.get('data_paths', 'RVFile', fallback=None)
-    AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback=None)
-    GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
-    Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
-    Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
+    RVFile = config.get('data_paths', 'RVFile', fallback='')
+    AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback='')
+    GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback='')
+    Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback='')
+    Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
