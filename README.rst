@@ -224,8 +224,8 @@ likelihood orbits at each of those two modes.
     ls180 = pa_data < 180
     g180 = pa_data >= 180
 
-    print(np.max(logl[ls180]))  # the max log likelyhood of all orbits with PA of ascending nodes < 180 degrees
-    print(np.max(logl[g180]))  # the max log likelyhood of all orbits with PA of ascending nodes > 180 degrees
+    print(np.max(logl[ls180]))  # the max log likelihood of all orbits with PA of ascending nodes < 180 degrees
+    print(np.max(logl[g180]))  # the max log likelihood of all orbits with PA of ascending nodes > 180 degrees
 
 
 Examples

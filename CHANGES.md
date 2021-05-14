@@ -1,3 +1,7 @@
+1.0.2 (2021-05-13)
+------------------
+- Fixed a memory leak when fitting multiple companions, fixed prior on secondary masses to fully undo a 1/M prior.
+
 1.0.1 (2021-04-28)
 ------------------
 - Fixed the diagnostic test in test_main.py so that it will work on windows. File i/o failed on the
