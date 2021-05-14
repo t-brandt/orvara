@@ -1,3 +1,7 @@
+1.0.3 (2021-05-14)
+------------------
+- Another small tweak to secondary priors: ensure 1/M if a given prior is not set.
+
 1.0.2 (2021-05-13)
 ------------------
 - Fixed a memory leak when fitting multiple companions, fixed prior on secondary masses to fully undo a 1/M prior.
