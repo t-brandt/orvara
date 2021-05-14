@@ -221,11 +221,10 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
     if returninfo:
         return orbit.calcL(data, params, model, chisq_resids=True, RVoffsets=RVoffsets)
 
-    if priors is not None:
-        if np.isfinite(priors['mpri_sig']):
-            return lnp - 0.5*(params.mpri_true - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
-
-    return lnp - np.log(params.mpri_true) + orbit.calcL(data, params, model)
+    if np.isfinite(priors['mpri_sig']):
+        return lnp - 0.5*(params.mpri_true - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
+    else:
+        return lnp - np.log(params.mpri_true) + orbit.calcL(data, params, model)
 
     
 def return_one(theta):

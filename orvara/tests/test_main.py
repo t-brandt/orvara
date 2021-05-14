@@ -22,8 +22,8 @@ def test_get_priors():
     config = ConfigParser()
     config.read('orvara/tests/config_with_secondary_priors.ini')
     priors = get_priors(config)
-    assert priors['m_secondary1'] == 1
-    assert priors['m_secondary1_sig'] == 2
+    assert priors['m_secondary0'] == 1
+    assert priors['m_secondary0_sig'] == 2
     assert priors['m_secondary7'] == 3
     assert priors['m_secondary7_sig'] == 4
 
