@@ -204,7 +204,9 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         orbit.calc_offsets(data, params, model, i)
 
         if priors is not None:
-            lnp = lnp - 0.5*(params.msec - priors.get(f'm_secondary{i}', 1))**2/priors.get(f'm_secondary{i}_sig', np.inf)**2 + np.log(params.msec)
+            chisq_sec = (params.msec - priors.get(f'm_secondary{i}', 1))**2/priors.get(f'm_secondary{i}_sig', np.inf)**2
+            if chisq_sec > 0:
+                lnp = lnp - 0.5*chisq_sec + np.log(params.msec)
 
         # Free params if we need to cycle through the next companion
         if i < nplanets - 1:
