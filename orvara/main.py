@@ -203,8 +203,11 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         orbit.calc_RV(data, params, model)
         orbit.calc_offsets(data, params, model, i)
 
-        if priors is not None:
-            lnp = lnp - 0.5*(params.msec - priors.get(f'm_secondary{i}', 1))**2/priors.get(f'm_secondary{i}_sig', np.inf)**2 + np.log(params.msec)
+        chisq_sec = (params.msec - priors[f'm_secondary{i}'])**2/priors[f'm_secondary{i}_sig']**2
+        if chisq_sec > 0:  # If chisq_sec > 0 then a prior was set on the mass of the secondary
+            # undo the default 1/m prior that is set in orbit.pyx (see lnprior())
+            lnp = lnp - 0.5*chisq_sec + np.log(params.msec)
+        # else, don't change lnp at all.
 
         # Free params if we need to cycle through the next companion
         if i < nplanets - 1:
@@ -218,11 +221,10 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
     if returninfo:
         return orbit.calcL(data, params, model, chisq_resids=True, RVoffsets=RVoffsets)
 
-    if priors is not None:
-        if np.isfinite(priors['mpri_sig']):
-            return lnp - 0.5*(params.mpri_true - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
-
-    return lnp - np.log(params.mpri_true) + orbit.calcL(data, params, model)
+    if np.isfinite(priors['mpri_sig']):
+        return lnp - 0.5*(params.mpri_true - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
+    else:
+        return lnp - np.log(params.mpri_true) + orbit.calcL(data, params, model)
 
     
 def return_one(theta):
