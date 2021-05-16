@@ -1,3 +1,7 @@
+1.0.4 (2021-05-14)
+------------------
+- Fixed units bug in periastron time calculation.
+
 1.0.3 (2021-05-14)
 ------------------
 - Another small tweak to secondary priors: ensure 1/M if a given prior is not set.
