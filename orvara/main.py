@@ -121,12 +121,14 @@ def initialize_data(config, companion_gaia):
 
     RVFile = config.get('data_paths', 'RVFile', fallback='')
     AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback='')
+    RelativeRVFile = config.get('data_paths', 'RelativeRVFile', fallback='')
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback='')
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback='')
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
-    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
+    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, RelativeRVFile, 
+                      companion_gaia=companion_gaia)
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
         #  but would matter if we wanted to fit companions with shorter orbital arcs.
@@ -149,7 +151,7 @@ def initialize_data(config, companion_gaia):
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
 
-        data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
+        data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, RelativeRVFile,
                           use_epoch_astrometry,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),

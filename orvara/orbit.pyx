@@ -115,6 +115,8 @@ cdef class Data:
     cdef double [:] epochs
     cdef double [:] RV
     cdef double [:] RV_err
+    cdef double [:] relRV
+    cdef double [:] relRV_err
     cdef int [:] RVinst
     cdef double [:] relsep
     cdef double [:] PA
@@ -122,7 +124,7 @@ cdef class Data:
     cdef double [:] PA_err
     cdef double [:] relsep_pa_corr
     cdef int [:] ast_planetID
-    cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst, companion_ID
+    cdef public int nRV, nAst, nrelRV, nHip1, nHip2, nGaia, nTot, nInst, companion_ID
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
     cdef public double pmra_G_B, pmdec_G_B
     cdef public double plx, plx_err
@@ -134,7 +136,7 @@ cdef class Data:
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
 
-    def __init__(self, Hip, HGCAfile, RVfile, relAstfile,
+    def __init__(self, Hip, HGCAfile, RVfile, relAstfile, relRVfile,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
                  refep=2455197.5000, companion_gaia=None, verbose=True):
@@ -166,6 +168,22 @@ cdef class Data:
                     print("Assuming all data are from one instrument.")
                 self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
                 self.nInst = 1
+
+        ##################################
+        try:
+            relRVdat = np.genfromtxt(relRVfile)
+            if np.ndim(relRVdat) == 1:
+                relRVdat = np.reshape(relRVdat, (1,relRVdat.size))
+            self.relRV = relRVdat[:, 1]
+            self.relRV_err = relRVdat[:, 2]
+            self.nrelRV = relRVdat.shape[0]
+            if verbose:
+                print("Loading relative RVs from file " + relRVfile)
+        except:
+            if verbose:
+                print("Unable to load relative RV data from file " + relRVfile)
+            self.nrelRV = 0
+        ###########################
 
         try:
             try:
