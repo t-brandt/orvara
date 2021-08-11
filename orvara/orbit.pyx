@@ -174,15 +174,18 @@ cdef class Data:
             relRVdat = np.genfromtxt(relRVfile)
             if np.ndim(relRVdat) == 1:
                 relRVdat = np.reshape(relRVdat, (1,relRVdat.size))
+            relrvep = relRVdat[:, 0]
             self.relRV = relRVdat[:, 1]
             self.relRV_err = relRVdat[:, 2]
             self.nrelRV = relRVdat.shape[0]
             if verbose:
                 print("Loading relative RVs from file " + relRVfile)
+                print("Loaded %d relative RV data points." % (self.nrelRV))
         except:
             if verbose:
                 print("Unable to load relative RV data from file " + relRVfile)
             self.nrelRV = 0
+            relrvep = []
         ###########################
 
         try:
@@ -241,7 +244,7 @@ cdef class Data:
             if verbose:
                 print("Unable to load absolute astrometry data for Hip %d" % (Hip))
             self.use_abs_ast = 0
-            self.epochs = np.asarray(list(rvep) + list(relep))
+            self.epochs = np.asarray(list(rvep) + list(relrvep) + list(relep))
             self.nTot = len(self.epochs)
 
             #########################################################
@@ -309,7 +312,7 @@ cdef class Data:
             self.nGaia = epochs_Gaia.shape[0]
             absasteps = np.asarray(list(epochs_Hip1) + list(epochs_Hip2) + list(epochs_Gaia))
 
-        self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps))
+        self.epochs = np.asarray(list(rvep) + list(relrvep) + list(relep) + list(absasteps))
         if refep is not None:
             self.refep = refep
         else:
@@ -370,13 +373,14 @@ cdef class Data:
 
 cdef class Model:
 
-    cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
+    cdef public int nEA, nRV, nrelRV, nAst, nHip1, nHip2, nGaia
     cdef public double pmra_H, pmra_HG, pmra_G, pmdec_H, pmdec_HG, pmdec_G
     cdef public double pmra_G_B, pmdec_G_B
     cdef double *EA
     cdef double *sinEA
     cdef double *cosEA
     cdef double *RV
+    cdef double *relRV
     cdef double *relsep
     cdef double *PA
     cdef double *rel_RA
@@ -393,6 +397,7 @@ cdef class Model:
     def __init__(self, Data data):
         self.nEA = data.nTot
         self.nRV = data.nRV
+        self.nrelRV = data.nrelRV
         self.nAst = data.nAst
         self.nHip1 = data.nHip1
         self.nHip2 = data.nHip2
@@ -415,6 +420,12 @@ cdef class Model:
             raise MemoryError()
         for i in range(self.nRV):
             self.RV[i] = 0
+
+        self.relRV = <double *> PyMem_Malloc((self.nrelRV+1) * sizeof(double))
+        if not self.relRV:
+            raise MemoryError()
+        for i in range(self.nrelRV):
+            self.relRV[i] = 0
 
         self.relsep = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
         self.PA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
@@ -548,6 +559,7 @@ cdef class Model:
         PyMem_Free(self.dRA_G_B)
         PyMem_Free(self.dDec_G_B)
         PyMem_Free(self.RV)
+        PyMem_Free(self.relRV)
         PyMem_Free(self.EA)
         PyMem_Free(self.sinEA)
         PyMem_Free(self.cosEA)
@@ -806,13 +818,13 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
     cdef double F = a_1*(-sinarg*cosasc - cosarg*sinasc*cosinc)
     cdef double G = a_1*(-sinarg*sinasc + cosarg*cosasc*cosinc)
 
-    cdef int n = data.nTot - data.nRV
+    cdef int n = data.nTot - data.nRV - data.nrelRV
     cdef int i, i1, i2
     cdef double X, Y, dRA, dDec, sqonemeccsqr = sqrt(1 - par.ecc**2)
 
     for i in range(data.nAst):
-        X = model.cosEA[i + data.nRV] - par.ecc
-        Y = model.sinEA[i + data.nRV]*sqonemeccsqr
+        X = model.cosEA[i + data.nRV + data.nrelRV] - par.ecc
+        Y = model.sinEA[i + data.nRV + data.nrelRV]*sqonemeccsqr
 
         dRA = B*X + G*Y
         dDec = A*X + F*Y
@@ -837,7 +849,7 @@ def calc_offsets(Data data, Params par, Model model, int iplanet=0):
             model.relsep[i] = sqrt(model.rel_RA[i]**2 + model.rel_Dec[i]**2)
             model.PA[i] = atan2(model.rel_RA[i], model.rel_Dec[i])
 
-    i1 = data.nRV + data.nAst
+    i1 = data.nRV + data.nrelRV + data.nAst
     i2 = i1 + data.nHip1
     for i in range(i1, i2):
         X = model.cosEA[i] - par.ecc
@@ -1092,7 +1104,7 @@ def calc_RV(Data data, Params par, Model model):
     cdef double one_d_24 = 1./24
     cdef double one_d_240 = 1./240
 
-    for i in range(data.nRV):
+    for i in range(data.nRV + data.nrelRV):
 
         if fabs(model.sinEA[i]) > 1.5e-2:
             tanEAd2 = (1 - model.cosEA[i])/model.sinEA[i]
@@ -1108,7 +1120,14 @@ def calc_RV(Data data, Params par, Model model):
 
         ratio = sqrt1pe_div_sqrt1me*tanEAd2
         fac = 2/(1 + ratio**2)
-        model.RV[i] += RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
+
+        if i < data.nRV:
+            model.RV[i] += RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
+        else:
+            # for relative RVs, just need to scale the instantaneous RV amplitude
+            # of the star (since M_a*abs(RV_a) = M_b*abs(RV_b))
+            RV = RVampl*(cosarg*(fac - 1) - sinarg*ratio*fac + ecccosarg)
+            model.relRV[i-data.nRV] = RV*(par.mpri/par.msec+1)
 
     # Don't use the following: we do about 20 times better above.
     #for i in range(data.nRV):
@@ -1116,11 +1135,6 @@ def calc_RV(Data data, Params par, Model model):
     #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
 
     return
-
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.nonecheck(False)
 
 ######################################################################
 # Compute the log likelihood from the RVs, relative separation,
@@ -1168,7 +1182,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     if not A or not B or not C or not RVzero:
         raise MemoryError()
 
-    for i in range(data.nInst):
+    for i in range(data.nInst):sau
         A[i] = B[i] = C[i] = RVzero[i] = 0
 
     for i in range(data.nRV):
@@ -1222,8 +1236,8 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         for j in range(3):
             M[i*3 + j] = 0
 
-    cdef double chisq_PA, chisq_sep, chisq_H, chisq_HG, chisq_G, chisq_plx, dPA, corr
-    chisq_PA = chisq_sep = chisq_H = chisq_HG = chisq_G = chisq_plx = 0
+    cdef double chisq_PA, chisq_sep, chisq_H, chisq_HG, chisq_G, chisq_plx, chisq_relrv, dPA, corr
+    chisq_PA = chisq_sep = chisq_H = chisq_HG = chisq_G = chisq_plx = chisq_relrv = 0
 
     for i in range(data.nAst):
 
@@ -1400,7 +1414,11 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     chisq_plx = (data.plx - plx_best)**2/data.plx_err**2
 
-    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx
+    # Finally check the relative RV measurements (if there are any)
+    for i in range(data.nrelRV):
+        chisq_relrv += (data.relRV[i] - model.relRV[i])**2/data.relRV_err[i]**2
+
+    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx + chisq_relrv
     lnL -= log(detM)
 
     if chisq_resids:

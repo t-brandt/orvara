@@ -26,7 +26,7 @@ class Orbit:
 
     def __init__(self, OP, step='best', epochs='custom'):
 
-        data = orbit.Data(OP.Hip, OP.HGCAFile, OP.RVfile, OP.relAstfile, verbose=False)
+        data = orbit.Data(OP.Hip, OP.HGCAFile, OP.RVfile, OP.relAstfile, OP.relRVfile, verbose=False)
 
         if isinstance(epochs, list) or isinstance(epochs, np.ndarray):
             data.custom_epochs(epochs, iplanet=OP.iplanet)
@@ -1144,7 +1144,7 @@ class OrbitPlots:
         # The date we want
         JD_predict = self.calendar_to_JD(self.predicted_ep_ast)
 
-        data = orbit.Data(self.Hip, self.HGCAFile, self.RVfile, self.relAstfile, verbose=False)
+        data = orbit.Data(self.Hip, self.HGCAFile, self.RVfile, self.relAstfile, self.relRVfile, verbose=False)
 
         # Solve Kepler's equation in array format given a different
         # eccentricity for each point.  This is the same Newton solver

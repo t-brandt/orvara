@@ -51,6 +51,7 @@ def initialize_plot_options(config):
     # read data
     OP.RVfile = config.get('data_paths', 'RVFile', fallback=None)
     OP.relAstfile = config.get('data_paths', 'AstrometryFile', fallback=None)
+    OP.relRVfile = config.get('data_paths', 'RelativeRVFile', fallback=None)
     OP.GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback=None)
     OP.Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback=None)
     OP.Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback=None)
