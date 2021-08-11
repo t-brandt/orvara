@@ -1182,7 +1182,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     if not A or not B or not C or not RVzero:
         raise MemoryError()
 
-    for i in range(data.nInst):sau
+    for i in range(data.nInst):
         A[i] = B[i] = C[i] = RVzero[i] = 0
 
     for i in range(data.nRV):
