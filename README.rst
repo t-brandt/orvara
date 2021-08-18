@@ -149,7 +149,7 @@ The column names and descriptions are:
 
     'msec0' : Secondary mass of the first (index 0) companion, Solar masses
 
-    'sau0' : Semimajor axis of the first companion, Solar masses
+    'sau0' : Semimajor axis of the first companion, AU
 
     'esino0' : sqrt(ecc)*sin(omega) for the first companion
 
