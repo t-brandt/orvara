@@ -59,6 +59,25 @@ Note: We recommend starting with ``use_epoch_astrometry = False``. If this
 fails, then there is something wrong with the RVFile, HGCAFile, or (relative)
 AstrometryFile. If that chain finishes fine, then set ``use_epoch_astrometry = True``.
 
+Relative RV fitting
+~~~~~~~~~~~~~~~~~~~
+For stellar binaries, if the relative velocities of both the primary the and
+secondary star have been directly measured, the relative velocity of the system
+can be included as an additional orbit fitting constraint. Relative RV values
+are RV_B - RV_A (i.e. secondary star radial velocity - primary star radial
+velocity). Measured relative RVs are input in a file which can have one or more
+relative RV measurements. The file with relative RVs should have three columns
+corresponding to epoch, relative_RV and relative_RV_error and
+should be included in the ``[data_paths]`` field of the config file as
+``RelativeRVFile = /path/to/relativervfile.dat``
+
+Note that this feature is currently only set up for a two-body system; a
+possible future improvement would be to equate relative RV values with specific
+companions, as is done for relative astrometry values.
+
+This feature is not currently tested by the ``pytest -sv`` suite of tests,
+and there is currently no example config file for a fit using the relative RV.
+
 Setting priors
 ~~~~~~~~~~~~~~
 Adding Gaussian mass priors are supported. As well, bounded log-uniform priors
