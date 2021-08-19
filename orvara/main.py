@@ -120,13 +120,14 @@ def initialize_data(config, companion_gaia):
         raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
 
     RVFile = config.get('data_paths', 'RVFile', fallback='')
+    relRVFile = config.get('data_paths', 'relRVFile', fallback='')
     AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback='')
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback='')
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback='')
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
-    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
+    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, relRVFile=relRVFile, companion_gaia=companion_gaia)
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
         #  but would matter if we wanted to fit companions with shorter orbital arcs.
@@ -151,6 +152,7 @@ def initialize_data(config, companion_gaia):
 
         data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
                           use_epoch_astrometry,
+                          relRVFile=relRVFile,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                           epochs_Gaia=Gaia_fitter.data.julian_day_epoch(),
@@ -200,7 +202,7 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
             return -np.inf
 
         orbit.calc_EA_RPP(data, params, model)
-        orbit.calc_RV(data, params, model)
+        orbit.calc_RV(data, params, model, i)
         orbit.calc_offsets(data, params, model, i)
 
         chisq_sec = (params.msec - priors[f'm_secondary{i}'])**2/priors[f'm_secondary{i}_sig']**2
