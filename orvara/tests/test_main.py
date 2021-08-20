@@ -99,7 +99,7 @@ def test_converges_to_accurate_values_with_relative_RV(fake_args):
         eccentricity_stderr = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
         inclination_deg = np.mean(tt['inc0'][:, burn:]*180/np.pi)
         inclination_err = np.std(tt['inc0'][:, burn:]*180/np.pi)
-        expected_1_sigma_errors = [0.6282, 0.9, 0.02, 0.44668, 0.0030392, 0.42]
+        expected_1_sigma_errors = [1.2, 0.9, 0.02, 0.08, 0.0030392, 0.42]
         expected_values = [10.24, 59.48, 0.776, 10.189, 0.73568, 49.728]
         values = [rv_jitter, companion_jup_mass, prim_mass,
                   separation_AU, eccentricity, inclination_deg]
