@@ -1,8 +1,8 @@
 1.0.5 (2020-10-22)
 ------------------
 - Added the ability to constrain orbits with a relative RV measurement (e.g. that between beta pic A and beta
-pic b), by providing a relative RV file (`relRVFile=relative_rv_filename.dat`) in the config.ini. Currently this is 
-  only implemented and allowed for 1 companion at a time.
+pic b), by providing a relative RV file (`relRVFile=relative_rv_filename.dat`) in the config.ini. This is implemented
+  for multiple companions (3, 4 etc body fits), but it has only been tested within a 2-body fit.
 
 1.0.4 (2021-05-14)
 ------------------
