@@ -151,7 +151,7 @@ def initialize_data(config, companion_gaia):
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
 
         data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
-                          use_epoch_astrometry,
+                          use_epoch_astrometry=use_epoch_astrometry,
                           relRVFile=relRVFile,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),

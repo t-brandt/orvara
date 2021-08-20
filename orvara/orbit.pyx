@@ -152,12 +152,12 @@ cdef class Data:
             self.rel_RV = rel_rvdat[:, 1] # velocities
             self.rel_RV_err = rel_rvdat[:, 2] # errors
             self.n_rel_RV = rel_rvdat.shape[0] # number of points
-            self.rel_RV_planetID = (rel_rvdat[:, 4]).astype(np.int32)
+            self.rel_RV_planetID = (rel_rvdat[:, 3]).astype(np.int32)
             if verbose:
                 print(f"Loaded {self.n_rel_RV } relative RV data points for {len(set(self.rel_RV_planetID))} planets")
         except:
             if verbose:
-                print("Unable to load RV data from file " + RVfile)
+                print("Unable to load relative RV data from file " + relRVFile)
             self.n_rel_RV = 0
             rel_RV_ep = []
         try:
@@ -167,7 +167,7 @@ cdef class Data:
             self.RV_err = rvdat[:, 2]
             self.nRV = rvdat.shape[0]
             if verbose:
-                print("Loading RV data from file " + RVfile)
+                print(f"Loadied {self.nRV} RV data points from file " + RVfile)
         except:
             if verbose:
                 print("Unable to load RV data from file " + RVfile)

@@ -1,0 +1,29 @@
+# Each row: mean and standard deviation of the normal distribution
+# used to initialize the parameter given in the comment.  For the
+# masses and semimajor axes of the companions, and for the jitter, the
+# distributions used are lognormal.  In these cases the standard
+# deviations are of the natural log about the distribution peak.  In
+# all cases, realizations of the distributions that result in
+# unphysical parameters or combinations of parameters will be
+# automatically adjusted.
+#
+   1          0.5   # jitter (m/s, lognormal)
+   0.798          0.1   # primary mass (Msun)
+#
+# Companion #1 (indexed as companion 0 in relative astrometry)
+#
+   0.0623       0.1   # mass (Msun, lognormal)
+   9.877         0.1     # semimajor axis (AU, lognormal)
+   -0.8553        0.03   # sqrt(ecc)*sin(omega)
+   -0.046       0.03   # sqrt(ecc)*cos(omega)
+   0.8432        0.08   # inclination (radians, valid region 0->pi)
+   1.58        0.1   # long asc node (rad, valid -pi->3pi)
+   0.803        0.1   # long at reference epoch (rad, valid -pi->3pi)
+#
+# Companion #2 (indexed as companion 1 in relative astrometry) [if you
+# have a second companion, put its guesses below as for companion 1]
+# The number of parameters given in this file *must* be a match to the
+# number of companions that you specify in the configuration file.  It
+# should have the same rows, with the same parameter descriptions, as
+# for the first companion listed above.
+#

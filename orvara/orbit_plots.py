@@ -1272,7 +1272,7 @@ class OrbitPlots:
 
     def plot_chains(self,labels=None,thin=1,alpha=0.1):
         #labels=['Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam']
-        print("Generating diagonstic plots to check convergence")
+        print("Generating diagnostic plots to check convergence.")
 
         chain = fits.open(self.MCMCfile)[1].data
         chain = burnin_chain(chain.columns, self.burnin, reshape=False)

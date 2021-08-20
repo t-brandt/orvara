@@ -51,9 +51,7 @@ def test_converges_to_accurate_values(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
         tt = run()[1].data
-        # load file and check params
-        #file = 'HIP3850_chain000.fits'
-        #tt = fits.open(os.path.join(tmp_dir, file))[1].data
+        # check params
         i = -1  # walker index.
         nsteps = 50 * tt['lnp'].shape[1]
         burn = 250  # number of burn in steps to discard
@@ -73,6 +71,40 @@ def test_converges_to_accurate_values(fake_args):
         values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg]
         errors = [rv_jitter_err, companion_mass_stderr, separation_stderr,
                   eccentricity_stderr, inclination_err]
+        for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
+            assert np.isclose(value, expected, atol=3 * sigma)
+        assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)
+
+
+@pytest.mark.e2e
+@mock.patch('orvara.main.parse_args')
+def test_converges_to_accurate_values_with_relative_RV(fake_args):
+    """
+    This test uses FAKE relative RV data of HD 4747
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        fake_args.return_value = FakeArguments('orvara/tests/config_test_relativeRV.ini', tmp_dir)
+        tt = run()[1].data
+        # check params
+        burn = 225  # number of burn in steps to discard
+        rv_jitter = np.mean(tt['jitter'][:, burn:])
+        rv_jitter_err = np.std(tt['jitter'][:, burn:])
+        companion_jup_mass = np.mean(tt['msec0'][:, burn:]*1989/1.898)
+        companion_mass_stderr = np.std(tt['msec0'][:, burn:]*1989/1.898)
+        prim_mass = np.mean(tt['mpri'][:, burn:])
+        prim_mass_stderr = np.std(tt['mpri'][:, burn:])
+        separation_AU = np.mean(tt['sau0'][:, burn:])
+        separation_stderr = np.std(tt['sau0'][:, burn:])
+        eccentricity = np.mean(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        eccentricity_stderr = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        inclination_deg = np.mean(tt['inc0'][:, burn:]*180/np.pi)
+        inclination_err = np.std(tt['inc0'][:, burn:]*180/np.pi)
+        expected_1_sigma_errors = [0.6282, 0.9, 0.02, 0.44668, 0.0030392, 0.42]
+        expected_values = [10.24, 59.48, 0.776, 10.189, 0.73568, 49.728]
+        values = [rv_jitter, companion_jup_mass, prim_mass,
+                  separation_AU, eccentricity, inclination_deg]
+        errors = [rv_jitter_err, companion_mass_stderr, prim_mass_stderr,
+                  separation_stderr, eccentricity_stderr, inclination_err]
         for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
             assert np.isclose(value, expected, atol=3 * sigma)
         assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)
