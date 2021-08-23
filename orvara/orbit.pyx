@@ -1088,7 +1088,6 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
     cdef double sinarg = par.sinarg
     cdef double ecccosarg = par.ecc*cosarg
     cdef double sqrt1pe_div_sqrt1me = sqrt1pe/sqrt1me
-    cdef double TA, ratio, fac, tanEAd2
 
     cdef int i
     cdef int j
@@ -1112,19 +1111,22 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
 
     for i in range(data.nRV):
         model.RV[i] += _calc_RV(model.sinEA[i], model.cosEA[i], model.EA[i], one_d_24,
-                                one_d_240, pi, pi_d_2, tanEAd2, sqrt1pe_div_sqrt1me, RVampl,
+                                one_d_240, pi, pi_d_2, sqrt1pe_div_sqrt1me, RVampl,
                                 cosarg, sinarg, ecccosarg, fabs(model.sinEA[i]), fabs(model.EA[i]))
     # calculate the relative rv's
     cdef int i_rel_RV = data.nTot - data.n_rel_RV
     cdef double conv = -1. * (
-                par.msec + par.mpri) / par.msec  # conversion factor from RV of the primary to delta RV = RVsecondary - RVprimary.
+                par.msec + par.mpri) / par.msec
+    # conversion factor =conv from RV of the primary to delta RV = RVsecondary - RVprimary.
+    # Note that this method is not in detail correct for systems with 3 or more bodies. A future PR will resolve this.
     for i in range(data.n_rel_RV):
         j = i + i_rel_RV
         if iplanet == data.rel_RV_planetID[i]:
             model.rel_RV[i] = _calc_RV(model.sinEA[j], model.cosEA[j], model.EA[j], one_d_24,
-                                       one_d_240, pi, pi_d_2, tanEAd2, sqrt1pe_div_sqrt1me, RVampl * conv,
+                                       one_d_240, pi, pi_d_2, sqrt1pe_div_sqrt1me, RVampl * conv,
                                        cosarg, sinarg, ecccosarg, fabs(model.sinEA[j]), fabs(model.EA[j]))
     # Don't use the following: we do about 20 times better above.
+    # cdef double TA
     #for i in range(data.nRV):
     #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
     #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
@@ -1134,9 +1136,10 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
 @cython.wraparound(False)
 @cython.nonecheck(False)
 cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one_d_240,
-              double pi, double pi_d_2, double tanEAd2, double sqrt1pe_div_sqrt1me, double RVampl,
+              double pi, double pi_d_2, double sqrt1pe_div_sqrt1me, double RVampl,
               double cosarg, double sinarg, double ecccosarg, double abs_sinEA, double abs_EA):
 
+    cdef double tanEAd2
     if abs_sinEA > 1.5e-2:
         tanEAd2 = (1 - cosEA) / sinEA
     elif EA < -pi or EA > pi:
@@ -1148,8 +1151,8 @@ cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one
     else:
         tanEAd2 = 1e100
 
-    ratio = sqrt1pe_div_sqrt1me * tanEAd2
-    fac = 2 / (1 + ratio ** 2)
+    cdef double ratio = sqrt1pe_div_sqrt1me * tanEAd2
+    cdef double fac = 2 / (1 + ratio ** 2)
     return RVampl * (cosarg * (fac - 1) - sinarg * ratio * fac + ecccosarg)
     # Don't use the following: we do about 20 times better above.
     #for i in range(data.nRV):
