@@ -1068,7 +1068,7 @@ def calc_PMs_no_epoch_astrometry(Data data, Model model):
 # runtime.
 #######################################################################
 
-def calc_RV(Data data, Params par, Model model, int iplanet=0):
+def calc_RV(Data data, Params par, Model model):
 
     cdef extern from "math.h" nogil:
         double sin(double _x)
@@ -1092,20 +1092,6 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
     cdef int i
     cdef int j
 
-    ##################################################################
-    # Trickery with trig identities.  The code below is mathematically
-    # identical to the use of the true anomaly.  If sin(EA) is small
-    # and cos(EA) is close to -1, no problem as long as sin(EA) is not
-    # precisely zero (set tan(EA/2)=1e100 in this case).  If sin(EA)
-    # is small and EA is close to zero, use the fifth-order Taylor
-    # expansion for tangent.  This is good to ~1e-15 for EA within
-    # ~0.015 of 0.  Assume eccentricity is not precisely unity (this
-    # should be forbidden by the priors).  Very, very high
-    # eccentricities (significantly above 0.9999) may be problematic.
-    # This routine assumes range reduction of the eccentric anomaly to
-    # (-pi, pi] and will throw an error if this is violated.
-    ##################################################################
-
     cdef double one_d_24 = 1./24
     cdef double one_d_240 = 1./240
 
@@ -1113,10 +1099,37 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
         model.RV[i] += _calc_RV(model.sinEA[i], model.cosEA[i], model.EA[i], one_d_24,
                                 one_d_240, pi, pi_d_2, sqrt1pe_div_sqrt1me, RVampl,
                                 cosarg, sinarg, ecccosarg, fabs(model.sinEA[i]), fabs(model.EA[i]))
-    # calculate the relative rv's
-    cdef int i_rel_RV = data.nTot - data.n_rel_RV
-    cdef double conv = -1. * (
-                par.msec + par.mpri) / par.msec
+    return
+
+def calc_relRV(Data data, Params par, Model model, int iplanet=0):
+
+    cdef extern from "math.h" nogil:
+        double sin(double _x)
+        double cos(double _x)
+        double fabs(double _x)
+        double sqrt(double _x)
+
+    cdef double pi = 3.14159265358979323846264338327950288
+    cdef double pi_d_2 = pi/2.
+
+    cdef double sqrt1pe = sqrt(1 + par.ecc)
+    cdef double sqrt1me = sqrt(1 - par.ecc)
+    cdef double RVampl = 2*pi*par.sau*sin(par.inc)/(par.per*sqrt1pe*sqrt1me)
+    RVampl *= 1731458.33*par.msec/(par.mpri + par.msec)
+
+    cdef double cosarg = par.cosarg
+    cdef double sinarg = par.sinarg
+    cdef double ecccosarg = par.ecc*cosarg
+    cdef double sqrt1pe_div_sqrt1me = sqrt1pe/sqrt1me
+
+    cdef int i
+    cdef int j
+
+    cdef double one_d_24 = 1./24
+    cdef double one_d_240 = 1./240
+
+    cdef int i_rel_RV = data.nTot - data.n_rel_RV  # the starting index for the relative RV data.
+    cdef double conv = -1. * (par.msec + par.mpri) / par.msec
     # conversion factor =conv from RV of the primary to delta RV = RVsecondary - RVprimary.
     # Note that this method is not in detail correct for systems with 3 or more bodies. A future PR will resolve this.
     for i in range(data.n_rel_RV):
@@ -1133,6 +1146,20 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
 cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one_d_240,
               double pi, double pi_d_2, double sqrt1pe_div_sqrt1me, double RVampl,
               double cosarg, double sinarg, double ecccosarg, double abs_sinEA, double abs_EA):
+    """
+    Trickery with trig identities.  The code below is mathematically
+    identical to the use of the true anomaly.  If sin(EA) is small
+    and cos(EA) is close to -1, no problem as long as sin(EA) is not
+    precisely zero (set tan(EA/2)=1e100 in this case).  If sin(EA)
+    is small and EA is close to zero, use the fifth-order Taylor
+    expansion for tangent.  This is good to ~1e-15 for EA within
+    ~0.015 of 0.  Assume eccentricity is not precisely unity (this
+    should be forbidden by the priors).  Very, very high
+    eccentricities (significantly above 0.9999) may be problematic.
+    This routine assumes range reduction of the eccentric anomaly to
+    (-pi, pi] and will throw an error if this is violated.
+    """
+
     cdef double RV
     cdef double tanEAd2
     if abs_sinEA > 1.5e-2:

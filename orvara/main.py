@@ -202,7 +202,11 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
             return -np.inf
 
         orbit.calc_EA_RPP(data, params, model)
-        orbit.calc_RV(data, params, model, i)
+        orbit.calc_RV(data, params, model)
+        if data.n_rel_RV > 0:
+            # slightly more performant if we ignore the relative RV calculation call entirely if
+            # we do not have any relative RVs to calculate.
+            orbit.calc_relRV(data, params, model, i)
         orbit.calc_offsets(data, params, model, i)
 
         chisq_sec = (params.msec - priors[f'm_secondary{i}'])**2/priors[f'm_secondary{i}_sig']**2
