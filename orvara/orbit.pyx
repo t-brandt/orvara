@@ -1125,11 +1125,6 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
             model.rel_RV[i] = _calc_RV(model.sinEA[j], model.cosEA[j], model.EA[j], one_d_24,
                                        one_d_240, pi, pi_d_2, sqrt1pe_div_sqrt1me, RVampl * conv,
                                        cosarg, sinarg, ecccosarg, fabs(model.sinEA[j]), fabs(model.EA[j]))
-    # Don't use the following: we do about 20 times better above.
-    # cdef double TA
-    #for i in range(data.nRV):
-    #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
-    #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
     return
 
 @cython.boundscheck(False)
@@ -1138,7 +1133,7 @@ def calc_RV(Data data, Params par, Model model, int iplanet=0):
 cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one_d_240,
               double pi, double pi_d_2, double sqrt1pe_div_sqrt1me, double RVampl,
               double cosarg, double sinarg, double ecccosarg, double abs_sinEA, double abs_EA):
-
+    cdef double RV
     cdef double tanEAd2
     if abs_sinEA > 1.5e-2:
         tanEAd2 = (1 - cosEA) / sinEA
@@ -1153,7 +1148,8 @@ cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one
 
     cdef double ratio = sqrt1pe_div_sqrt1me * tanEAd2
     cdef double fac = 2 / (1 + ratio ** 2)
-    return RVampl * (cosarg * (fac - 1) - sinarg * ratio * fac + ecccosarg)
+    RV = RVampl * (cosarg * (fac - 1) - sinarg * ratio * fac + ecccosarg)
+    return RV
     # Don't use the following: we do about 20 times better above.
     #for i in range(data.nRV):
     #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
