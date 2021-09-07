@@ -1,3 +1,7 @@
+1.0.5 (2021-05-14)
+------------------
+- Added a dev_utils module and a script for timing the RV calculations.
+
 1.0.4 (2021-05-14)
 ------------------
 - Fixed units bug in periastron time calculation.
