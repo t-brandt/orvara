@@ -157,7 +157,7 @@ cdef class Data:
                 print(f"Loaded {self.n_rel_RV } relative RV data points for {len(set(self.rel_RV_planetID))} planets")
         except:
             if verbose:
-                print("Unable to load relative RV data from file " + relRVFile)
+                print(f"Unable to load relative RV data from file {relRVFile}")
             self.n_rel_RV = 0
             rel_RV_ep = []
         try:
