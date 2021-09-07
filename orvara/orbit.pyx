@@ -1136,6 +1136,15 @@ def calc_RV(Data data, Params par, Model model):
 
     return
 
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+
+#######################################################################
+# Compute the relative RVs.
+#######################################################################
+
 def calc_relRV(Data data, Params par, Model model, int iplanet=0):
 
     cdef extern from "math.h" nogil:
