@@ -1110,9 +1110,7 @@ def calc_RV(Data data, Params par, Model model):
     cdef double one_d_240 = 1./240
 
     for i in range(data.nRV):
-        # note that this same logic is used within calc_rel_RV, however refactoring it
-        # to its own function caused a slowdown by a factor of ~5.. so we are keeping it
-        # programmatically copied so that we keep our fast speed.
+
         if fabs(model.sinEA[i]) > 1.5e-2:
             tanEAd2 = (1 - model.cosEA[i])/model.sinEA[i]
         elif model.EA[i] < -pi or model.EA[i] > pi:
@@ -1137,14 +1135,6 @@ def calc_RV(Data data, Params par, Model model):
     return
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.nonecheck(False)
-
-#######################################################################
-# Compute the relative RVs.
-#######################################################################
-
 def calc_relRV(Data data, Params par, Model model, int iplanet=0):
 
     cdef extern from "math.h" nogil:
@@ -1165,7 +1155,6 @@ def calc_relRV(Data data, Params par, Model model, int iplanet=0):
     cdef double sinarg = par.sinarg
     cdef double ecccosarg = par.ecc*cosarg
     cdef double sqrt1pe_div_sqrt1me = sqrt1pe/sqrt1me
-    cdef double TA, ratio, fac, tanEAd2
 
     cdef int i
     cdef int j
@@ -1180,22 +1169,59 @@ def calc_relRV(Data data, Params par, Model model, int iplanet=0):
     for i in range(data.n_rel_RV):
         j = i + i_rel_RV
         if iplanet == data.rel_RV_planetID[i]:
-            if fabs(model.sinEA[j]) > 1.5e-2:
-                tanEAd2 = (1 - model.cosEA[j]) / model.sinEA[j]
-            elif model.EA[j] < -pi or model.EA[j] > pi:
-                raise ValueError("EA input to calc_RV must be betwen -pi and pi.")
-            elif fabs(model.EA[j]) < pi_d_2:
-                EA = model.EA[j]
-                tanEAd2 = EA * (0.5 + EA ** 2 * (one_d_24 + one_d_240 * EA ** 2))
-            elif model.sinEA[j] != 0:
-                tanEAd2 = (1 - model.cosEA[j]) / model.sinEA[j]
-            else:
-                tanEAd2 = 1e100
-
-            ratio = sqrt1pe_div_sqrt1me * tanEAd2
-            fac = 2 / (1 + ratio ** 2)
-            model.rel_RV[j] += conv * RVampl * (cosarg * (fac - 1) - sinarg * ratio * fac + ecccosarg)
+            model.rel_RV[i] = _calc_RV(model.sinEA[j], model.cosEA[j], model.EA[j], one_d_24,
+                                       one_d_240, pi, pi_d_2, sqrt1pe_div_sqrt1me, RVampl * conv,
+                                       cosarg, sinarg, ecccosarg, fabs(model.sinEA[j]), fabs(model.EA[j]))
     return
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+cdef _calc_RV(double sinEA, double cosEA, double EA, double one_d_24, double one_d_240,
+              double pi, double pi_d_2, double sqrt1pe_div_sqrt1me, double RVampl,
+              double cosarg, double sinarg, double ecccosarg, double abs_sinEA, double abs_EA):
+    """
+    Trickery with trig identities.  The code below is mathematically
+    identical to the use of the true anomaly.  If sin(EA) is small
+    and cos(EA) is close to -1, no problem as long as sin(EA) is not
+    precisely zero (set tan(EA/2)=1e100 in this case).  If sin(EA)
+    is small and EA is close to zero, use the fifth-order Taylor
+    expansion for tangent.  This is good to ~1e-15 for EA within
+    ~0.015 of 0.  Assume eccentricity is not precisely unity (this
+    should be forbidden by the priors).  Very, very high
+    eccentricities (significantly above 0.9999) may be problematic.
+    This routine assumes range reduction of the eccentric anomaly to
+    (-pi, pi] and will throw an error if this is violated.
+    """
+
+    # note that this same logic is used within calc_RV, however refactoring calc_RV so that
+    # it used this function caused a slowdown by a factor of ~5.. so we are keeping it
+    # programmatically copied so that we keep our fast speed. This function is only
+    # used in calc_rel_RV.
+    cdef double RV
+    cdef double tanEAd2
+    if abs_sinEA > 1.5e-2:
+        tanEAd2 = (1 - cosEA) / sinEA
+    elif EA < -pi or EA > pi:
+        raise ValueError("EA input to calc_RV must be between -pi and pi.")
+    elif abs_EA < pi_d_2:
+        tanEAd2 = EA * (0.5 + EA ** 2 * (one_d_24 + one_d_240 * EA ** 2))
+    elif sinEA != 0:
+        tanEAd2 = (1 - cosEA) / sinEA
+    else:
+        tanEAd2 = 1e100
+
+    cdef double ratio = sqrt1pe_div_sqrt1me * tanEAd2
+    cdef double fac = 2 / (1 + ratio ** 2)
+    RV = RVampl * (cosarg * (fac - 1) - sinarg * ratio * fac + ecccosarg)
+    return RV
+    # Don't use the following: we do about 20 times better above.
+    #for i in range(data.nRV):
+    #    TA = 2*atan2(sqrt1pe*sin(model.EA[i]/2), sqrt1me*cos(model.EA[i]/2))
+    #    model.RV[i] += RVampl*(cos(TA + par.arg) + par.ecc*cos(par.arg))
+
+
 
 
 @cython.boundscheck(False)
