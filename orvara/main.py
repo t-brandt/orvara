@@ -135,7 +135,7 @@ def initialize_data(config, companion_gaia):
                                  central_epoch_ra=to_jd(data.epRA_G),
                                  central_epoch_dec=to_jd(data.epDec_G),
                                  format='jd')
-        Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
+        Hip2_fitter = Astrometry('Hip21', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=to_jd(data.epRA_H),
                                  central_epoch_dec=to_jd(data.epDec_H),
                                  format='jd')

@@ -1,3 +1,8 @@
+1.0.5 (2021-09-10)
+------------------
+- Updated htof to 1.0.0 and orvara to use only the Java Tool Intermediate Astrometric Data (IAD). 
+- Updated the readme to reflect the switch to the Java Tool IAD.
+
 1.0.4 (2021-05-14)
 ------------------
 - Fixed units bug in periastron time calculation.

@@ -43,21 +43,36 @@ config.ini file. Example configuration files can be found in
 
 Epoch Astrometry
 ~~~~~~~~~~~~~~~~
-If you are using epoch astrometry (observational epochs and scan angles), you
-must give paths for ``GaiaDataDir``, ``Hip1DataDir``, and
-``Hip2DataDir``. Those are the paths of the intermediate epoch and scan
-angles for Gaia/GOST in csv format, the intermediate astrometry from the
-original Hipparcos data reduction, and from the second Hipparcos data
-reduction. 
-
-Note: if your Hip2 intermediate data come from the DVD, you will
-want to point to the 'resrec' folder. This should be e.g.:
-``Hip2_DVD_Book/IntermediateData/resrec``. You can keep the original
-directory structure as it is.
 
 Note: We recommend starting with ``use_epoch_astrometry = False``. If this
 fails, then there is something wrong with the RVFile, HGCAFile, or (relative)
 AstrometryFile. If that chain finishes fine, then set ``use_epoch_astrometry = True``.
+
+Note that ``use_epoch_astrometry = False`` makes it so that you do not need to have any of the IAD, the gaia GOST
+.csv files or anything. You can leave those filepaths as-is. I.e., if ``use_epoch_astrometry = False`` then you can ignore
+everything in this subsection.
+orvara will only try to load those files if ``use_epoch_astrometry = True``.
+
+
+If you are using epoch astrometry (observational epochs and scan angles, ``use_epoch_astrometry = True``), you
+must give paths for ``GaiaDataDir``, ``Hip1DataDir``, and
+``Hip2DataDir``. Those are the paths of the intermediate epoch and scan
+angles for Gaia/GOST in csv format, the intermediate astrometry from the
+original Hipparcos data reduction, and from the second Hipparcos data
+reduction. The second Hipparcos reduction Intermediate Astrometric Data should come from the Java Tool. All
+of the IAD can be downloaded from https://www.cosmos.esa.int/web/hipparcos/hipparcos-2 as
+a ~350 mb zip file. Or directly: https://www.cosmos.esa.int/documents/532822/6470227/ResRec_JavaTool_2014.zip/a58ad12e-cffb-f959-0ed5-2ae26899f61a?t=1631109433177&download=true .
+Although the latter link may change.
+Please point orvara to the resrec folder (the parent folder that contains all the H000, H001 etc sub folders).
+For the Java IAD, this should be /home/user/Downloads/ResRec_JavaTool_2014/ResRec_JavaTool_2014/ . E.g., in a config file,
+I would have:
+
+Hip2DataDir = /home/user/Downloads/ResRec_JavaTool_2014/ResRec_JavaTool_2014/
+
+Note: if you previously used Hip2 intermediate data come from the DVD, you will want to
+upgrade to the Java Tool IAD. *Do not use* the Hip2 DVD IAD. See G. Brandt, D. Michalik, T. Brandt et. al. (2021)
+section 4 for a discussion of exactly why.
+
 
 Setting priors
 ~~~~~~~~~~~~~~
