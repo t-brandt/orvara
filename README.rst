@@ -284,7 +284,8 @@ Main plots orvara is configured to produce from the orbital fit
 5. Position angle between the two companions
 6. Astrometric acceleration or proper motion fit to Hipparcos-Gaia Astrometry
 7. A density plot showing the predicted position at a chosen epoch
-
+8. Astrometry orbit of the companion in a "top-down" view, with inclination set to zero.
+   
 To generate any of these plots, simply set the corresponding parameters under
 the ``[plotting section]`` in the config.ini file to a boolean variable ``True``. If
 ``False``, a plot would not be produced. 
@@ -301,6 +302,8 @@ in RA and DEC in one plot (``Proper_motion_separate_plots = False``) or two
 (``Proper_motion_separate_plots = True``). In general, you can also set a
 customized range of epochs you want to plot, as well as number of orbits
 sampled from the posterior distributions and the resolution (step size).
+
+For 8. Use ``Astrometry_topdown_plot = True`` in the ``[plotting section]``.
 
 Other outputs
 ~~~~~~~~~~~~~

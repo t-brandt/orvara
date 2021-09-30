@@ -133,6 +133,7 @@ def run():
     burnin = config.getint('plotting', 'burnin', fallback=0)
     plot_astr = config.getboolean('plotting', 'Astrometry_orbits_plot', fallback=False)
     plot_astr_pred = config.getboolean('plotting', 'Astrometric_prediction_plot', fallback=False)
+    plot_astr_topdown = config.getboolean('plotting', 'Astrometry_topdown_plot', fallback=False)
     plot_rv_full = config.getboolean('plotting', 'RV_orbits_plot', fallback=False)
     plot_rv = config.getboolean('plotting', 'RV_plot', fallback=False)
     plot_rel_sep = config.getboolean('plotting', 'Relative_separation_plot', fallback=False)
@@ -148,6 +149,8 @@ def run():
         OPs.astrometry()
     if plot_astr_pred:
         OPs.astrometric_prediction()
+    if plot_astr_topdown:
+        OPs.astrometry_topdown()
     if plot_rv_full:
         OPs.RV_fullorbit()
     if plot_rv:
