@@ -1,8 +1,11 @@
-1.0.5 (2020-10-22)
+1.0.5 (2021-12-01)
 ------------------
 - Added the ability to constrain orbits with a relative RV measurement (e.g. that between beta pic A and beta
 pic b), by providing a relative RV file (`relRVFile=relative_rv_filename.dat`) in the config.ini. This is implemented
-  for multiple companions (3, 4 etc body fits), but it has only been tested within a 2-body fit.
+programmatically so that it will work for multiple companions (3, 4 etc body fits), i.e., it won't crash.
+However the logic to compute the relative RV is technically only valid in detail for 2-body systems, or multi-planet
+systems where the primary is substantially more massive than any companion. See the note within `def calc_relRV` inside
+of orbit.pyx. 
 
 1.0.4 (2021-05-14)
 ------------------
