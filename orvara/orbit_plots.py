@@ -405,7 +405,10 @@ class OrbitPlots:
             i += 1
 
             m, b = calc_linear([x, x + _dx], [y, y + _dy])
-
+            if not np.isfinite(m) or not np.isfinite(b):
+                # some ill constrained orbits will have issues plotting predicted epochs.
+                # skip if we find such an epoch.
+                continue
             # plot the predicted epochs data points on the most likely orbit
             ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)
             # calculate the angle between the tangent line and the x-axis
