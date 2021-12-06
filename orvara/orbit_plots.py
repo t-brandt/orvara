@@ -1272,7 +1272,7 @@ class OrbitPlots:
 
     def plot_chains(self,labels=None,thin=1,alpha=0.1):
         #labels=['Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam']
-        print("Generating diagonstic plots to check convergence")
+        print("Generating diagnostic plots to check convergence")
 
         chain = fits.open(self.MCMCfile)[1].data
         chain = burnin_chain(chain.columns, self.burnin, reshape=False)
@@ -1384,8 +1384,8 @@ class OrbitPlots:
             sqesino = print_par_values(chain['esino' + npl],perc_sigmas)
             sqecoso = print_par_values(chain['ecoso' + npl],perc_sigmas)
             inc = print_par_values((chain['inc' + npl]*180/np.pi)%(180),perc_sigmas)
-            asc = print_par_values((chain['asc' + npl]*180/np.pi)%(180),perc_sigmas)
-            lam = print_par_values((chain['lam' + npl]*180/np.pi)%(180),perc_sigmas)
+            asc = print_par_values((chain['asc' + npl]*180/np.pi)%(360),perc_sigmas)
+            lam = print_par_values((chain['lam' + npl]*180/np.pi)%(360),perc_sigmas)
             # Multiply by 1000 for units of mas
             plx = print_par_values(1e3*chain['plx_ML'],perc_sigmas)
             period_data = np.sqrt(chain['sau' + npl]**3/(chain['mpri'] + chain['msec' + npl]))
