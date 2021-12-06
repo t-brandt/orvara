@@ -408,6 +408,7 @@ class OrbitPlots:
             if not np.isfinite(m) or not np.isfinite(b):
                 # some ill constrained orbits will have issues plotting predicted epochs.
                 # skip if we find such an epoch.
+                print(f'Failed to plot the predicted epoch {year} in the "Astrometry orbits plot." ')
                 continue
             # plot the predicted epochs data points on the most likely orbit
             ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)
