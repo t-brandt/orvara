@@ -1,3 +1,7 @@
+1.0.5 (2021-12-06)
+------------------
+- Fixed a bug in the astrometric orbit plotting.
+
 1.0.4 (2021-05-14)
 ------------------
 - Fixed units bug in periastron time calculation.
