@@ -1,7 +1,12 @@
-1.0.5 (2021-09-10)
+
+1.0.6 (2021-12-13)
 ------------------
 - Updated htof to 1.0.0 and orvara to use only the Java Tool Intermediate Astrometric Data (IAD). 
 - Updated the readme to reflect the switch to the Java Tool IAD.
+
+1.0.5 (2021-12-06)
+------------------
+- Fixed a bug in the astrometric orbit plotting.
 
 1.0.4 (2021-05-14)
 ------------------
