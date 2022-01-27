@@ -4,6 +4,7 @@ from astropy.time import Time
 import astropy
 import warnings
 import time
+import copy
 from random import randrange
 from orvara import corner_modified
 from scipy.interpolate import interp1d
@@ -307,20 +308,30 @@ class OrbitPlots:
     ###############################################################################################
     ############################## plot astrometric orbits ######################
     
-    def closed_orbit(self, par, plx, nodes=False, n=1000):
-        """
-        Compute a closed orbit (EA: 0 -> 2pi) to trace out.
-        If nodes is specified, get the nodes, periastron position, and 
-        a point just off to compute the direction of motion.
-        """
-        A = np.cos(par.arg)*np.cos(par.asc) 
+    def thiele_innes(self, par):
+        '''
+        Function to calculate the Thiele-Innes constants.
+        '''
+        A = np.cos(par.arg)*np.cos(par.asc)
         A -= np.sin(par.arg)*np.sin(par.asc)*np.cos(par.inc)
         B = np.cos(par.arg)*np.sin(par.asc)
         B += np.sin(par.arg)*np.cos(par.asc)*np.cos(par.inc)
-        F = -np.sin(par.arg)*np.cos(par.asc) 
+        F = -np.sin(par.arg)*np.cos(par.asc)
         F -= np.cos(par.arg)*np.sin(par.asc)*np.cos(par.inc)
         G = -np.sin(par.arg)*np.sin(par.asc)
         G += np.cos(par.arg)*np.cos(par.asc)*np.cos(par.inc)
+
+        return A, B, F, G
+
+
+    def closed_orbit(self, par, plx, nodes=False, n=1000):
+        """
+        Compute a closed orbit (EA: 0 -> 2pi) to trace out.
+        If nodes is specified, get the nodes, periastron position, and
+        a point just off to compute the direction of motion.
+        """
+
+        A, B, F, G = self.thiele_innes(par)
 
         if nodes:
             eccterm = np.sqrt((1 - par.ecc)/(1 + par.ecc))
@@ -336,6 +347,28 @@ class OrbitPlots:
         ddec = (A*X + F*Y)*(par.sau)*plx #changed
         
         return dra, ddec
+
+
+    def deproject_obs(self, dra, ddec, par, plx, n=1000):
+        '''
+        Convert observed dra, ddec into deprojected dx, dy positions, for top-down orbit plot.
+        '''
+
+        # project back to basic elliptical coordinates
+        A, B, F, G = self.thiele_innes(par)
+        rootx = (G*ddec-F*dra)/((par.sau)*plx*(A*G-B*F))
+        rooty = (A*dra-B*ddec)/((par.sau)*plx*(A*G-B*F))
+
+        # project to arg/asc, with inc set to 0 for a top-down view
+        store_inc = copy.deepcopy(par.inc)
+        par.inc = 0
+        A, B, F, G = self.thiele_innes(par)
+        par.inc = store_inc
+
+        dx = (par.sau)*plx*(B*rootx+G*rooty)
+        dy = (par.sau)*plx*(A*rootx+F*rooty)
+
+        return dx, dy
 
     def astrometry(self):
 
@@ -476,6 +509,91 @@ class OrbitPlots:
             warnings.simplefilter("ignore", category=UserWarning)
             plt.tight_layout()
             plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', bbox_inches='tight',transparent=True) # or +'.png'
+
+
+    def astrometry_topdown(self):
+        ## here we plot a deprojected view of the orbit, i.e. orbits with inclination set to 0.
+        ## useful for demonstrating the orbits of highly eccentric systems.
+
+        fig = plt.figure(figsize=(5, 4))
+        ax = fig.add_subplot(111)
+
+        # plot the num_orbits randomly selected curves
+        for i in range(self.num_orbits):
+
+            orb = Orbit(self, step=self.rand_idx[i])
+
+            store_inclination = copy.deepcopy(orb.par.inc)
+            orb.par.inc = 0
+            dx, dy = self.closed_orbit(orb.par, orb.plx)
+            orb.par.inc = store_inclination
+
+            ax.plot(dx, dy, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.4, linewidth=0.8)
+
+        # plot the most likely orbit
+        orb_ml = Orbit(self, step='best')
+        store_inclination = copy.deepcopy(orb_ml.par.inc)
+        orb_ml.par.inc = 0
+        dx, dy = self.closed_orbit(orb_ml.par, orb_ml.plx)
+        dra_nd, ddec_nd = self.closed_orbit(orb_ml.par, orb_ml.plx, nodes=True)
+        orb_ml.par.inc = store_inclination
+
+        ax.plot(dx, dy, color='black')
+
+        # add arrow to show direction of motion
+        arrow = mpatches.FancyArrowPatch((dra_nd[0], ddec_nd[0]), (dra_nd[1], ddec_nd[1]),  arrowstyle='->', mutation_scale=25, zorder=100)
+        ax.add_patch(arrow)
+
+        # plot the relAst data points
+        if self.have_reldat:
+
+            ra_obs = self.relsep_obs * np.sin(self.PA_obs*np.pi /180.)
+            dec_obs = self.relsep_obs * np.cos(self.PA_obs*np.pi /180.)
+            dx, dy = self.deproject_obs(ra_obs, dec_obs, orb_ml.par, orb_ml.plx)
+
+            ax.scatter(dx, dy, s=45, facecolors=self.marker_color, edgecolors='none', zorder=99)
+            ax.scatter(dx, dy, s=45, facecolors='none', edgecolors='k', zorder=100)
+
+        # not plotting predicted positions here
+        # do deprojected predicted positions have any scientific value?
+
+        # tidy up the plot
+        if self.show_title:
+            ax.set_title('Astrometric Orbits (Top-Down)')
+        if self.add_text:
+            ax.text(self.x_text, self.y_text, self.text_name, horizontalalignment='left', verticalalignment='center', transform=ax.transAxes, fontsize=15)
+        if self.usecolorbar:
+            cbar = fig.colorbar(self.sm, ax=ax, fraction=0.046, pad=0.04)
+            cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
+            cbar.ax.get_yaxis().labelpad=20
+
+        ax.plot(0, 0, marker='*', color='black', markersize=10)
+
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
+        xlim=[x0 - 0.15*(x1 - x0), x1 + 0.15*(x1 - x0)]
+        ylim=[y0 - 0.15*(y1 - y0), y1 + 0.15*(y1 - y0)]
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax.set_aspect(np.abs((x0-x1)/(y0-y1)))
+
+        # invert axis
+        ax.invert_xaxis()
+        # set ticks
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+        # set labels and title
+        ax.set_xlabel(r'$\mathrm{\Delta X}$ (arcsec)', fontsize=14)
+        ax.set_ylabel(r'$\mathrm{\Delta Y}$ [arcsec]', fontsize=14)
+
+        print("Plotting top-down Astrometry orbits, your plot is generated at " + self.outputdir)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.outputdir,'astrometric_topdown_' + self.title)+'.pdf', bbox_inches='tight',transparent=True) # or +'.png'
+
+
 
 # 2. RV orbits plot
 
