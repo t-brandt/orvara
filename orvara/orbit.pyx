@@ -313,7 +313,6 @@ cdef class Data:
             self.nGaia = epochs_Gaia.shape[0]
             absasteps = np.asarray(list(epochs_Hip1) + list(epochs_Hip2) + list(epochs_Gaia))
 
-        self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps))
         # this order is very important. I.e. that rv_epochs, then relative_astrometry epochs, then
         # absolute astrometry epochs, relative RV epochs, come in that order.
         self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps) + list(rel_RV_ep))
