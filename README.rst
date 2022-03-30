@@ -96,7 +96,7 @@ Usage
 -----
 After setting paths and MCMC (markov-chain monte-carlo)  settings in a
 config.ini file, you fit an orbit by running the following from the command
-line (while in the root directory of the repo).
+line.
 
 .. code-block:: bash
 

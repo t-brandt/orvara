@@ -1,3 +1,7 @@
+1.1.0 (2022-XX-XX)
+------------------
+- Added Seven and nine parameter fits in preparation for Gaia DR3.
+
 1.0.5 (2021-12-06)
 ------------------
 - Fixed a bug in the astrometric orbit plotting.

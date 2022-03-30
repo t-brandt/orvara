@@ -114,8 +114,10 @@ def initialize_data(config, companion_gaia):
             HGCAVersion = 'GaiaDR2'
         elif np.isclose(epoch_ra_gaia, 2015.92749023):
             HGCAVersion = 'GaiaeDR3'
+            if 'gaia_npar' in table.names:
+                HGCAVersion = 'GaiaDR3'
         else:
-            raise ValueError("Cannot match %s to either DR2 or eDR3 based on RA epoch of Gaia" % (HGCAFile))
+            raise ValueError("Cannot match %s to either DR2 or eDR3, or DR3 based on RA epoch of Gaia" % (HGCAFile))
     except:
         raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
 
@@ -127,6 +129,8 @@ def initialize_data(config, companion_gaia):
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
+    # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
+    gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
         #  but would matter if we wanted to fit companions with shorter orbital arcs.
@@ -134,7 +138,7 @@ def initialize_data(config, companion_gaia):
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=to_jd(data.epRA_G),
                                  central_epoch_dec=to_jd(data.epDec_G),
-                                 format='jd')
+                                 format='jd', fit_degree=gaia_fit_degree)
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=to_jd(data.epRA_H),
                                  central_epoch_dec=to_jd(data.epDec_H),

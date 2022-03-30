@@ -36,7 +36,6 @@ def test_run(fake_args):
         run()
         assert True
 
-
 @pytest.mark.integration
 @mock.patch('orvara.main.parse_args')
 def test_run_with_secondary_priors(fake_args):
@@ -76,3 +75,13 @@ def test_converges_to_accurate_values(fake_args):
         for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
             assert np.isclose(value, expected, atol=3 * sigma)
         assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)
+
+
+@pytest.mark.e2e
+@mock.patch('orvara.main.parse_args')
+def test_converges_on_fake_7parameter_source_dr3(fake_args):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # TODO give this config file a very good start file, then run the chain for like 20k steps.
+        #  will be faster
+        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3.ini', tmp_dir)
+        tt = run()[1].data
