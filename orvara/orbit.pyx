@@ -323,15 +323,19 @@ cdef class Data:
         C_HG = np.asarray([[eRA**2, eRA*eDec*corr], [eRA*eDec*corr, eDec**2]])
         eRA, eDec, corr = [1e-3*t['pmra_gaia_error'], 1e-3*t['pmdec_gaia_error'], t['pmra_pmdec_gaia']]
         C_G = np.asarray([[eRA**2, eRA*eDec*corr], [eRA*eDec*corr, eDec**2]])
-        e_accRA, e_accDec, corr_acc = [1e-3 * t['accra_gaia_error'], 1e-3 * t['accdec_gaia_error'], t['accra_accdec_gaia']]
-        C_G_acc_terms = np.asarray([[e_accRA**2, e_accRA*e_accDec*corr_acc],
-                                    [e_accRA*e_accDec*corr_acc, e_accDec**2]])
         self.Cinv_H = np.linalg.inv(C_H.reshape(2, 2)).astype(float)
         self.Cinv_HG = np.linalg.inv(C_HG.reshape(2, 2)).astype(float)
         self.Cinv_G = np.linalg.inv(C_G.reshape(2, 2)).astype(float)
         # separate inverse covariance matrices for the acceleration terms and pmra, pmdec is implicitly
         #  assuming that there is negligable covariance between pmra and accra and same for dec.
-        self.Cinv_G_acc_terms = np.linalg.inv(C_G_acc_terms.reshape(2, 2)).astype(float)
+        if self.gaia_npar >= 7:
+            e_accRA, e_accDec, corr_acc = [1e-3 * t['accra_gaia_error'], 1e-3 * t['accdec_gaia_error'], t['accra_accdec_gaia']]
+            C_G_acc_terms = np.asarray([[e_accRA**2, e_accRA*e_accDec*corr_acc],
+                                        [e_accRA*e_accDec*corr_acc, e_accDec**2]])
+            self.Cinv_G_acc_terms = np.linalg.inv(C_G_acc_terms.reshape(2, 2)).astype(float)
+        if self.gaia_npar == 9:
+            None
+            # TODO, jerk terms.
         
         if companion_gaia is None:
             self.Cinv_G_B = np.zeros((2, 2)).astype(float)
