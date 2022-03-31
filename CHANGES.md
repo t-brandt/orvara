@@ -1,6 +1,7 @@
 1.1.0 (2022-XX-XX)
 ------------------
-- Added Seven and nine parameter fits in preparation for Gaia DR3.
+- Added Seven and nine parameter fits in preparation for Gaia DR3, with tests in test_main.py.
+- Added informative comments to the log likelihood function.
 
 1.0.5 (2021-12-06)
 ------------------

@@ -115,7 +115,9 @@ def initialize_data(config, companion_gaia):
         elif np.isclose(epoch_ra_gaia, 2015.92749023):
             HGCAVersion = 'GaiaeDR3'
             if 'gaia_npar' in table.names:
-                HGCAVersion = 'GaiaDR3'
+                # TODO change this to GaiaDR3 when HTOF has a 'GaiaDR3' parser.
+                #  right now for testing, gaiaedr3 works fine because the baseline of dr3 and edr3 will be the same.
+                HGCAVersion = 'GaiaeDR3'
         else:
             raise ValueError("Cannot match %s to either DR2 or eDR3, or DR3 based on RA epoch of Gaia" % (HGCAFile))
     except:
@@ -131,6 +133,9 @@ def initialize_data(config, companion_gaia):
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
     # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
     gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
+    # TODO: currently, calc_PMs_no_epochastrometry() can only calculate the acceleration terms, not the
+    #  jerk terms that are required for the 9 parameter fit. So the case with use_epoch_astrometry=False
+    #   should be improved later on.
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
         #  but would matter if we wanted to fit companions with shorter orbital arcs.
@@ -167,9 +172,9 @@ def initialize_data(config, companion_gaia):
             data.plx = 1e-3*config.getfloat('priors_settings', 'parallax')
             data.plx_err = 1e-3*config.getfloat('priors_settings', 'parallax_error')
         except:
-            print("Cannot load absolute astrometry.")
-            print("Please supply a prior for parallax and parallax_error")
-            print("in the priors_settings area of the configuration file.")
+            raise RuntimeError("Cannot load absolute astrometry. Please supply a prior "
+                               "for parallax and parallax_error in the priors_settings area"
+                               " of the configuration file.")
 
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 

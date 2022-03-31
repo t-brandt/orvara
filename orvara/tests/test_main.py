@@ -47,14 +47,13 @@ def test_run_with_secondary_priors(fake_args):
 @pytest.mark.e2e
 @mock.patch('orvara.main.parse_args')
 def test_converges_to_accurate_values(fake_args):
+    """
+    A test of a fit to HIP3850, verifying that the fit yields the same values as an earlier fit to HIP3850.
+    """
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
         tt = run()[1].data
-        # load file and check params
-        #file = 'HIP3850_chain000.fits'
-        #tt = fits.open(os.path.join(tmp_dir, file))[1].data
         i = -1  # walker index.
-        nsteps = 50 * tt['lnp'].shape[1]
         burn = 250  # number of burn in steps to discard
         rv_jitter = np.mean(tt['jitter'][i, burn:])
         rv_jitter_err = np.std(tt['jitter'][i, burn:])
@@ -79,7 +78,12 @@ def test_converges_to_accurate_values(fake_args):
 
 @pytest.mark.e2e
 @mock.patch('orvara.main.parse_args')
-def test_converges_on_fake_7parameter_source_dr3(fake_args):
+def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
+    """
+    A test of a fit to HIP3850, similar to test_converges_to_accurate_values, however:
+    We include here fake DR3 acceleration data (6th and 7th parameters), that are highly precise.
+    The orbital constraints should improve markedly. This test verifies that they do indeed improve.
+    """
     with tempfile.TemporaryDirectory() as tmp_dir:
         # TODO give this config file a very good start file, then run the chain for like 20k steps.
         #  will be faster
