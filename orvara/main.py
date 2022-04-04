@@ -131,8 +131,6 @@ def initialize_data(config, companion_gaia):
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
-    # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
-    gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
     # TODO: currently, calc_PMs_no_epochastrometry() can only calculate the acceleration terms, not the
     #  jerk terms that are required for the 9 parameter fit. So the case with use_epoch_astrometry=False
     #   should be improved later on.
@@ -140,6 +138,8 @@ def initialize_data(config, companion_gaia):
         # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
         #  but would matter if we wanted to fit companions with shorter orbital arcs.
         to_jd = lambda x: Time(x, format='decimalyear').jd + 0.5
+        # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
+        gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=to_jd(data.epRA_G),
                                  central_epoch_dec=to_jd(data.epDec_G),
@@ -153,11 +153,10 @@ def initialize_data(config, companion_gaia):
                                  central_epoch_dec=to_jd(data.epDec_H),
                                  format='jd')
         # instantiate C versions of the astrometric fitter which are much faster than HTOF's Astrometry
-        #print(Gaia_fitter.fitter.astrometric_solution_vector_components['ra'])
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
-
+        # generate the data object.
         data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
                           use_epoch_astrometry,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
@@ -175,6 +174,11 @@ def initialize_data(config, companion_gaia):
             raise RuntimeError("Cannot load absolute astrometry. Please supply a prior "
                                "for parallax and parallax_error in the priors_settings area"
                                " of the configuration file.")
+    # If at any point, we implement jerk fitting to the calc_pms_no_epoch_astrometry(), this catch can be removed:
+    if data.gaia_npar == 9 and not use_epoch_astrometry:
+        raise RuntimeError("This is a 9-parameter source in Gaia, but you have set use_epoch_astrometry=False"
+                           " in the configuration file. Please enable use_epoch_astrometry=True for this source, and "
+                           "follow the directions in section 'Epoch Astrometry' of the readme.")
 
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 

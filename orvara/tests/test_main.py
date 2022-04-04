@@ -87,5 +87,20 @@ def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         # TODO give this config file a very good start file, then run the chain for like 20k steps.
         #  will be faster
-        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3.ini', tmp_dir)
+        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_7pfit.ini', tmp_dir)
+        tt = run()[1].data
+
+
+@pytest.mark.e2e
+@mock.patch('orvara.main.parse_args')
+def test_constraints_improve_with_fake_9parameter_dr3_data(fake_args):
+    """
+    A test of a fit to HIP3850, identical to test_constraints_improve_with_fake_7parameter_dr3_data except:
+    We include here fake DR3 acceleration AND jerk data (6th, 7th, 8th and 9th parameters), that are highly precise.
+    The orbital constraints should improve markedly. This test verifies that they do indeed improve.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # TODO give this config file a very good start file, then run the chain for like 20k steps.
+        #  will be faster
+        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_9pfit.ini', tmp_dir)
         tt = run()[1].data
