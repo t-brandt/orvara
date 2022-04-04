@@ -85,8 +85,6 @@ def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
     The orbital constraints should improve markedly. This test verifies that they do indeed improve.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
-        # TODO give this config file a very good start file, then run the chain for like 20k steps.
-        #  will be faster
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_7pfit.ini', tmp_dir)
         tt = run()[1].data
 
@@ -100,7 +98,5 @@ def test_constraints_improve_with_fake_9parameter_dr3_data(fake_args):
     The orbital constraints should improve markedly. This test verifies that they do indeed improve.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
-        # TODO give this config file a very good start file, then run the chain for like 20k steps.
-        #  will be faster
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_9pfit.ini', tmp_dir)
         tt = run()[1].data
