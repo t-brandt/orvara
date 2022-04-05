@@ -48,7 +48,8 @@ def test_run_with_secondary_priors(fake_args):
 @mock.patch('orvara.main.parse_args')
 def test_converges_to_accurate_values(fake_args):
     """
-    A test of a fit to HIP3850, verifying that the fit yields the same values as an earlier fit to HIP3850.
+    A test of a fit to HIP3850, verifying that the fit yields the same values as an earlier fit to HIP3850, using
+    the DR2 version of the HGCA.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
@@ -87,6 +88,29 @@ def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_7pfit.ini', tmp_dir)
         tt = run()[1].data
+        burn = 100  # number of burn in steps to discard
+        rv_jitter = np.mean(tt['jitter'][:, burn:])
+        rv_jitter_err = np.std(tt['jitter'][:, burn:])
+        companion_jup_mass = np.mean(tt['msec0'][:, burn:]*1989/1.898)
+        companion_mass_err = np.std(tt['msec0'][:, burn:]*1989/1.898)
+        separation_AU = np.mean(tt['sau0'][:, burn:])
+        separation_err = np.std(tt['sau0'][:, burn:])
+        eccentricity = np.mean(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        eccentricity_err = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        inclination_deg = np.mean(tt['inc0'][:, burn:]*180/np.pi)
+        inclination_err = np.std(tt['inc0'][:, burn:]*180/np.pi)
+        lam_deg = np.mean(tt['lam0'][:, burn:]*180/np.pi)
+        lam_err = np.std(tt['lam0'][:, burn:]*180/np.pi)
+
+        expected_1_sigma_errors = [0.6, 1.6, 0.1, 0.0013, 0.37, 0.7]
+        expected_values = [4.9, 67.07, 10.12, 0.735, 49.52, 44.60]
+
+        values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg, lam_deg]
+        errors = [rv_jitter_err, companion_mass_err, separation_err,
+                  eccentricity_err, inclination_err, lam_err]
+        for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
+            assert np.isclose(value, expected, atol=2 * sigma)
+        assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)
 
 
 @pytest.mark.e2e
