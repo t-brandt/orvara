@@ -1018,6 +1018,8 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     model.pmdec_G = pmdec_G
     model.accra_G = accra_G
     model.accdec_G = accdec_G
+    model.jerkra_G = jerkra_G
+    model.jerkdec_G = jerkdec_G
 
     model.pmra_G_B = pmra_G_B
     model.pmdec_G_B = pmdec_G_B
