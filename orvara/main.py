@@ -14,6 +14,7 @@ from configparser import ConfigParser
 from astropy.io import fits
 from htof.main import Astrometry
 from astropy.time import Time
+from astropy.coordinates import Angle
 import sys
 import re
 import random
@@ -143,7 +144,9 @@ def initialize_data(config, companion_gaia):
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=to_jd(data.epRA_G),
                                  central_epoch_dec=to_jd(data.epDec_G),
-                                 format='jd', fit_degree=gaia_fit_degree)
+                                 central_ra=Angle(data.central_ra_gaia, unit='degree'),
+                                 central_dec=Angle(data.central_ra_gaia, unit='degree'),
+                                 format='jd', fit_degree=gaia_fit_degree, use_parallax=True)
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=to_jd(data.epRA_H),
                                  central_epoch_dec=to_jd(data.epDec_H),
