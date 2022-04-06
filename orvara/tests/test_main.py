@@ -103,7 +103,7 @@ def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
         lam_err = np.std(tt['lam0'][:, burn:]*180/np.pi)
 
         expected_1_sigma_errors = [0.6, 1.6, 0.1, 0.0013, 0.37, 0.7]
-        expected_values = [4.9, 67.07, 10.12, 0.735, 49.52, 44.60]
+        expected_values = [4.9, 66.14, 10, 0.734, 48.74, 46.0]
 
         values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg, lam_deg]
         errors = [rv_jitter_err, companion_mass_err, separation_err,
