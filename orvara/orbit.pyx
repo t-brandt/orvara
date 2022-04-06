@@ -1470,9 +1470,6 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     # acceleration in ra and dec
     # remember that model.accra_G is in units of AU/yr^2 so we multiply by the parallax to get to units of as/yr^2
-    #print('--')
-    #print('C:', plx_best*model.accra_G, plx_best*model.accdec_G)
-    #print('O:', data.accra_G, data.accdec_G)
     delta_accRA = plx_best*model.accra_G - data.accra_G
     delta_accDec = plx_best*model.accdec_G - data.accdec_G
     # we assume the covariance between pmra and accra is zero. Otherwise, we need the large, full covariance matrix.
@@ -1481,9 +1478,6 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     chisq_G += 2 * delta_accRA * delta_accDec * data.Cinv_G_acc_terms[0, 1]
 
     # jerk in ra and dec
-    #print('--')
-    #print('C:', plx_best*model.jerkra_G, plx_best*model.jerkdec_G)
-    #print('O:', data.jerkra_G, data.jerkdec_G)
     delta_jerkRA = plx_best * model.jerkra_G - data.jerkra_G
     delta_jerkDec = plx_best * model.jerkdec_G - data.jerkdec_G
     # we assume the covariance between pmra and accra is zero. Otherwise, we need the large, full covariance matrix.
