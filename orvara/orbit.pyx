@@ -991,7 +991,6 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     pmdec_H2 = res_Hip2[3]
 
     lstsq_C(chi2mat_Gaia, b_Gaia, Gaia.npar, Gaia.npar, res_Gaia)
-    print(np.linalg.cond(Gaia.chi2_matrix))
     # parallax is in the 0 spot. RA in 1, dec in 2, pmra in 3, pmdec in 4,... and so forth,
     #  according to the HTOF convention.
     RA_G = res_Gaia[1]

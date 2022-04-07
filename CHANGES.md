@@ -2,6 +2,8 @@
 ------------------
 - Added Seven and nine parameter fits in preparation for Gaia DR3, with tests in test_main.py.
 - Added informative comments to the log likelihood function.
+- Changed the astrometric fitting routine to work natively in units of years, instead of days. This
+improved the condition number of the matrix that is solved via SVD.
 
 1.0.5 (2021-12-06)
 ------------------
