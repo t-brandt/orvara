@@ -74,8 +74,8 @@ class Orbit:
         self.mu_RA_CM = 1e3*OP.chain['pmra_ML'][step]
         self.mu_Dec_CM = 1e3*OP.chain['pmdec_ML'][step]
         
-        self.mu_RA = 1e3*self.mu_RA*self.plx*365.25 + self.mu_RA_CM
-        self.mu_Dec = 1e3*self.mu_Dec*self.plx*365.25 + self.mu_Dec_CM
+        self.mu_RA = 1e3*self.mu_RA*self.plx + self.mu_RA_CM
+        self.mu_Dec = 1e3*self.mu_Dec*self.plx + self.mu_Dec_CM
         try:
             self.offset = OP.calc_RV_offset(step)
         except:

@@ -136,25 +136,22 @@ def initialize_data(config, companion_gaia):
     #  jerk terms that are required for the 9 parameter fit. So the case with use_epoch_astrometry=False
     #   should be improved later on.
     if use_epoch_astrometry and data.use_abs_ast == 1:
-        # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
-        #  but would matter if we wanted to fit companions with shorter orbital arcs.
-        to_jd = lambda x: Time(x, format='decimalyear').jd + 0.5
         # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
         gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
-                                 central_epoch_ra=to_jd(data.epRA_G),
-                                 central_epoch_dec=to_jd(data.epDec_G),
+                                 central_epoch_ra=data.epRA_G,
+                                 central_epoch_dec=data.epDec_G,
                                  central_ra=Angle(data.central_ra_gaia, unit='degree'),
                                  central_dec=Angle(data.central_ra_gaia, unit='degree'),
-                                 format='jd', fit_degree=gaia_fit_degree, use_parallax=True)
+                                 format='jyear', fit_degree=gaia_fit_degree, use_parallax=True)
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
-                                 central_epoch_ra=to_jd(data.epRA_H),
-                                 central_epoch_dec=to_jd(data.epDec_H),
-                                 format='jd')
+                                 central_epoch_ra=data.epRA_H,
+                                 central_epoch_dec=data.epDec_H,
+                                 format='jyear')
         Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
-                                 central_epoch_ra=to_jd(data.epRA_H),
-                                 central_epoch_dec=to_jd(data.epDec_H),
-                                 format='jd')
+                                 central_epoch_ra=data.epRA_H,
+                                 central_epoch_dec=data.epDec_H,
+                                 format='jyear')
         # instantiate C versions of the astrometric fitter which are much faster than HTOF's Astrometry
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)

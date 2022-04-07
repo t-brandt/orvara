@@ -981,39 +981,40 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     lstsq_C(chi2mat_Hip1, b_Hip1, Hip1.npar, Hip1.npar, res_Hip1)
     RA_H1 = res_Hip1[0]
     Dec_H1 = res_Hip1[1]
-    pmra_H1 = res_Hip1[2]*365.25
-    pmdec_H1 = res_Hip1[3]*365.25
+    pmra_H1 = res_Hip1[2]
+    pmdec_H1 = res_Hip1[3]
 
     lstsq_C(chi2mat_Hip2, b_Hip2, Hip2.npar, Hip2.npar, res_Hip2)
     RA_H2 = res_Hip2[0]
     Dec_H2 = res_Hip2[1]
-    pmra_H2 = res_Hip2[2]*365.25
-    pmdec_H2 = res_Hip2[3]*365.25
+    pmra_H2 = res_Hip2[2]
+    pmdec_H2 = res_Hip2[3]
 
     lstsq_C(chi2mat_Gaia, b_Gaia, Gaia.npar, Gaia.npar, res_Gaia)
+    print(np.linalg.cond(Gaia.chi2_matrix))
     # parallax is in the 0 spot. RA in 1, dec in 2, pmra in 3, pmdec in 4,... and so forth,
     #  according to the HTOF convention.
     RA_G = res_Gaia[1]
     Dec_G = res_Gaia[2]
-    pmra_G = res_Gaia[3]*365.25
-    pmdec_G = res_Gaia[4]*365.25
+    pmra_G = res_Gaia[3]
+    pmdec_G = res_Gaia[4]
     # higher order terms:
     accra_G = accdec_G = 0
     if Gaia.npar >= 7:
-        accra_G = res_Gaia[5]*(365.25**2)
-        accdec_G = res_Gaia[6]*(365.25**2)
+        accra_G = res_Gaia[5]
+        accdec_G = res_Gaia[6]
     jerkra_G = jerkdec_G = 0
     if Gaia.npar == 9:
-        jerkra_G = res_Gaia[7] * (365.25 ** 3)
-        jerkdec_G = res_Gaia[8] * (365.25 ** 3)
+        jerkra_G = res_Gaia[7]
+        jerkdec_G = res_Gaia[8]
 
     if data.Cinv_G_B[0, 0] != 0:
         # TODO what do I need to do here for the optional case when the companion is in gaia?
         lstsq_C(chi2mat_Gaia_B, b_Gaia_B, Gaia.npar, Gaia.npar, res_Gaia_B)
         RA_G_B = res_Gaia_B[1]
         Dec_G_B = res_Gaia_B[2]
-        pmra_G_B = res_Gaia_B[3]*365.25
-        pmdec_G_B = res_Gaia_B[4]*365.25
+        pmra_G_B = res_Gaia_B[3]
+        pmdec_G_B = res_Gaia_B[4]
 
     model.pmra_H = 0.4*pmra_H1 + 0.6*pmra_H2
     model.pmdec_H = 0.4*pmdec_H1 + 0.6*pmdec_H2
