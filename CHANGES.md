@@ -5,7 +5,8 @@ pic b), by providing a relative RV file (`relRVFile=relative_rv_filename.dat`) i
 programmatically so that it will work for multiple companions (3, 4 etc body fits), i.e., it won't crash.
 However the logic to compute the relative RV is technically only valid in detail for 2-body systems, or multi-planet
 systems where the primary is substantially more massive than any companion. See the note within `def calc_relRV` inside
-of orbit.pyx. 
+of orbit.pyx.
+- the chisquared of the relative RV fit is now saved (in the same way as the hipparcos/gaia chisquareds).
 
 1.0.4 (2021-05-14)
 ------------------

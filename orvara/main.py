@@ -363,7 +363,7 @@ def run():
         shape = sample0.lnprobability[0].shape
     else:
         shape = sample0.logprobability[0].shape
-    parfit = np.zeros((shape[0], shape[1], 8 + data.nInst))
+    parfit = np.zeros((shape[0], shape[1], 9 + data.nInst))
 
     loglkwargs['returninfo'] = True
     loglkwargs['RVoffsets'] = True
@@ -371,12 +371,12 @@ def run():
     for i in range(shape[0]):
         for j in range(shape[1]):
             res, RVoffsets = lnprob(sample0.chain[0][i, j], **loglkwargs)
-            parfit[i, j, :8] = [res.plx_best, res.pmra_best, res.pmdec_best,
+            parfit[i, j, :9] = [res.plx_best, res.pmra_best, res.pmdec_best,
                                 res.chisq_sep, res.chisq_PA,
-                                res.chisq_H, res.chisq_HG, res.chisq_G]
+                                res.chisq_H, res.chisq_HG, res.chisq_G, res.chisq_relRV]
             
             if data.nInst > 0:
-                parfit[i, j, 8:] = RVoffsets
+                parfit[i, j, 9:] = RVoffsets
 
     colnames = ['mpri']
     units = ['msun']
@@ -397,8 +397,8 @@ def run():
 
     colnames += ['lnp']
     colnames += ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 
-                 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
-    units += ['', 'arcsec', 'arcsec/yr', 'arcsec/yr', '', '', '', '', '']
+                 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G', 'chisq_relRV']
+    units += ['', 'arcsec', 'arcsec/yr', 'arcsec/yr', '', '', '', '', '', '']
     colnames += ['RV_ZP_%d_ML' % (i) for i in range(data.nInst)]
     units += ['m/s' for i in range(data.nInst)]
 

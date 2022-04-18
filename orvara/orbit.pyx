@@ -573,11 +573,12 @@ cdef class Model:
         PyMem_Free(self.rel_Dec)
 
 cdef class Chisq_resids:
-    cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA
+    cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA, chisq_relRV
     cdef public double plx_best, pmra_best, pmdec_best
     def __init__(self):
         self.chisq_H = self.chisq_HG = self.chisq_G = 0
         self.chisq_sep = self.chisq_PA = 0
+        self.chisq_relRV = 0
 
 
 @cython.boundscheck(False)
@@ -1283,13 +1284,13 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     PyMem_Free(C)
 
     ##################################################################
-    # Add the log likelyhood of the relative RV data
+    # Calculate the log likelyhood of the relative RV data
     ##################################################################
+    cdef double chisq_relRV
+    chisq_relRV = 0
     for i in range(data.n_rel_RV):
         ivar = 1 / (data.rel_RV_err[i]**2)  # dont include jitter here.
-        lnL -= (data.rel_RV[i] - model.rel_RV[i]) ** 2 * ivar
-        #lnL += log(ivar) # only need this if jitter is included above.
-        # factor of 1/2 is done at the very end of calcL .
+        chisq_relRV = (data.rel_RV[i] - model.rel_RV[i]) ** 2 * ivar
 
     ##################################################################
     # Ok, tricky part below.  We will take care of the mean proper
@@ -1489,7 +1490,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     chisq_plx = (data.plx - plx_best)**2/data.plx_err**2
 
-    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx
+    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx + chisq_relRV
     lnL -= log(detM)
 
     if chisq_resids:
@@ -1502,6 +1503,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         chisq_struct.chisq_H = chisq_H
         chisq_struct.chisq_HG = chisq_HG
         chisq_struct.chisq_G = chisq_G
+        chisq_struct.chisq_relRV = chisq_relRV
         RVzero_np = np.zeros(data.nInst)
         for i in range(data.nInst):
             RVzero_np[i] = RVzero[i]

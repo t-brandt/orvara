@@ -204,6 +204,8 @@ are not.
 
     'chisq_G' : The chi squared for the two Gaia proper motions
 
+    'chisq_relRV' : The chi squared for the relative RV data (RV planet - RV star). This will be zero if no relative RV data is used.
+
     'RV_ZP_0_ML' : The ML zero point (barycenter RV) for instrument 0
 
 There will be an 'RV_ZP_1_ML' for instrument 1, etc., up to the number of RV instruments.

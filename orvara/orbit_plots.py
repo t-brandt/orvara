@@ -1306,7 +1306,8 @@ class OrbitPlots:
     def save_data(self):
     
         def print_best_chisq():
-            par_label = ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
+            par_label = ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 'chisq_PA', 'chisq_H',
+                         'chisq_HG', 'chisq_G', 'chisq_relRV']
             print("Saving beststep parameters to " + self.outputdir)
             text_file = open(os.path.join(self.outputdir, 'beststep_params_' + self.title) +'.txt', "w")
             indx = np.where(self.lnp == np.amax(self.lnp))[0][0]

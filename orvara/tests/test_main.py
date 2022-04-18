@@ -80,13 +80,14 @@ def test_converges_to_accurate_values(fake_args):
 @mock.patch('orvara.main.parse_args')
 def test_converges_to_accurate_values_with_relative_RV(fake_args):
     """
-    This test uses FAKE relative RV data of HD 4747
+    This test uses FAKE relative RV data of HD 4747. It tests that the constraints have improved when
+    precise relative RV data are included.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/config_test_relativeRV.ini', tmp_dir)
         tt = run()[1].data
         # check params
-        burn = 225  # number of burn in steps to discard
+        burn = 100  # number of burn in steps to discard
         rv_jitter = np.mean(tt['jitter'][:, burn:])
         rv_jitter_err = np.std(tt['jitter'][:, burn:])
         companion_jup_mass = np.mean(tt['msec0'][:, burn:]*1989/1.898)
@@ -99,8 +100,8 @@ def test_converges_to_accurate_values_with_relative_RV(fake_args):
         eccentricity_stderr = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
         inclination_deg = np.mean(tt['inc0'][:, burn:]*180/np.pi)
         inclination_err = np.std(tt['inc0'][:, burn:]*180/np.pi)
-        expected_1_sigma_errors = [1.2, 0.9, 0.02, 0.08, 0.0030392, 0.42]
-        expected_values = [10.24, 59.48, 0.776, 10.189, 0.73568, 49.728]
+        expected_1_sigma_errors = [0.6, 1.7, 0.04, 0.13, 0.0012, 0.56]
+        expected_values = [4.94, 66.58, 0.832, 10.11, 0.7351, 49.46]
         values = [rv_jitter, companion_jup_mass, prim_mass,
                   separation_AU, eccentricity, inclination_deg]
         errors = [rv_jitter_err, companion_mass_stderr, prim_mass_stderr,
