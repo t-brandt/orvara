@@ -113,12 +113,15 @@ def initialize_data(config, companion_gaia):
         epoch_ra_gaia = table[table['hip_id'] == 1]['epoch_ra_gaia']
         if np.isclose(epoch_ra_gaia, 2015.60211565):
             HGCAVersion = 'GaiaDR2'
+            gaia_mission_length_yrs = 1.75
         elif np.isclose(epoch_ra_gaia, 2015.92749023):
             HGCAVersion = 'GaiaeDR3'
+            gaia_mission_length_yrs = 2.76
             if 'gaia_npar' in table.names:
                 # TODO change this to GaiaDR3 when HTOF has a 'GaiaDR3' parser.
                 #  right now for testing, gaiaedr3 works fine because the baseline of dr3 and edr3 will be the same.
                 HGCAVersion = 'GaiaeDR3'
+                gaia_mission_length_yrs = 2.76
         else:
             raise ValueError("Cannot match %s to either DR2 or eDR3, or DR3 based on RA epoch of Gaia" % (HGCAFile))
     except:
@@ -131,10 +134,8 @@ def initialize_data(config, companion_gaia):
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
-    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
-    # TODO: currently, calc_PMs_no_epochastrometry() can only calculate the acceleration terms, not the
-    #  jerk terms that are required for the 9 parameter fit. So the case with use_epoch_astrometry=False
-    #   should be improved later on.
+    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia,
+                      gaia_mission_length_yrs=gaia_mission_length_yrs)
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
         gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]

@@ -135,14 +135,15 @@ cdef class Data:
     cdef double [:, :] Cinv_G_acc_terms
     cdef double [:, :] Cinv_G_jerk_terms
     cdef double [:, :] Cinv_G_B
-    cdef public double refep
+    cdef public double refep, gaia_mission_length_yrs
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
 
     def __init__(self, Hip, HGCAfile, RVfile, relAstfile,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
-                 refep=2455197.5000, companion_gaia=None, verbose=True):
+                 refep=2455197.5000, companion_gaia=None, verbose=True,
+                 gaia_mission_length_yrs=2.76):
         try:
             rvdat = np.genfromtxt(RVfile)
             rvep = rvdat[:, 0]
@@ -288,7 +289,7 @@ cdef class Data:
         if not use_epoch_astrometry:
             self.nHip1 = self.nHip2 = self.nGaia = 6
             self.dt_H = 3.36
-            self.dt_G = 1.83
+            self.dt_G = gaia_mission_length_yrs
             ep_2010 = 2455197.5000
 
             dmurH_epc = (self.epRA_H - 2010.0)*365.25 + ep_2010

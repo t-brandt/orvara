@@ -86,6 +86,24 @@ prior on the primary mass of 1 solar mass and 0.1 solar mass deviation, you set
 
 Leaving ``mpri_sig = inf`` will turn off the prior and default to a 1/m prior.
 
+Fits without subsets of data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can do fits with orvara to any subset of the three data sources:
+1. Radial velocities
+2. Absolute astometry (via the HGCA)
+3. Relative astrometry.
+
+E.g., you can do fits without the absolute astrometry (so just 1. and 3.), or a fit to purely radial velocities. Etc.
+Below are descriptions with how to do fits to a source without a specific set of data.
+
+1. To do a fit without radial velocity data: In the config file, set ``RVFile = None``
+2. To do a fit without Absolute astrometry: In the config file, set ``HipID = None``
+3. To do a fit without Relative Astrometry: ``AstrometryFile = None``
+
+So if I wanted to do a fit to just radial velocities, I would set ``HipID = None`` and ``AstrometryFile = None``, and
+``RVFile = path/to/the_rv_data.dat``.
+
 Starting conditions
 ~~~~~~~~~~~~~~~~~~~
 You can set the initial conditions of the orbit (starting parameters of the
