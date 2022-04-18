@@ -142,10 +142,8 @@ def initialize_data(config, companion_gaia):
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=data.epRA_G,
                                  central_epoch_dec=data.epDec_G,
-                                 central_ra=Angle(data.central_ra_gaia, unit='degree'),
-                                 central_dec=Angle(data.central_ra_gaia, unit='degree'),
                                  format='jyear', fit_degree=gaia_fit_degree,
-                                 use_parallax=True, use_catalog_parallax_factors=False)
+                                 use_parallax=True, use_catalog_parallax_factors=True)
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=data.epRA_H,
                                  central_epoch_dec=data.epDec_H,
