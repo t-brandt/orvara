@@ -4,6 +4,7 @@
 - Added informative comments to the log likelihood function.
 - Changed the astrometric fitting routine to work natively in units of years, instead of days. This
 improved the condition number of the matrix that is solved via SVD.
+- Bumped required version of HTOF to 1.1.0. This is needed for the fits with parallax.
 
 1.0.5 (2021-12-06)
 ------------------

@@ -128,7 +128,6 @@ cdef class Data:
     cdef public double accra_G, accdec_G, jerkra_G, jerkdec_G
     cdef public double pmra_G_B, pmdec_G_B
     cdef public double plx, plx_err
-    cdef public double central_ra_gaia, central_dec_gaia
     cdef double [:, :] Cinv_H
     cdef double [:, :] Cinv_HG
     cdef double [:, :] Cinv_G
@@ -229,8 +228,6 @@ cdef class Data:
             else:
                 # assume the fit is a 5 parameter fit.
                 self.gaia_npar = 5
-            self.central_ra_gaia = t['gaia_ra']
-            self.central_dec_gaia = t['gaia_dec']
             if verbose:
                 print("Loading absolute astrometry data for Hip %d" % (Hip))
                 print(f"Recognized a {self.gaia_npar}-parameter fit in Gaia for Hip {Hip}")
@@ -980,16 +977,18 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
             chi2mat_Gaia_B[i*Gaia.npar + j] = Gaia.chi2_matrix[i, j]
 
     lstsq_C(chi2mat_Hip1, b_Hip1, Hip1.npar, Hip1.npar, res_Hip1)
-    RA_H1 = res_Hip1[0]
-    Dec_H1 = res_Hip1[1]
-    pmra_H1 = res_Hip1[2]
-    pmdec_H1 = res_Hip1[3]
+    # parallax is in the 0 spot. RA in 1, dec in 2, pmra in 3, pmdec in 4,... and so forth,
+    #  according to the HTOF convention.
+    RA_H1 = res_Hip1[1]
+    Dec_H1 = res_Hip1[2]
+    pmra_H1 = res_Hip1[3]
+    pmdec_H1 = res_Hip1[4]
 
     lstsq_C(chi2mat_Hip2, b_Hip2, Hip2.npar, Hip2.npar, res_Hip2)
-    RA_H2 = res_Hip2[0]
-    Dec_H2 = res_Hip2[1]
-    pmra_H2 = res_Hip2[2]
-    pmdec_H2 = res_Hip2[3]
+    RA_H2 = res_Hip2[1]
+    Dec_H2 = res_Hip2[2]
+    pmra_H2 = res_Hip2[3]
+    pmdec_H2 = res_Hip2[4]
 
     lstsq_C(chi2mat_Gaia, b_Gaia, Gaia.npar, Gaia.npar, res_Gaia)
     # parallax is in the 0 spot. RA in 1, dec in 2, pmra in 3, pmdec in 4,... and so forth,
@@ -1009,7 +1008,10 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
         jerkdec_G = res_Gaia[8]
 
     if data.Cinv_G_B[0, 0] != 0:
-        # TODO what do I need to do here for the optional case when the companion is in gaia?
+        # TODO this is the case where the companion is in Gaia (e.g., its some widely separated stellar object)
+        #  in this case, we should ideally have a separate fitter for this gaia object, which pulls the
+        #   fit degree (5, 7 or 9 parameters) for this object and uses an appropriate htof fitter for it.
+        # for now though... just doing a high order fit and throwing away the higher order parameters is OK.
         lstsq_C(chi2mat_Gaia_B, b_Gaia_B, Gaia.npar, Gaia.npar, res_Gaia_B)
         RA_G_B = res_Gaia_B[1]
         Dec_G_B = res_Gaia_B[2]
