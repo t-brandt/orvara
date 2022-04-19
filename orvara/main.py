@@ -179,7 +179,7 @@ def initialize_data(config, companion_gaia):
         raise RuntimeError("This is a 9-parameter source in Gaia, but you have set use_epoch_astrometry=False"
                            " in the configuration file. Please enable use_epoch_astrometry=True for this source, and "
                            "follow the directions in section 'Epoch Astrometry' of the readme.")
-
+    print(data.plx, data.plx_err)
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 
 

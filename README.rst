@@ -29,7 +29,8 @@ cd to the root directory of the repo (if you are not already there). Run:
 
 This will run a small suite of tests. This should take about 5 minutes. If any
 of the tests fail, something is wrong with the install. Maybe you recently
-switched branches? Try running ``pip install -e .`` again. If the issue
+switched branches? Try deleting the two compiled c files (orbit.c and orbit.cpython-38...)
+and then run ``pip install -e .`` again. If the issue
 persists, please submit an issue ticket on github!
 
 Orbit fitting
@@ -66,7 +67,7 @@ on the RV jitter are supported. To add a Gaussian mass prior of 1 ± 0.1 M_sun
 on the primary, you will want to add the following section to your
 configuration file:
 
-.. code-block:: none
+.. code-block:: bash
 
     [priors_settings]
     mpri = 1
@@ -85,6 +86,40 @@ prior on the primary mass of 1 solar mass and 0.1 solar mass deviation, you set
 ``mpri = 1`` and ``mpri_sig = 0.1``.
 
 Leaving ``mpri_sig = inf`` will turn off the prior and default to a 1/m prior.
+
+Fits without using HGCA (hipparcos and gaia) absolute astrometry
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can fit an object that does not exist in the HGCA. Simply comment out the ``HipID`` line
+in the configuration file. E.g.,:
+
+.. code-block:: text
+
+    . more stuff above...
+    .
+    # In that case you must supply a parallax and parallax_error in [priors_settings].
+    #HipID = 3850
+    #^ # note that we have commented the hip id out!!!
+    .
+    . more stuff below...
+
+
+And set a parallax and parallax error in the priors section. So:
+
+.. code-block:: text
+
+    . more stuff above...
+    .
+    [priors_settings]
+
+    parallax=53.05263
+    parallax_error=2.818e-02
+    .
+    . more stuff below...
+
+And that is it! The fit will proceed as normal, but gaia and hipparcos
+epoch astrometry *will not* constrain the orbit.
+
 
 Fits without subsets of data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
