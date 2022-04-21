@@ -2,6 +2,11 @@ from orvara import orbit
 import numpy as np
 import time
 
+"""
+Development utility. This is meant to be run via "python timing.py". It is to check the timing of the 
+calculate radial velocity call, to check for slow downs in future versions. 
+"""
+
 
 def random_rv_data_params_model(Nsamples):
     jit, mpri, msec, sau = 0.5, 1, 0.1, 10

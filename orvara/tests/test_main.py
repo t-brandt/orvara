@@ -36,6 +36,13 @@ def test_run(fake_args):
         run()
         assert True
 
+@pytest.mark.integration
+@mock.patch('orvara.main.parse_args')
+def test_run_with_hip2javatoolIAD(fake_args):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        fake_args.return_value = FakeArguments('orvara/tests/config_hip21.ini', tmp_dir)
+        run()
+        assert True
 
 @pytest.mark.integration
 @mock.patch('orvara.main.parse_args')
@@ -48,12 +55,15 @@ def test_run_with_secondary_priors(fake_args):
 @pytest.mark.e2e
 @mock.patch('orvara.main.parse_args')
 def test_converges_to_accurate_values(fake_args):
+    """
+    A test of a fit to HIP3850, verifying that the fit yields the same values as an earlier fit to HIP3850, using
+    the DR2 version of the HGCA.
+    """
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config.ini', tmp_dir)
         tt = run()[1].data
         # check params
         i = -1  # walker index.
-        nsteps = 50 * tt['lnp'].shape[1]
         burn = 250  # number of burn in steps to discard
         rv_jitter = np.mean(tt['jitter'][i, burn:])
         rv_jitter_err = np.std(tt['jitter'][i, burn:])
@@ -87,25 +97,73 @@ def test_converges_to_accurate_values_with_relative_RV(fake_args):
         fake_args.return_value = FakeArguments('orvara/tests/config_test_relativeRV.ini', tmp_dir)
         tt = run()[1].data
         # check params
+
+
+def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
+    """
+    A test of a fit to HIP3850, similar to test_converges_to_accurate_values, however:
+    We include here fake DR3 acceleration data (6th and 7th parameters), that are highly precise.
+    The orbital constraints should improve markedly. This test verifies that they do indeed improve.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_7pfit.ini', tmp_dir)
+        tt = run()[1].data
         burn = 100  # number of burn in steps to discard
         rv_jitter = np.mean(tt['jitter'][:, burn:])
         rv_jitter_err = np.std(tt['jitter'][:, burn:])
         companion_jup_mass = np.mean(tt['msec0'][:, burn:]*1989/1.898)
-        companion_mass_stderr = np.std(tt['msec0'][:, burn:]*1989/1.898)
-        prim_mass = np.mean(tt['mpri'][:, burn:])
-        prim_mass_stderr = np.std(tt['mpri'][:, burn:])
+        companion_mass_err = np.std(tt['msec0'][:, burn:]*1989/1.898)
         separation_AU = np.mean(tt['sau0'][:, burn:])
-        separation_stderr = np.std(tt['sau0'][:, burn:])
+        separation_err = np.std(tt['sau0'][:, burn:])
         eccentricity = np.mean(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
-        eccentricity_stderr = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        eccentricity_err = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
         inclination_deg = np.mean(tt['inc0'][:, burn:]*180/np.pi)
         inclination_err = np.std(tt['inc0'][:, burn:]*180/np.pi)
-        expected_1_sigma_errors = [0.6, 1.7, 0.04, 0.13, 0.0012, 0.56]
-        expected_values = [4.94, 66.58, 0.832, 10.11, 0.7351, 49.46]
-        values = [rv_jitter, companion_jup_mass, prim_mass,
-                  separation_AU, eccentricity, inclination_deg]
-        errors = [rv_jitter_err, companion_mass_stderr, prim_mass_stderr,
-                  separation_stderr, eccentricity_stderr, inclination_err]
+        lam_deg = np.mean(tt['lam0'][:, burn:]*180/np.pi)
+        lam_err = np.std(tt['lam0'][:, burn:]*180/np.pi)
+
+        expected_1_sigma_errors = [0.6, 1.6, 0.1, 0.0013, 0.37, 0.7]
+        expected_values = [4.9, 66.14, 10, 0.734, 48.74, 46.0]
+
+        values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg, lam_deg]
+        errors = [rv_jitter_err, companion_mass_err, separation_err,
+                  eccentricity_err, inclination_err, lam_err]
         for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
-            assert np.isclose(value, expected, atol=3 * sigma)
+            assert np.isclose(value, expected, atol=2 * sigma)
+        assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)
+
+
+@pytest.mark.e2e
+@mock.patch('orvara.main.parse_args')
+def test_constraints_improve_with_fake_9parameter_dr3_data(fake_args):
+    """
+    A test of a fit to HIP3850, identical to test_constraints_improve_with_fake_7parameter_dr3_data except:
+    We include here fake DR3 acceleration AND jerk data (6th, 7th, 8th and 9th parameters), that are highly precise.
+    The orbital constraints should improve markedly. This test verifies that they do indeed improve.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        fake_args.return_value = FakeArguments('orvara/tests/diagnostic_config_fake_fulldr3_9pfit.ini', tmp_dir)
+        tt = run()[1].data
+        burn = 100  # number of burn in steps to discard
+        rv_jitter = np.mean(tt['jitter'][:, burn:])
+        rv_jitter_err = np.std(tt['jitter'][:, burn:])
+        companion_jup_mass = np.mean(tt['msec0'][:, burn:]*1989/1.898)
+        companion_mass_err = np.std(tt['msec0'][:, burn:]*1989/1.898)
+        separation_AU = np.mean(tt['sau0'][:, burn:])
+        separation_err = np.std(tt['sau0'][:, burn:])
+        eccentricity = np.mean(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        eccentricity_err = np.std(tt['esino0'][:, burn:]**2 + tt['ecoso0'][:, burn:]**2)
+        inclination_deg = np.mean(tt['inc0'][:, burn:]*180/np.pi)
+        inclination_err = np.std(tt['inc0'][:, burn:]*180/np.pi)
+        lam_deg = np.mean(tt['lam0'][:, burn:]*180/np.pi)
+        lam_err = np.std(tt['lam0'][:, burn:]*180/np.pi)
+
+        expected_1_sigma_errors = [0.6, 0.74, 0.05, 0.001, 0.13, 0.22]
+        expected_values = [4.9, 65.14, 9.9, 0.734, 48.4, 45.8]
+
+        values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg, lam_deg]
+        errors = [rv_jitter_err, companion_mass_err, separation_err,
+                  eccentricity_err, inclination_err, lam_err]
+        for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
+            assert np.isclose(value, expected, atol=2 * sigma)
         assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)

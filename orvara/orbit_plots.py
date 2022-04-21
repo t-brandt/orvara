@@ -74,8 +74,8 @@ class Orbit:
         self.mu_RA_CM = 1e3*OP.chain['pmra_ML'][step]
         self.mu_Dec_CM = 1e3*OP.chain['pmdec_ML'][step]
         
-        self.mu_RA = 1e3*self.mu_RA*self.plx*365.25 + self.mu_RA_CM
-        self.mu_Dec = 1e3*self.mu_Dec*self.plx*365.25 + self.mu_Dec_CM
+        self.mu_RA = 1e3*self.mu_RA*self.plx + self.mu_RA_CM
+        self.mu_Dec = 1e3*self.mu_Dec*self.plx + self.mu_Dec_CM
         try:
             self.offset = OP.calc_RV_offset(step)
         except:
@@ -405,7 +405,11 @@ class OrbitPlots:
             i += 1
 
             m, b = calc_linear([x, x + _dx], [y, y + _dy])
-
+            if not np.isfinite(m) or not np.isfinite(b):
+                # some ill constrained orbits will have issues plotting predicted epochs.
+                # skip if we find such an epoch.
+                print(f'Failed to plot the predicted epoch {year} in the "Astrometry orbits plot." ')
+                continue
             # plot the predicted epochs data points on the most likely orbit
             ax.scatter(x, y, s=55, facecolors='none', edgecolors='k', zorder=100)
             # calculate the angle between the tangent line and the x-axis
@@ -1385,8 +1389,8 @@ class OrbitPlots:
             sqesino = print_par_values(chain['esino' + npl],perc_sigmas)
             sqecoso = print_par_values(chain['ecoso' + npl],perc_sigmas)
             inc = print_par_values((chain['inc' + npl]*180/np.pi)%(180),perc_sigmas)
-            asc = print_par_values((chain['asc' + npl]*180/np.pi)%(180),perc_sigmas)
-            lam = print_par_values((chain['lam' + npl]*180/np.pi)%(180),perc_sigmas)
+            asc = print_par_values((chain['asc' + npl]*180/np.pi)%(360),perc_sigmas)
+            lam = print_par_values((chain['lam' + npl]*180/np.pi)%(360),perc_sigmas)
             # Multiply by 1000 for units of mas
             plx = print_par_values(1e3*chain['plx_ML'],perc_sigmas)
             period_data = np.sqrt(chain['sau' + npl]**3/(chain['mpri'] + chain['msec' + npl]))

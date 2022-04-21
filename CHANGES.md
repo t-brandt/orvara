@@ -1,4 +1,4 @@
-1.0.5 (2021-12-01)
+1.1.2 (2022-04-25)
 ------------------
 - Added the ability to constrain orbits with a relative RV measurement (e.g. that between beta pic A and beta
 pic b), by providing a relative RV file (`relRVFile=relative_rv_filename.dat`) in the config.ini. This is implemented
@@ -7,6 +7,22 @@ However the logic to compute the relative RV is technically only valid in detail
 systems where the primary is substantially more massive than any companion. See the note within `def calc_relRV` inside
 of orbit.pyx.
 - the chisquared of the relative RV fit is now saved (in the same way as the hipparcos/gaia chisquareds).
+
+1.1.1 (2022-04-21)
+------------------
+- Added support for the Java Tool IAD (colloquially called hip21).
+
+1.1.0 (2022-04-21)
+------------------
+- Added Seven and nine parameter fits in preparation for Gaia DR3, with tests in test_main.py.
+- Added informative comments to the log likelihood function.
+- Changed the astrometric fitting routine to work natively in units of years, instead of days. This
+improved the condition number of the matrix that is solved via SVD.
+- Bumped required version of HTOF to 1.1.0. This is needed for the fits with parallax.
+
+1.0.5 (2021-12-06)
+------------------
+- Fixed a bug in the astrometric orbit plotting.
 
 1.0.4 (2021-05-14)
 ------------------
