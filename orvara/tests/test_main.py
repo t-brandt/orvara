@@ -98,7 +98,8 @@ def test_converges_to_accurate_values_with_relative_RV(fake_args):
         tt = run()[1].data
         # check params
 
-
+@pytest.mark.e2e
+@mock.patch('orvara.main.parse_args')
 def test_constraints_improve_with_fake_7parameter_dr3_data(fake_args):
     """
     A test of a fit to HIP3850, similar to test_converges_to_accurate_values, however:
