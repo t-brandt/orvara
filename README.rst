@@ -29,7 +29,8 @@ cd to the root directory of the repo (if you are not already there). Run:
 
 This will run a small suite of tests. This should take about 5 minutes. If any
 of the tests fail, something is wrong with the install. Maybe you recently
-switched branches? Try running ``pip install -e .`` again. If the issue
+switched branches? Try deleting the two compiled c files (orbit.c and orbit.cpython-38...)
+and then run ``pip install -e .`` again. If the issue
 persists, please submit an issue ticket on github!
 
 Orbit fitting
@@ -66,7 +67,7 @@ on the RV jitter are supported. To add a Gaussian mass prior of 1 ± 0.1 M_sun
 on the primary, you will want to add the following section to your
 configuration file:
 
-.. code-block:: none
+.. code-block:: bash
 
     [priors_settings]
     mpri = 1
@@ -86,6 +87,58 @@ prior on the primary mass of 1 solar mass and 0.1 solar mass deviation, you set
 
 Leaving ``mpri_sig = inf`` will turn off the prior and default to a 1/m prior.
 
+Fits without using HGCA (hipparcos and gaia) absolute astrometry
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can fit an object that does not exist in the HGCA. Simply comment out the ``HipID`` line
+in the configuration file. E.g.,:
+
+.. code-block:: text
+
+    . more stuff above...
+    .
+    # In that case you must supply a parallax and parallax_error in [priors_settings].
+    #HipID = 3850
+    #^ # note that we have commented the hip id out!!!
+    .
+    . more stuff below...
+
+
+And set a parallax and parallax error in the priors section. So:
+
+.. code-block:: text
+
+    . more stuff above...
+    .
+    [priors_settings]
+
+    parallax=53.05263
+    parallax_error=2.818e-02
+    .
+    . more stuff below...
+
+And that is it! The fit will proceed as normal, but gaia and hipparcos
+epoch astrometry *will not* constrain the orbit.
+
+
+Fits without subsets of data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can do fits with orvara to any subset of the three data sources:
+1. Radial velocities
+2. Absolute astometry (via the HGCA)
+3. Relative astrometry.
+
+E.g., you can do fits without the absolute astrometry (so just 1. and 3.), or a fit to purely radial velocities. Etc.
+Below are descriptions with how to do fits to a source without a specific set of data.
+
+1. To do a fit without radial velocity data: In the config file, set ``RVFile = None``
+2. To do a fit without Absolute astrometry: In the config file, set ``HipID = None``
+3. To do a fit without Relative Astrometry: ``AstrometryFile = None``
+
+So if I wanted to do a fit to just radial velocities, I would set ``HipID = None`` and ``AstrometryFile = None``, and
+``RVFile = path/to/the_rv_data.dat``.
+
 Starting conditions
 ~~~~~~~~~~~~~~~~~~~
 You can set the initial conditions of the orbit (starting parameters of the
@@ -96,7 +149,7 @@ Usage
 -----
 After setting paths and MCMC (markov-chain monte-carlo)  settings in a
 config.ini file, you fit an orbit by running the following from the command
-line (while in the root directory of the repo).
+line.
 
 .. code-block:: bash
 

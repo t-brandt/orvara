@@ -14,6 +14,7 @@ from configparser import ConfigParser
 from astropy.io import fits
 from htof.main import Astrometry
 from astropy.time import Time
+from astropy.coordinates import Angle
 import sys
 import re
 import random
@@ -112,10 +113,17 @@ def initialize_data(config, companion_gaia):
         epoch_ra_gaia = table[table['hip_id'] == 1]['epoch_ra_gaia']
         if np.isclose(epoch_ra_gaia, 2015.60211565):
             HGCAVersion = 'GaiaDR2'
+            gaia_mission_length_yrs = 1.75
         elif np.isclose(epoch_ra_gaia, 2015.92749023):
             HGCAVersion = 'GaiaeDR3'
+            gaia_mission_length_yrs = 2.76
+            if 'gaia_npar' in table.names:
+                # TODO change this to GaiaDR3 when HTOF has a 'GaiaDR3' parser.
+                #  right now for testing, gaiaedr3 works fine because the baseline of dr3 and edr3 will be the same.
+                HGCAVersion = 'GaiaeDR3'
+                gaia_mission_length_yrs = 2.76
         else:
-            raise ValueError("Cannot match %s to either DR2 or eDR3 based on RA epoch of Gaia" % (HGCAFile))
+            raise ValueError("Cannot match %s to either DR2 or eDR3, or DR3 based on RA epoch of Gaia" % (HGCAFile))
     except:
         raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
 
@@ -126,29 +134,29 @@ def initialize_data(config, companion_gaia):
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
 
-    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia)
+    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia,
+                      gaia_mission_length_yrs=gaia_mission_length_yrs)
     if use_epoch_astrometry and data.use_abs_ast == 1:
-        # TODO verify that this half-day should indeed be here. This doesnt matter for ~10 year orbits,
-        #  but would matter if we wanted to fit companions with shorter orbital arcs.
-        to_jd = lambda x: Time(x, format='decimalyear').jd + 0.5
+        # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
+        gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
-                                 central_epoch_ra=to_jd(data.epRA_G),
-                                 central_epoch_dec=to_jd(data.epDec_G),
-                                 format='jd')
+                                 central_epoch_ra=data.epRA_G,
+                                 central_epoch_dec=data.epDec_G,
+                                 format='jyear', fit_degree=gaia_fit_degree,
+                                 use_parallax=True, use_catalog_parallax_factors=True)
         Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
-                                 central_epoch_ra=to_jd(data.epRA_H),
-                                 central_epoch_dec=to_jd(data.epDec_H),
-                                 format='jd')
+                                 central_epoch_ra=data.epRA_H,
+                                 central_epoch_dec=data.epDec_H,
+                                 format='jyear', use_parallax=True, use_catalog_parallax_factors=True)
         Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
-                                 central_epoch_ra=to_jd(data.epRA_H),
-                                 central_epoch_dec=to_jd(data.epDec_H),
-                                 format='jd')
+                                 central_epoch_ra=data.epRA_H,
+                                 central_epoch_dec=data.epDec_H,
+                                 format='jyear', use_parallax=True, use_catalog_parallax_factors=True)
         # instantiate C versions of the astrometric fitter which are much faster than HTOF's Astrometry
-        #print(Gaia_fitter.fitter.astrometric_solution_vector_components['ra'])
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
-
+        # generate the data object.
         data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
                           use_epoch_astrometry,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
@@ -163,10 +171,14 @@ def initialize_data(config, companion_gaia):
             data.plx = 1e-3*config.getfloat('priors_settings', 'parallax')
             data.plx_err = 1e-3*config.getfloat('priors_settings', 'parallax_error')
         except:
-            print("Cannot load absolute astrometry.")
-            print("Please supply a prior for parallax and parallax_error")
-            print("in the priors_settings area of the configuration file.")
-
+            raise RuntimeError("Cannot load absolute astrometry. Please supply a prior "
+                               "for parallax and parallax_error in the priors_settings area"
+                               " of the configuration file.")
+    # If at any point, we implement jerk fitting to the calc_pms_no_epoch_astrometry(), this catch can be removed:
+    if data.gaia_npar == 9 and not use_epoch_astrometry:
+        raise RuntimeError("This is a 9-parameter source in Gaia, but you have set use_epoch_astrometry=False"
+                           " in the configuration file. Please enable use_epoch_astrometry=True for this source, and "
+                           "follow the directions in section 'Epoch Astrometry' of the readme.")
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 
 
