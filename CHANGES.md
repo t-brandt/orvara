@@ -1,4 +1,8 @@
-1.1.0 (2022-XX-XX)
+1.1.1 (2022-04-21)
+------------------
+- Added support for the Java Tool IAD (colloquially called hip21).
+
+1.1.0 (2022-04-21)
 ------------------
 - Added Seven and nine parameter fits in preparation for Gaia DR3, with tests in test_main.py.
 - Added informative comments to the log likelihood function.

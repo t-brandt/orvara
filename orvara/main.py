@@ -144,7 +144,7 @@ def initialize_data(config, companion_gaia):
                                  central_epoch_dec=data.epDec_G,
                                  format='jyear', fit_degree=gaia_fit_degree,
                                  use_parallax=True, use_catalog_parallax_factors=True)
-        Hip2_fitter = Astrometry('Hip2', '%06d' % (HipID), Hip2DataDir,
+        Hip2_fitter = Astrometry('Hip2or21', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=data.epRA_H,
                                  central_epoch_dec=data.epDec_H,
                                  format='jyear', use_parallax=True, use_catalog_parallax_factors=True)

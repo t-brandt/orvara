@@ -49,16 +49,35 @@ must give paths for ``GaiaDataDir``, ``Hip1DataDir``, and
 ``Hip2DataDir``. Those are the paths of the intermediate epoch and scan
 angles for Gaia/GOST in csv format, the intermediate astrometry from the
 original Hipparcos data reduction, and from the second Hipparcos data
-reduction. 
+reduction.
 
-Note: if your Hip2 intermediate data come from the DVD, you will
+We recommend starting with ``use_epoch_astrometry = False``. If this
+fails, then there is something wrong with the RVFile, HGCAFile, or (relative)
+AstrometryFile. If that chain finishes fine, then set ``use_epoch_astrometry = True``.
+
+
+It is preferred if your data come from the Java Tool (published in 2021). You will want to point orvara to the directory
+that contains the H00, H01, etc. folders. It is also OK to have all the IAD in one folder, in which case, point orvara
+to that large folder.
+For more information about the Java Tool IAD, see:
+https://www.cosmos.esa.int/web/hipparcos/interactive-data-access and https://www.cosmos.esa.int/web/hipparcos/catalogues
+you can download the data there as a zip file. See https://arxiv.org/abs/2109.06761 Brandt et al. 2021 for
+the explanation as to why the Java Tool data are preferred. We recommend only using the Java Tool IAD. If you only use
+the Java Tool IAD, then ignore the following three warnings.
+
+DVD IAD Warning 1: If your Hip2 intermediate data come from the DVD, you will
 want to point to the 'resrec' folder. This should be e.g.:
 ``Hip2_DVD_Book/IntermediateData/resrec``. You can keep the original
 directory structure as it is.
 
-Note: We recommend starting with ``use_epoch_astrometry = False``. If this
-fails, then there is something wrong with the RVFile, HGCAFile, or (relative)
-AstrometryFile. If that chain finishes fine, then set ``use_epoch_astrometry = True``.
+DVD IAD Warning 2: If you have fits of both the Java Tool and DVD IAD, then
+it is imperative that you keep those different IAD in different directories. The DVD IAD and Java tool IAD have
+slightly different data formats. Orvara will abort if you have more than one IAD
+file with the same hipparcos id. (E.g., a folder with both H003850.d and HIP003850.d)
+
+DVD IAD Warning 3: As described in https://arxiv.org/abs/2109.06761 Brandt et al. 2021,
+there are roughly 6600 sources whose DVD IAD is suspected to be corrupted. This corruption is automatically
+fixed by htof if you use the Java Tool IAD.
 
 Setting priors
 ~~~~~~~~~~~~~~

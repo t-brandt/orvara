@@ -38,6 +38,14 @@ def test_run(fake_args):
 
 @pytest.mark.integration
 @mock.patch('orvara.main.parse_args')
+def test_run_with_hip2javatoolIAD(fake_args):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        fake_args.return_value = FakeArguments('orvara/tests/config_hip21.ini', tmp_dir)
+        run()
+        assert True
+
+@pytest.mark.integration
+@mock.patch('orvara.main.parse_args')
 def test_run_with_secondary_priors(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/config_with_secondary_priors.ini', tmp_dir)
