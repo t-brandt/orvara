@@ -558,7 +558,7 @@ cdef class Model:
         for i in range(self.nAst):
             dRA_dt[i] = B * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + G * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
             dDec_dt[i] = A * ((- self.sinEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i])) + F * (sqrt(1 - par.ecc**2) * (self.cosEA[i]) * (2*pi/par.per) / (1 - par.ecc * self.cosEA[i]))
-        return dRA_dt, dDec_dt
+        return dRA_dt*365.25, dDec_dt*365.25  # convert to mas/yr
 
     def free(self):
         PyMem_Free(self.dRA_H1)

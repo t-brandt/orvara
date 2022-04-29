@@ -1,3 +1,8 @@
+1.1.2 (2022-04-28)
+------------------
+- Bugfix for plotting proper motions. When the internals changed to mas/yr with 1.1.1, the plotting 
+was still done in units of mas/day. 
+
 1.1.1 (2022-04-21)
 ------------------
 - Added support for the Java Tool IAD (colloquially called hip21).
