@@ -147,7 +147,7 @@ def run():
     if plot_astr:
         OPs.astrometry()
     if plot_astr_pred:
-        OPs.astrometric_prediction()
+        OPs.astrometric_prediction_plot()
     if plot_rv_full:
         OPs.RV_fullorbit()
     if plot_rv:

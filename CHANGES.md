@@ -1,3 +1,9 @@
+1.1.3 (2022-05-02)
+------------------
+- Changed the internals of the astrometric prediction code to use the orvara internals. This is 
+more robust and works for more than just 2-body systems.
+- A position (ra, dec) and uncertainty is now printed to standard out with the astrometric plot. 
+
 1.1.2 (2022-04-28)
 ------------------
 - Bugfix for plotting proper motions. When the internals changed to mas/yr with 1.1.1, the plotting 

@@ -7,7 +7,7 @@ modules = [Extension("orvara.orbit", source_files, extra_compile_args=['-O3'])]
 
 setup(name='orvara',
       ext_modules=cythonize(modules),
-      version='1.1.2',
+      version='1.1.3',
       python_requires='>=3.5',
       package_dir={'orvara': 'orvara'},
       install_requires=['numpy>=1.13', 'htof>=1.1.0', 'emcee', 'ptemcee',

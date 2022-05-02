@@ -3,11 +3,10 @@ import numpy as np
 from astropy.time import Time
 import astropy
 import warnings
-import time
 from random import randrange
 from orvara import corner_modified
-from scipy.interpolate import interp1d
-from scipy import stats, signal
+from scipy import stats, optimize
+from scipy.stats import kde
 from orvara import orbit
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -88,7 +87,8 @@ class Orbit:
             self.colorpar = self.par.ecc
 
         model.free()
-        
+
+
 class OrbitPlots:
 
 ###################################### Initialize Class ############################################
@@ -175,7 +175,6 @@ class OrbitPlots:
         """
             Function to load in the MCMC chain from fit_orbit
         """
-        source = self.MCMCfile.split('_')[0]
         chain = fits.open(self.MCMCfile)[1].data
         chain = burnin_chain(chain.columns, self.burnin, reshape=True)
         self.lnp = chain['lnp']
@@ -1128,119 +1127,97 @@ class OrbitPlots:
 
 #astrometric prediction plot
 
-    def astrometric_prediction(self, nbins=500):
-
-        # Fetch parameters as ndarrays
-        mpri = self.chain['mpri']
-        msec = self.chain['msec%d' % (self.iplanet)]
-        sau = self.chain['sau%d' % (self.iplanet)]
-        esino = self.chain['esino%d' % (self.iplanet)]
-        ecoso = self.chain['ecoso%d' % (self.iplanet)]
-        inc = self.chain['inc%d' % (self.iplanet)]
-        asc = self.chain['asc%d' % (self.iplanet)]
-        lam = self.chain['lam%d' % (self.iplanet)]
-
-        arg = np.arctan2(esino, ecoso)
-        ecc = esino**2 + ecoso**2
-
-        plx = self.chain['plx_ML']
-
-        # The date we want
-        JD_predict = self.calendar_to_JD(self.predicted_ep_ast)
-
-        data = orbit.Data(self.Hip, self.HGCAFile, self.RVfile, self.relAstfile, verbose=False)
-
-        # Solve Kepler's equation in array format given a different
-        # eccentricity for each point.  This is the same Newton solver
-        # used by radvel.
-        
-        period = np.sqrt(sau**3/(mpri + msec))*365.25
-        MA = (2*np.pi/period*(JD_predict - data.refep) + lam - arg)%(2*np.pi)
-        E = MA + np.sign(np.sin(MA))*0.85*ecc
-        fi = E - ecc*np.sin(E) - MA
-
-        for i in range(10):
-            fip = 1 - ecc*np.cos(E)
-            fipp = ecc*np.sin(E)
-            fippp = 1 - fip
-            d1 = -fi/fip
-            d1 = -fi/(fip + d1*fipp/2.)
-            d1 = -fi/(fip + d1*fipp/2. + d1**2*fippp/6.)
-            E += d1
-            fi = E - ecc*np.sin(E) - MA
-
-        # Thiele-Innes constants -> relative separation.
-        A = np.cos(arg)*np.cos(asc) - np.sin(arg)*np.sin(asc)*np.cos(inc)
-        B = np.cos(arg)*np.sin(asc) + np.sin(arg)*np.cos(asc)*np.cos(inc)
-        F = -np.sin(arg)*np.cos(asc) - np.cos(arg)*np.sin(asc)*np.cos(inc)
-        G = -np.sin(arg)*np.sin(asc) + np.cos(arg)*np.cos(asc)*np.cos(inc)
-        
-        X = np.cos(E) - ecc
-        Y = np.sin(E)*np.sqrt(1 - ecc**2)
-        
-        dra = (B*X + G*Y)*(sau)*plx
-        ddec = (A*X + F*Y)*(sau)*plx
-
-        # Set limits on plot to include basically all of the data.
-        
-        ramin = stats.scoreatpercentile(dra, 0.1)
-        ramax = stats.scoreatpercentile(dra, 99.9)
-        decmin = stats.scoreatpercentile(ddec, 0.1)
-        decmax = stats.scoreatpercentile(ddec, 99.9)
-
-        diff = max(ramax - ramin, decmax - decmin)*1.7
-        xmin = 0.5*(ramin + ramax) - diff/2.
-        xmax = xmin + diff
-        ymin = 0.5*(decmin + decmax) - diff/2.
-        ymax = ymin + diff
-
-        x = np.linspace(xmin, xmax, nbins)
-        y = np.linspace(ymin, ymax, nbins)
-
-        # Bin it up, then smooth it.  More points -> less smoothing.
-        
-        dens = np.histogram2d(dra, ddec, bins=[x, y])[0].T
-        
-        _x, _y = np.mgrid[-20:21, -20:21]
-        window = np.exp(-(_x**2 + _y**2)/20.*len(mpri)/len(x)**2)
-        dens = signal.convolve2d(dens, window, mode='same')
-        dens /= np.amax(dens)
-
-        # Make one-, two-, and three-sigma contours.
-        
-        dens_sorted = np.sort(dens.flatten())
-        cdf = np.cumsum(dens_sorted)/np.sum(dens_sorted)
-        cdf_func = interp1d(cdf, dens_sorted)
-        
-        fig = plt.figure(figsize=(5, 5))
-        ax = fig.add_subplot(111)
-        ax.imshow(dens[::-1], extent=(xmin, xmax, ymin, ymax),
-                  interpolation='nearest', aspect=1, cmap=cm.hot_r)
+    def astrometric_prediction_plot(self):
+        # NOTE ONLY WORKS IN DECIMAL YEAR
+        fig, ax = plt.subplots(figsize=(5, 5))
+        JDepochs = self.calendar_to_JD(np.array([self.predicted_ep_ast]).flatten())
+        ra, dec = self.astrometric_prediction(JDepochs)
+        ra, dec = ra.flatten(), dec.flatten()
+        print(f'The mean RA and Dec position of the companion at {self.predicted_ep_ast} is:')
+        print(f'RA: {round(np.mean(ra), 4)} +- {round(np.std(ra), 4)} mas, '
+              f'Dec: {round(np.mean(dec), 4)} +- {round(np.std(dec), 4)} mas')
+        nbins = 300
+        k = kde.gaussian_kde([ra, dec])
+        xi, yi = np.mgrid[ra.min():ra.max():nbins * 1j, dec.min(): dec.max():nbins * 1j]
+        zi = k(np.vstack([xi.flatten(), yi.flatten()])).reshape(xi.shape)
+        # solving for the chisq values that correspond to 1, 2 and 3 sigma contours.
+        contour1 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.6827), x0=np.median(zi), method='Nelder-Mead').x[0]
+        contour2 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.9545), x0=np.median(zi), method='Nelder-Mead').x[0]
+        contour3 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.9973), x0=np.median(zi), method='Nelder-Mead').x[0]
+        ax.contour(xi, yi, zi, levels=[contour1, contour2, contour3], colors=['k', 'C0', 'b'])
+        ax.contourf(xi, yi, zi, levels=50, cmap=cm.hot_r)
 
         # Mark the central star if (0, 0) is within the axis limits
-        if xmin*xmax < 0 and ymin*ymax < 0:
+        if ra.min() * ra.max() < 0 and dec.min() * dec.max() < 0:
             ax.plot(0, 0, marker='*', markersize=15, color='c')
 
-        x = 0.5*(x[1:] + x[:-1])
-        y = 0.5*(y[1:] + y[:-1])
-        levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
-        ax.contour(x, y, dens, levels=levels, colors=['k', 'C0', 'b'])
-        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (arcsec)', fontsize=14)
-        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
-        ax.text(xmax - 3e-2*(xmax - xmin), ymax - 7e-2*(ymax - ymin),
-                'Location of %s, %.1f' % (self.text_name, self.predicted_ep_ast), fontsize=14)
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
+        ax.set_aspect('equal')  # change me to 'auto' if the plot is too squeezed.
+        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (mas)', fontsize=14)
+        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ (mas)', fontsize=14)
+        ax.annotate('Location of %s, %.4f' % (self.text_name, self.predicted_ep_ast), fontsize=14, xy=(0.1, 0.9), xycoords='axes fraction')
         ax.invert_xaxis()
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.outputdir,'astrometric_prediction_' + self.title)+'.pdf', transparent=True)
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.outputdir, 'astrometric_prediction_' + self.title)+'.pdf', transparent=True, pad_inches=0)
+
+    def astrometric_prediction(self, JDepochs):
+        """
+        Version of astrometric_prediction that uses orvara's orbit internals so
+        that the 3-body approximation is actually used.
+
+        Note that this function can be evaluating at arbitrary many epochs (JDepochs just has to be an array of
+        Julian Dates). The evaluation time of this only scales like how many orbits you use (self.num_orbits),
+        not how many epochs you want to predict. You can basically predict arbitrarily many epochs for free.
+
+        returns: array of RA and array of DEC values. Each array is shape Nxm where N is the number of
+        sampled orbits (e.g. 1000) and m is the number of times in JDepochs.
+
+        Computation time of this function is independent of m, but scales O(N).
+        """
+        ra, dec = [], []
+        #sep, pa = [], []  # we dont calculate sep, pa anymore because pa is ill behaved near the star.
+        # I.e. just binning pa, we end up binning negative and positive position angles together
+        # and averaging to 0 which is nonsensical.
+        print('simulating orbits for astrometric prediction')
+        for i in range(self.num_orbits):
+            if not (i % 100):
+                print(f'simulating orbit {i}/{self.num_orbits} for the position predictions')
+            orb = Orbit(self, step=self.rand_idx[i], epochs=JDepochs)
+            dec.append(orb.relsep * np.cos(orb.PA * np.pi / 180))
+            ra.append(orb.relsep * np.sin(orb.PA * np.pi / 180))
+            #sep.append(orb.relsep)
+            #pa.append(orb.PA)  # we do not save these because PA becomes ill defined when we are close to the star and
+            # have a large scatter in separation.
+        """
+        ra is an array like:
+        [[ra_at_epoch0_and_orbit0, ra_at_epoch1_and_orbit0, ...],
+         [ra_at_epoch0_and_orbit1, ra_at_epoch1_and_orbit1, ...],
+         ...
+         [ra_at_epoch0_and_orbitN, ra_at_epoch1_and_orbitN, ...]]
+        """
+        # convert to mas.
+        ra, dec = np.array(ra)*1000, np.array(dec)*1000
+        return ra, dec
+
+    def astrometric_prediction_dict(self, JDepochs):
+        """
+        :param: JDepochs: array of julian dates for which you want the predicted position of the companion.
+
+        returns: dict of mean ra and mean dec, with Guassian 1 standard deviation on those values. Returns
+        also, the correlation between ra and dec.
+        """
+        ra, dec = self.astrometric_prediction(JDepochs)
+        # calculating the ra, dec, pa and separation mean values and errors
+        mean_ra, mean_dec = np.mean(ra, axis=0), np.mean(dec, axis=0)
+        ra_err, dec_err = np.std(ra, axis=0), np.std(dec, axis=0)
+        ra_dec_corr = np.mean((ra - mean_ra)*(dec - mean_dec)/(ra_err * dec_err), axis=0)
+        return {'ra': mean_ra, 'dec': mean_dec, 'ra_err': ra_err, 'dec_err': dec_err,
+                'ra_dec_correlation_coefficient': ra_dec_corr}
+
+
 # 7. Corner plot
    ################################################################################################
     ############### plot a nicer corner plot###############
-    
+
     def plot_corner(self, **kwargs):
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 20.0
@@ -1423,3 +1400,11 @@ class OrbitPlots:
             
 #######
 # end of code
+
+
+def probability(y, chisquared):
+    """
+    Probability of observing delta_chisq < y, with one degree of freedom.
+    """
+    norm = np.sum(np.exp(-chisquared / 2))
+    return np.sum(np.exp(-1 / 2 * chisquared[chisquared < y])) / norm
