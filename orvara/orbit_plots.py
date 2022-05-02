@@ -1127,30 +1127,61 @@ class OrbitPlots:
 
 #astrometric prediction plot
 
-    def astrometric_prediction_plot(self):
+    def astrometric_prediction_plot(self, nbins=200):
         # NOTE ONLY WORKS IN DECIMAL YEAR
-        fig, ax = plt.subplots(figsize=(5, 5))
+        # Calculate the predicted RA's and Decs.
         JDepochs = self.calendar_to_JD(np.array([self.predicted_ep_ast]).flatten())
         ra, dec = self.astrometric_prediction(JDepochs)
         ra, dec = ra.flatten(), dec.flatten()
         print(f'The mean RA and Dec position of the companion at {self.predicted_ep_ast} is:')
         print(f'RA: {round(np.mean(ra), 4)} +- {round(np.std(ra), 4)} mas, '
               f'Dec: {round(np.mean(dec), 4)} +- {round(np.std(dec), 4)} mas')
-        nbins = 300
-        k = kde.gaussian_kde([ra, dec])
-        xi, yi = np.mgrid[ra.min():ra.max():nbins * 1j, dec.min(): dec.max():nbins * 1j]
-        zi = k(np.vstack([xi.flatten(), yi.flatten()])).reshape(xi.shape)
-        # solving for the chisq values that correspond to 1, 2 and 3 sigma contours.
-        contour1 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.6827), x0=np.median(zi), method='Nelder-Mead').x[0]
-        contour2 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.9545), x0=np.median(zi), method='Nelder-Mead').x[0]
-        contour3 = optimize.minimize(lambda y: np.abs(probability(y, zi) - 0.9973), x0=np.median(zi), method='Nelder-Mead').x[0]
-        ax.contour(xi, yi, zi, levels=[contour1, contour2, contour3], colors=['k', 'C0', 'b'])
-        ax.contourf(xi, yi, zi, levels=50, cmap=cm.hot_r)
+
+        # plot up the predicted RAs and Decs.
+        # Set limits on plot to include basically all of the data.
+        ramin = stats.scoreatpercentile(ra, 0.1)
+        ramax = stats.scoreatpercentile(ra, 99.9)
+        decmin = stats.scoreatpercentile(dec, 0.1)
+        decmax = stats.scoreatpercentile(dec, 99.9)
+
+        diff = max(ramax - ramin, decmax - decmin) * 1.7
+        xmin = 0.5 * (ramin + ramax) - diff / 2.
+        xmax = xmin + diff
+        ymin = 0.5 * (decmin + decmax) - diff / 2.
+        ymax = ymin + diff
+
+        x = np.linspace(xmin, xmax, nbins)
+        y = np.linspace(ymin, ymax, nbins)
+
+        # Bin it up, then smooth it.  More points -> less smoothing.
+
+        dens = np.histogram2d(ra, dec, bins=[x, y])[0].T
+        from scipy.signal import convolve2d
+        from scipy.interpolate import interp1d
+        _x, _y = np.mgrid[-20:21, -20:21]
+        window = np.exp(-(_x ** 2 + _y ** 2) / 20. * len(ra) / nbins ** 2)
+        dens = convolve2d(dens, window, mode='same')
+        dens /= np.amax(dens)
+
+        # Make one-, two-, and three-sigma contours.
+
+        dens_sorted = np.sort(dens.flatten())
+        cdf = np.cumsum(dens_sorted) / np.sum(dens_sorted)
+        cdf_func = interp1d(cdf, dens_sorted)
+
+        fig = plt.figure(figsize=(5, 5))
+        ax = fig.add_subplot(111)
+        ax.imshow(dens[::-1], extent=(xmin, xmax, ymin, ymax),
+                  interpolation='nearest', aspect=1, cmap=cm.hot_r)
 
         # Mark the central star if (0, 0) is within the axis limits
-        if ra.min() * ra.max() < 0 and dec.min() * dec.max() < 0:
+        if xmin * xmax < 0 and ymin * ymax < 0:
             ax.plot(0, 0, marker='*', markersize=15, color='c')
 
+        x = 0.5 * (x[1:] + x[:-1])
+        y = 0.5 * (y[1:] + y[:-1])
+        levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
+        ax.contour(x, y, dens, levels=levels, colors=['k', 'C0', 'b'])
         ax.set_aspect('equal')  # change me to 'auto' if the plot is too squeezed.
         ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (mas)', fontsize=14)
         ax.set_ylabel(r'$\mathrm{\Delta \delta}$ (mas)', fontsize=14)
