@@ -5,7 +5,8 @@ import astropy
 import warnings
 from random import randrange
 from orvara import corner_modified
-from scipy import stats, optimize
+from scipy.interpolate import interp1d
+from scipy import stats, ndimage
 from scipy.stats import kde
 from orvara import orbit
 from astropy.io import fits
@@ -1127,65 +1128,49 @@ class OrbitPlots:
 
 #astrometric prediction plot
 
-    def astrometric_prediction_plot(self, nbins=200):
+
+    def astrometric_prediction_plot(self, nbins=300, smooth=True):
         # NOTE ONLY WORKS IN DECIMAL YEAR
-        # Calculate the predicted RA's and Decs.
+        if self.num_orbits < 500:
+            print('WARNING: You will want to use more than {self.num_orbits} orbits to predict the '
+                  'position. Ideally you should use 500 or more. Set num_orbits=500 or more in the config file.')
+        fig, ax = plt.subplots(figsize=(5, 5))
         JDepochs = self.calendar_to_JD(np.array([self.predicted_ep_ast]).flatten())
         ra, dec = self.astrometric_prediction(JDepochs)
         ra, dec = ra.flatten(), dec.flatten()
         print(f'The mean RA and Dec position of the companion at {self.predicted_ep_ast} is:')
-        print(f'RA: {round(np.mean(ra), 4)} +- {round(np.std(ra), 4)} mas, '
-              f'Dec: {round(np.mean(dec), 4)} +- {round(np.std(dec), 4)} mas')
-
-        # plot up the predicted RAs and Decs.
-        # Set limits on plot to include basically all of the data.
-        ramin = stats.scoreatpercentile(ra, 0.1)
-        ramax = stats.scoreatpercentile(ra, 99.9)
-        decmin = stats.scoreatpercentile(dec, 0.1)
-        decmax = stats.scoreatpercentile(dec, 99.9)
-
-        diff = max(ramax - ramin, decmax - decmin) * 1.7
-        xmin = 0.5 * (ramin + ramax) - diff / 2.
-        xmax = xmin + diff
-        ymin = 0.5 * (decmin + decmax) - diff / 2.
-        ymax = ymin + diff
-
-        x = np.linspace(xmin, xmax, nbins)
-        y = np.linspace(ymin, ymax, nbins)
-
-        # Bin it up, then smooth it.  More points -> less smoothing.
-
-        dens = np.histogram2d(ra, dec, bins=[x, y])[0].T
-        from scipy.signal import convolve2d
-        from scipy.interpolate import interp1d
-        _x, _y = np.mgrid[-20:21, -20:21]
-        window = np.exp(-(_x ** 2 + _y ** 2) / 20. * len(ra) / nbins ** 2)
-        dens = convolve2d(dens, window, mode='same')
-        dens /= np.amax(dens)
-
-        # Make one-, two-, and three-sigma contours.
-
-        dens_sorted = np.sort(dens.flatten())
-        cdf = np.cumsum(dens_sorted) / np.sum(dens_sorted)
+        ra_err, dec_err = np.std(ra), np.std(dec)
+        mean_ra, mean_dec = np.mean(ra), np.mean(dec)
+        ra_range, dec_range = (mean_ra-5*ra_err, mean_ra+5*ra_err), (mean_dec-5*dec_err,mean_dec+5*dec_err)
+        print(f'RA: {round(mean_ra, 4)} +- {round(ra_err, 4)} mas, 'f'Dec: {round(mean_dec, 4)} +- {round(dec_err, 4)} mas')
+        k = kde.gaussian_kde([ra, dec])
+        xi, yi = np.mgrid[min(ra_range):max(ra_range):nbins * 1j, min(dec_range):max(dec_range):nbins * 1j]
+        zi = k(np.vstack([xi.flatten(), yi.flatten()])).reshape(xi.shape)
+        if smooth:
+            sigma = ra_err/(np.ptp(ra_range)/nbins) # size of the ra error on the position, in terms of bins in the KDE.
+            sigma /= 3  # we want the kernal of the smoothing window to be a little smaller than our "beam" size.
+            zi = ndimage.gaussian_filter(zi, sigma=sigma)
+        # solving for the values that correspond to 1, 2 and 3 sigma contours.
+        dens_sorted = np.sort(zi.flatten())
+        cdf = np.cumsum(dens_sorted)/np.sum(dens_sorted)
         cdf_func = interp1d(cdf, dens_sorted)
-
-        fig = plt.figure(figsize=(5, 5))
-        ax = fig.add_subplot(111)
-        ax.imshow(dens[::-1], extent=(xmin, xmax, ymin, ymax),
-                  interpolation='nearest', aspect=1, cmap=cm.hot_r)
+        levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
+        # plotting the contours and density plot.
+        ax.contour(xi, yi, zi, levels=levels, colors=['k', 'C0', 'b'])
+        cnt = ax.contourf(xi, yi, zi, levels=100, cmap=cm.hot_r)
+        # Get rid of the white level lines on the contour map.
+        for c in cnt.collections:
+            c.set_edgecolor("face")
+        #
 
         # Mark the central star if (0, 0) is within the axis limits
-        if xmin * xmax < 0 and ymin * ymax < 0:
+        if ra.min() * ra.max() < 0 and dec.min() * dec.max() < 0:
             ax.plot(0, 0, marker='*', markersize=15, color='c')
 
-        x = 0.5 * (x[1:] + x[:-1])
-        y = 0.5 * (y[1:] + y[:-1])
-        levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
-        ax.contour(x, y, dens, levels=levels, colors=['k', 'C0', 'b'])
         ax.set_aspect('equal')  # change me to 'auto' if the plot is too squeezed.
         ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (mas)', fontsize=14)
         ax.set_ylabel(r'$\mathrm{\Delta \delta}$ (mas)', fontsize=14)
-        ax.annotate('Location of %s, %.4f' % (self.text_name, self.predicted_ep_ast), fontsize=14, xy=(0.1, 0.9), xycoords='axes fraction')
+        ax.annotate('Location of %s, %.2f' % (self.text_name, self.predicted_ep_ast), fontsize=14, xy=(0.1, 0.9), xycoords='axes fraction')
         ax.invert_xaxis()
         plt.tight_layout()
         plt.savefig(os.path.join(self.outputdir, 'astrometric_prediction_' + self.title)+'.pdf', transparent=True, pad_inches=0)
@@ -1208,10 +1193,9 @@ class OrbitPlots:
         #sep, pa = [], []  # we dont calculate sep, pa anymore because pa is ill behaved near the star.
         # I.e. just binning pa, we end up binning negative and positive position angles together
         # and averaging to 0 which is nonsensical.
-        print('simulating orbits for astrometric prediction')
+        print(f'simulating {self.num_orbits} orbits for astrometric prediction. Will take roughly 4 seconds per '
+              f'100 orbits.')
         for i in range(self.num_orbits):
-            if not (i % 100):
-                print(f'simulating orbit {i}/{self.num_orbits} for the position predictions')
             orb = Orbit(self, step=self.rand_idx[i], epochs=JDepochs)
             dec.append(orb.relsep * np.cos(orb.PA * np.pi / 180))
             ra.append(orb.relsep * np.sin(orb.PA * np.pi / 180))
@@ -1431,11 +1415,3 @@ class OrbitPlots:
             
 #######
 # end of code
-
-
-def probability(y, chisquared):
-    """
-    Probability of observing delta_chisq < y, with one degree of freedom.
-    """
-    norm = np.sum(np.exp(-chisquared / 2))
-    return np.sum(np.exp(-1 / 2 * chisquared[chisquared < y])) / norm
