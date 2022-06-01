@@ -144,13 +144,16 @@ def initialize_data(config, companion_gaia):
                                  central_epoch_dec=data.epDec_G,
                                  format='jyear', fit_degree=gaia_fit_degree,
                                  use_parallax=True, use_catalog_parallax_factors=True)
+        hip_fit_degree = {5: 1, 7: 2, 9: 3}[data.hip_npar]
         Hip2_fitter = Astrometry('Hip2or21', '%06d' % (HipID), Hip2DataDir,
                                  central_epoch_ra=data.epRA_H,
                                  central_epoch_dec=data.epDec_H,
+                                 fit_degree=hip_fit_degree,
                                  format='jyear', use_parallax=True, use_catalog_parallax_factors=True)
         Hip1_fitter = Astrometry('Hip1', '%06d' % (HipID), Hip1DataDir,
                                  central_epoch_ra=data.epRA_H,
                                  central_epoch_dec=data.epDec_H,
+                                 fit_degree=hip_fit_degree,
                                  format='jyear', use_parallax=True, use_catalog_parallax_factors=True)
         # instantiate C versions of the astrometric fitter which are much faster than HTOF's Astrometry
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)

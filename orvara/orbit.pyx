@@ -123,9 +123,10 @@ cdef class Data:
     cdef double [:] relsep_pa_corr
     cdef int [:] ast_planetID
     cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst, companion_ID
-    cdef public int gaia_npar
+    cdef public int gaia_npar, hip_npar
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
     cdef public double accra_G, accdec_G, jerkra_G, jerkdec_G
+    cdef public double accra_H, accdec_H
     cdef public double pmra_G_B, pmdec_G_B
     cdef public double plx, plx_err
     cdef double [:, :] Cinv_H
@@ -134,6 +135,7 @@ cdef class Data:
     cdef double [:, :] Cinv_G_acc_terms
     cdef double [:, :] Cinv_G_jerk_terms
     cdef double [:, :] Cinv_G_B
+    cdef double [:, :] Cinv_H_acc_terms
     cdef public double refep, gaia_mission_length_yrs
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
@@ -228,9 +230,14 @@ cdef class Data:
             else:
                 # assume the fit is a 5 parameter fit.
                 self.gaia_npar = 5
+            if 'hip_npar' in t.names:
+                self.hip_npar = t['hip_npar']
+            else:
+                self.hip_npar = 5
             if verbose:
                 print("Loading absolute astrometry data for Hip %d" % (Hip))
                 print(f"Recognized a {self.gaia_npar}-parameter fit in Gaia for Hip {Hip}")
+                print(f"Recognized a {self.hip_npar}-parameter fit in Hipparcos for Hip {Hip}")
         except:
             if verbose:
                 print("Unable to load absolute astrometry data for Hip %d" % (Hip))
@@ -238,6 +245,7 @@ cdef class Data:
             self.epochs = np.asarray(list(rvep) + list(relep))
             self.nTot = len(self.epochs)
             self.gaia_npar = 5
+            self.hip_npar = 5
 
             #########################################################
             # Note: we still need parallax to run this calculation
@@ -249,6 +257,7 @@ cdef class Data:
 
             self.pmra_H = self.pmra_G = self.pmra_HG = self.accra_G = self.jerkra_G = 0
             self.pmdec_H = self.pmdec_G = self.pmdec_HG = self.accdec_G = self.jerkdec_G = 0
+            self.accra_H = self.accdec_H = 0
             self.epRA_H = self.epDec_H = 1991.25
             self.epRA_G = self.epDec_G = 2015.5
             if refep is not None:
@@ -259,6 +268,7 @@ cdef class Data:
             self.Cinv_G = np.zeros((2, 2))
             self.Cinv_G_jerk_terms = np.zeros((2, 2))
             self.Cinv_G_acc_terms = np.zeros((2, 2))
+            self.Cinv_H_acc_terms = np.zeros((2, 2))
             self.Cinv_G_B = np.zeros((2, 2))
             self.Cinv_HG = np.identity(2)
             self.nHip1 = self.nHip2 = self.nGaia = 0
@@ -284,6 +294,10 @@ cdef class Data:
         if self.gaia_npar == 9:
             self.jerkra_G = 1e-3 * t['jerkra_gaia']
             self.jerkdec_G = 1e-3 * t['jerkdec_gaia']
+
+        if self.hip_npar >= 7:
+            self.accra_H = 1e-3 * t['accra_hip']
+            self.accdec_H = 1e-3 * t['accdec_hip']
 
         if not use_epoch_astrometry:
             self.nHip1 = self.nHip2 = self.nGaia = 6
@@ -346,7 +360,15 @@ cdef class Data:
             C_G_jerk_terms = np.asarray([[e_jerkRA**2, e_jerkRA*e_jerkDec*corr_jerk],
                                         [e_jerkRA*e_jerkDec*corr_jerk, e_jerkDec**2]])
             self.Cinv_G_jerk_terms = np.linalg.inv(C_G_jerk_terms.reshape(2, 2)).astype(float)
-        
+
+        ### now for the hipparcos terms
+        self.Cinv_H_acc_terms = np.asarray([[0.0, 0.0], [0.0, 0.0]]) # variances of infinity by default.
+        if self.hip_npar >= 7:
+            e_accRA, e_accDec, corr_acc = [1e-3 * t['accra_hip_error'], 1e-3 * t['accdec_hip_error'], t['accra_accdec_hip']]
+            C_H_acc_terms = np.asarray([[e_accRA**2, e_accRA*e_accDec*corr_acc],
+                                        [e_accRA*e_accDec*corr_acc, e_accDec**2]])
+            self.Cinv_H_acc_terms = np.linalg.inv(C_H_acc_terms.reshape(2, 2)).astype(float)
+
         if companion_gaia is None:
             self.Cinv_G_B = np.zeros((2, 2)).astype(float)
             self.pmra_G_B = self.pmdec_G_B = 0
@@ -393,6 +415,7 @@ cdef class Model:
     cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
     cdef public double pmra_H, pmra_HG, pmra_G, pmdec_H, pmdec_HG, pmdec_G
     cdef public double accra_G, accdec_G, jerkra_G, jerkdec_G
+    cdef public double accra_H, accdec_H
     cdef public double pmra_G_B, pmdec_G_B
     cdef double *EA
     cdef double *sinEA
@@ -421,6 +444,7 @@ cdef class Model:
         self.pmra_H = self.pmra_HG = self.pmra_G = 0
         self.pmdec_H = self.pmdec_HG = self.pmdec_G = 0
         self.accra_G = self.accdec_G = self.jerkra_G = self.jerkdec_G = 0
+        self.accra_H = self.accdec_H = 0
         self.pmra_G_B = self.pmdec_G_B = 0
         cdef int i
 
@@ -933,6 +957,7 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     cdef double RA_H1, Dec_H1, pmra_H1, pmdec_H1
     cdef double RA_H2, Dec_H2, pmra_H2, pmdec_H2
     cdef double RA_G, Dec_G, pmra_G, pmdec_G, accra_G, accdec_G, jerkra_G, jerkdec_G
+    cdef double accra_H1, accdec_H1, accra_H2, accdec_H2
     cdef double RA_G_B, Dec_G_B, pmra_G_B, pmdec_G_B
 
     for i in range(Hip1.npar):
@@ -985,12 +1010,22 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
     Dec_H1 = res_Hip1[2]
     pmra_H1 = res_Hip1[3]
     pmdec_H1 = res_Hip1[4]
+    # higher order terms:
+    accra_H1 = accdec_H1 = 0
+    if Hip1.npar >= 7:
+        accra_H1 = res_Hip1[5]
+        accdec_H1 = res_Hip1[6]
 
     lstsq_C(chi2mat_Hip2, b_Hip2, Hip2.npar, Hip2.npar, res_Hip2)
     RA_H2 = res_Hip2[1]
     Dec_H2 = res_Hip2[2]
     pmra_H2 = res_Hip2[3]
     pmdec_H2 = res_Hip2[4]
+    # higher order terms:
+    accra_H2 = accdec_H2 = 0
+    if Hip2.npar >= 7:
+        accra_H2 = res_Hip2[5]
+        accdec_H2 = res_Hip2[6]
 
     lstsq_C(chi2mat_Gaia, b_Gaia, Gaia.npar, Gaia.npar, res_Gaia)
     # parallax is in the 0 spot. RA in 1, dec in 2, pmra in 3, pmdec in 4,... and so forth,
@@ -1022,6 +1057,8 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
 
     model.pmra_H = 0.4*pmra_H1 + 0.6*pmra_H2
     model.pmdec_H = 0.4*pmdec_H1 + 0.6*pmdec_H2
+    model.accra_H = 0.4*accra_H1 + 0.6*accra_H2
+    model.accdec_H = 0.4*accdec_H1 + 0.6*accdec_H2
 
     model.pmra_G = pmra_G
     model.pmdec_G = pmdec_G
@@ -1102,6 +1139,10 @@ def calc_PMs_no_epoch_astrometry(Data data, Model model):
     # quadratic fit to the simulated gaia data
     model.accra_G = (model.dRA_G[0] + model.dRA_G[2] - 2 * model.dRA_G[1]) / (data.dt_G/2) ** 2
     model.accdec_G = (model.dDec_G[3] + model.dDec_G[5] - 2 * model.dDec_G[4]) / (data.dt_G/2) ** 2
+
+    # quadratic fit to the simulated hipparcos data
+    model.accra_H = (model.dRA_H1[0] + model.dRA_H1[2] - 2 * model.dRA_H1[1]) / (data.dt_H/2) ** 2
+    model.accdec_H = (model.dRA_H1[3] + model.dRA_H1[5] - 2 * model.dRA_H1[4]) / (data.dt_H/2) ** 2
 
     return
 
@@ -1466,14 +1507,23 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
 
     ##################################################################
     # Log likelihood for the absolute astrometry (for the 6th, 7th, 8th, and 9th parameters
-    # from Gaia, should they exist.
+    # from Gaia and Hipparcos, should they exist.
     # Note that NO if statement is needed here, because the quantities are
     # just zero if acceleration and/or jerk are not present.
     # although, one may speed things up slightly if we put these into an if statement that ignores
     # it in cases of just 5-parameter fits.
     ##################################################################
 
-    # acceleration in ra and dec
+    # acceleration in ra and dec hipparcos
+    # remember that model.accra_G is in units of AU/yr^2 so we multiply by the parallax to get to units of as/yr^2
+    delta_accRA = plx_best*model.accra_H - data.accra_H
+    delta_accDec = plx_best*model.accdec_H - data.accdec_H
+    # we assume the covariance between pmra and accra is zero. Otherwise, we need the large, full covariance matrix.
+    chisq_H += delta_accRA ** 2 * data.Cinv_H_acc_terms[0, 0]
+    chisq_H += delta_accDec ** 2 * data.Cinv_H_acc_terms[1, 1]
+    chisq_H += 2 * delta_accRA * delta_accDec * data.Cinv_H_acc_terms[0, 1]
+
+    # acceleration in ra and dec gaia
     # remember that model.accra_G is in units of AU/yr^2 so we multiply by the parallax to get to units of as/yr^2
     delta_accRA = plx_best*model.accra_G - data.accra_G
     delta_accDec = plx_best*model.accdec_G - data.accdec_G
@@ -1482,7 +1532,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     chisq_G += delta_accDec ** 2 * data.Cinv_G_acc_terms[1, 1]
     chisq_G += 2 * delta_accRA * delta_accDec * data.Cinv_G_acc_terms[0, 1]
 
-    # jerk in ra and dec
+    # jerk in ra and dec gaia
     delta_jerkRA = plx_best * model.jerkra_G - data.jerkra_G
     delta_jerkDec = plx_best * model.jerkdec_G - data.jerkdec_G
     # we assume the covariance between pmra and accra is zero. Otherwise, we need the large, full covariance matrix.
