@@ -96,7 +96,29 @@ def test_converges_to_accurate_values_with_relative_RV(fake_args):
     with tempfile.TemporaryDirectory() as tmp_dir:
         fake_args.return_value = FakeArguments('orvara/tests/config_test_relativeRV.ini', tmp_dir)
         tt = run()[1].data
-        # check params
+        burn = 100  # number of burn in steps to discard
+        rv_jitter = np.mean(tt['jitter'][:, burn:])
+        rv_jitter_err = np.std(tt['jitter'][:, burn:])
+        companion_jup_mass = np.mean(tt['msec0'][:, burn:] * 1989 / 1.898)
+        companion_mass_err = np.std(tt['msec0'][:, burn:] * 1989 / 1.898)
+        separation_AU = np.mean(tt['sau0'][:, burn:])
+        separation_err = np.std(tt['sau0'][:, burn:])
+        eccentricity = np.mean(tt['esino0'][:, burn:] ** 2 + tt['ecoso0'][:, burn:] ** 2)
+        eccentricity_err = np.std(tt['esino0'][:, burn:] ** 2 + tt['ecoso0'][:, burn:] ** 2)
+        inclination_deg = np.mean(tt['inc0'][:, burn:] * 180 / np.pi)
+        inclination_err = np.std(tt['inc0'][:, burn:] * 180 / np.pi)
+        lam_deg = np.mean(tt['lam0'][:, burn:] * 180 / np.pi)
+        lam_err = np.std(tt['lam0'][:, burn:] * 180 / np.pi)
+
+        expected_1_sigma_errors = [0.6, 1.67, 0.13, 0.0012, 0.55, 0.4]
+        expected_values = [4.9, 66.7, 10.11, 0.735, 49.45, 44.5]
+
+        values = [rv_jitter, companion_jup_mass, separation_AU, eccentricity, inclination_deg, lam_deg]
+        errors = [rv_jitter_err, companion_mass_err, separation_err,
+                  eccentricity_err, inclination_err, lam_err]
+        for value, expected, sigma in zip(values, expected_values, expected_1_sigma_errors):
+            assert np.isclose(value, expected, atol=2 * sigma)
+        assert np.allclose(errors, expected_1_sigma_errors, rtol=.5)
 
 @pytest.mark.e2e
 @mock.patch('orvara.main.parse_args')
