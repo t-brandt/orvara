@@ -405,9 +405,9 @@ cdef class Data:
 
     def custom_epochs(self, epochs, refep=2455197.5000, iplanet=0):
 
-        self.nRV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
-        self.nTot = 5*self.nRV
-        self.epochs = np.asarray(list(epochs)*5)
+        self.nRV = self.n_rel_RV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
+        self.nTot = 6*self.nRV
+        self.epochs = np.asarray(list(epochs)*6)
         self.refep = refep
         self.ast_planetID = (np.ones(len(epochs))*iplanet).astype(np.int32)
 
@@ -514,6 +514,13 @@ cdef class Model:
         for i in range(self.nRV):
             RVs[i] = self.RV[i]
         return RVs
+
+    def return_relRVs(self):
+        cdef int i
+        relRVs = np.empty(self.n_rel_RV)
+        for i in range(self.n_rel_RV):
+            relRVs[i] = self.rel_RV[i]
+        return relRVs
 
     def return_dRA_dDec(self):
         cdef int i, j
