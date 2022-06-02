@@ -301,7 +301,8 @@ cdef class Data:
 
         if not use_epoch_astrometry:
             self.nHip1 = self.nHip2 = self.nGaia = 6
-            self.dt_H = 3.36
+            self.dt_H = 19
+            print('Hipparcos mission length is set to 19 years!!!')
             self.dt_G = gaia_mission_length_yrs
             ep_2010 = 2455197.5000
 
