@@ -134,7 +134,7 @@ def initialize_data(config, companion_gaia):
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback='')
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
-    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia,
+    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, relRVFile=relRVFile, companion_gaia=companion_gaia,
                       gaia_mission_length_yrs=gaia_mission_length_yrs)
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..

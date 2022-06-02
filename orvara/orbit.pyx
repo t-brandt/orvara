@@ -410,6 +410,7 @@ cdef class Data:
         self.epochs = np.asarray(list(epochs)*6)
         self.refep = refep
         self.ast_planetID = (np.ones(len(epochs))*iplanet).astype(np.int32)
+        self.rel_RV_planetID = (np.ones(len(epochs)) * iplanet).astype(np.int32)
 
 
 cdef class Model:
@@ -556,6 +557,12 @@ cdef class Model:
         for i in range(self.nRV):
             TAs[i] = 2*atan2(sqrt1pe*sin(self.EA[i]/2), sqrt1me*cos(self.EA[i]/2))
         return TAs
+
+    def return_EAs(self):
+        EAs = np.empty(self.nEA)
+        for i in range(self.nEA):
+            EAs[i] = self.EA[i]
+        return EAs
 
     def return_relsep(self):
         cdef int i
