@@ -14,7 +14,7 @@ def random_rv_data_params_model(Nsamples):
     data = orbit.Data(27321, 'None', 'None', 'None')
     data.custom_epochs(list(np.linspace(data.refep, data.refep+1000, Nsamples)))
     model = orbit.Model(data)
-    theta = np.array([jit, mpri, msec, sau, esino, ecoso, inc, asc, lam])
+    theta = np.array([mpri, msec, sau, esino, ecoso, inc, asc, lam, jit])
     params = orbit.Params(theta, 0, 1, data.nInst, 1)
     orbit.calc_EA_RPP(data, params, model)
     return data, params, model
