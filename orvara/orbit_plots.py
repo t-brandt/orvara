@@ -120,7 +120,7 @@ class OrbitPlots:
         except: #else:
             self.have_reldat = False
         # load HGCA data:
-        self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err = self.load_HGCA_data()        
+        self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err, self.long_baseline_pms = self.load_HGCA_data()
         
         ################################ set colorbar ######################
         # setup the normalization and the colormap
@@ -164,8 +164,7 @@ class OrbitPlots:
         """
         start_epoch = self.calendar_to_JD(self.start_epoch)
         end_epoch = self.calendar_to_JD(self.end_epoch)
-        range_epoch = end_epoch - start_epoch
-        epoch = np.linspace(start_epoch, end_epoch + 0.5*range_epoch, self.num_steps)
+        epoch = np.linspace(start_epoch, end_epoch, self.num_steps)
         epoch_calendar = np.zeros(len(epoch))
         for i in range(len(epoch_calendar)):
             epoch_calendar[i] = self.JD_to_calendar(epoch[i])
@@ -264,13 +263,16 @@ class OrbitPlots:
             mualp_obs_err = np.array([t['pmra_hip_error'][i], t['pmra_gaia_error'][i]])
             mudec_obs = np.array([t['pmdec_hip'][i], t['pmdec_gaia'][i]])
             mudec_obs_err = np.array([t['pmdec_hip_error'][i], t['pmdec_gaia_error'][i]])
+            long_baseline_pms = {'pmra_hg': t['pmra_hg'][i], 'pmdec_hg': t['pmdec_hg'][i],
+                                 'pmra_hg_error': t['pmra_hg_error'][i],
+                                 'pmdec_hg_error': t['pmdec_hg_error'][i]}
             for i in range(len(ep_mualp_obs)):
                 ep_mualp_obs[i] = self.calendar_to_JD(ep_mualp_obs[i])
                 ep_mudec_obs[i] = self.calendar_to_JD(ep_mudec_obs[i])
         except:
             self.have_pmdat = False
-            return [None, None, None, None, None, None]
-        return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err
+            return [None, None, None, None, None, None, {}]
+        return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err, long_baseline_pms
     
     def calc_RV_offset(self, step):
         """
@@ -996,6 +998,19 @@ class OrbitPlots:
             ax4.errorbar(ep_mudec_obs_calendar, dat_OC_Dec, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
             ax4.scatter(ep_mudec_obs_calendar, dat_OC_Dec, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
 
+            # plot the long baseline proper motion, integral constraints.
+            for jj, times, ax in zip(['ra', 'dec'],
+                                     [ep_mualp_obs_calendar, ep_mudec_obs_calendar],
+                                     [ax1, ax3]):
+                ycenter = self.long_baseline_pms[f'pm{jj}_hg']
+                yerr = self.long_baseline_pms[f'pm{jj}_hg_error']
+                #ax.plot(times, [ycenter, ycenter], color='magenta', ls='--', lw=2)
+                for sig, alpha in zip([1, 2, 3, 4, 5], [0.4, 0.3, 0.2, 0.1, 0.1]):
+                    xfillvals = [minT, maxT]#times
+                    ax.fill_between(xfillvals, y1=ycenter-sig*yerr, y2=ycenter+sig*yerr,
+                                    alpha=0.6*alpha, facecolor="magenta", edgecolor="none", linewidth=0.0)
+                ax.annotate(r'$(\int \mu\,dt)/(t_G - t_H)$', xy=(np.average(times) + 5, ycenter+2*yerr), color='magenta',
+                            xycoords='data')
             # axes settings
             # ax1
             
@@ -1005,12 +1020,12 @@ class OrbitPlots:
                     ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
                     
             ax1.get_shared_x_axes().join(ax1, ax2)
-            ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
+            #ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
 
             ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)', labelpad = 6, fontsize = 13)
             # ax3
             ax3.get_shared_x_axes().join(ax3, ax4)
-            ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
+            #ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
             range_mudec_obs = max(self.mudec_obs)  - min(self.mudec_obs)
             ax3.set_ylabel(r'$\mu_{\delta}$ (mas/yr)', labelpad = 6, fontsize = 13)
             for ax in [ax1, ax3]:
@@ -1025,6 +1040,10 @@ class OrbitPlots:
             
             ax2.set_ylim(-1.2*y1_RA, 1.2*y1_RA)
             ax4.set_ylim(-1.2*y1_Dec, 1.2*y1_Dec)
+
+            # x axis limit setting
+            ax1.set_xlim(minT, maxT)
+            ax3.set_xlim(minT, maxT)
             
             for ax in [ax2,ax4]:
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
