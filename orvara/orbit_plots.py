@@ -1299,6 +1299,18 @@ class OrbitPlots:
 
 #save data
 
+    def safe_get(self, chain, key):
+        """
+        A wrapper for self.chain[key] that won't crash if key does not exist
+        in the chain. This is needed because astropy.fits.BinTableHDU objects do
+        not have a .get() method like dictionaries, that allow you to return e.g. None
+        """
+        try:
+            values = chain[key]
+        except KeyError:
+            values = None
+        return values
+
     def save_data(self):
     
         def print_best_chisq():
@@ -1308,8 +1320,12 @@ class OrbitPlots:
             text_file = open(os.path.join(self.outputdir, 'beststep_params_' + self.title) +'.txt', "w")
             indx = np.where(self.lnp == np.amax(self.lnp))[0][0]
             for i in range(len(par_label)):
+                chisq_val = self.safe_get(self.chain, par_label[i])
+                str_to_write = " None "
+                if chisq_val is not None:
+                    str_to_write = "  %.10g" % chisq_val[indx]
                 text_file.write(par_label[i])
-                text_file.write("  %.10g" % (self.chain[par_label[i]][indx]))
+                text_file.write(str_to_write)
                 text_file.write("\n")
 
             for i in range(len(self.chain.columns)):
