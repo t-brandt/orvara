@@ -115,6 +115,8 @@ cdef class Data:
     cdef double [:] epochs
     cdef double [:] RV
     cdef double [:] RV_err
+    cdef double [:] rel_RV
+    cdef double [:] rel_RV_err
     cdef int [:] RVinst
     cdef double [:] relsep
     cdef double [:] PA
@@ -122,7 +124,8 @@ cdef class Data:
     cdef double [:] PA_err
     cdef double [:] relsep_pa_corr
     cdef int [:] ast_planetID
-    cdef public int nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst, companion_ID
+    cdef int [:] rel_RV_planetID
+    cdef public int n_rel_RV, nRV, nAst, nHip1, nHip2, nGaia, nTot, nInst, companion_ID
     cdef public int gaia_npar
     cdef public double pmra_H, pmdec_H, pmra_HG, pmdec_HG, pmra_G, pmdec_G
     cdef public double accra_G, accdec_G, jerkra_G, jerkdec_G
@@ -138,11 +141,30 @@ cdef class Data:
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
 
-    def __init__(self, Hip, HGCAfile, RVfile, relAstfile,
+    def __init__(self, Hip, HGCAfile, RVfile, relAstfile, relRVFile=None,
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
                  refep=2455197.5000, companion_gaia=None, verbose=True,
                  gaia_mission_length_yrs=2.76):
+        try:
+            rel_rvdat = np.genfromtxt(relRVFile)
+            if len(rel_rvdat.shape) == 1:
+                # catch if there is just 1 single row in the data file.
+                # numpy will load it as a 1d array instead of a row with 5 columns as we want.
+                rel_rvdat = np.reshape(rel_rvdat, (1, -1))
+            print("Loading relative RV data from file " + relRVFile)
+            rel_RV_ep = rel_rvdat[:, 0] # epochs
+            self.rel_RV = rel_rvdat[:, 1] # velocities
+            self.rel_RV_err = rel_rvdat[:, 2] # errors
+            self.n_rel_RV = rel_rvdat.shape[0] # number of points
+            self.rel_RV_planetID = (rel_rvdat[:, 3]).astype(np.int32)
+            if verbose:
+                print(f"Loaded {self.n_rel_RV } relative RV data points for {len(set(self.rel_RV_planetID))} planets")
+        except:
+            if verbose:
+                print(f"Unable to load relative RV data from file {relRVFile}")
+            self.n_rel_RV = 0
+            rel_RV_ep = []
         try:
             rvdat = np.genfromtxt(RVfile)
             rvep = rvdat[:, 0]
@@ -150,7 +172,7 @@ cdef class Data:
             self.RV_err = rvdat[:, 2]
             self.nRV = rvdat.shape[0]
             if verbose:
-                print("Loading RV data from file " + RVfile)
+                print(f"Loadied {self.nRV} RV data points from file " + RVfile)
         except:
             if verbose:
                 print("Unable to load RV data from file " + RVfile)
@@ -233,9 +255,9 @@ cdef class Data:
                 print(f"Recognized a {self.gaia_npar}-parameter fit in Gaia for Hip {Hip}")
         except:
             if verbose:
-                print("Unable to load absolute astrometry data for Hip %d" % (Hip))
+                print("Unable to load HGCA absolute astrometry data for Hip %d" % (Hip))
             self.use_abs_ast = 0
-            self.epochs = np.asarray(list(rvep) + list(relep))
+            self.epochs = np.asarray(list(rvep) + list(relep) + list(rel_RV_ep))
             self.nTot = len(self.epochs)
             self.gaia_npar = 5
 
@@ -314,7 +336,9 @@ cdef class Data:
             self.nGaia = epochs_Gaia.shape[0]
             absasteps = np.asarray(list(epochs_Hip1) + list(epochs_Hip2) + list(epochs_Gaia))
 
-        self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps))
+        # this order is very important. I.e. that rv_epochs, then relative_astrometry epochs, then
+        # absolute astrometry epochs, relative RV epochs, come in that order.
+        self.epochs = np.asarray(list(rvep) + list(relep) + list(absasteps) + list(rel_RV_ep))
         if refep is not None:
             self.refep = refep
         else:
@@ -381,16 +405,16 @@ cdef class Data:
 
     def custom_epochs(self, epochs, refep=2455197.5000, iplanet=0):
 
-        self.nRV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
-        self.nTot = 5*self.nRV
-        self.epochs = np.asarray(list(epochs)*5)
+        self.nRV = self.n_rel_RV = self.nAst = self.nHip1 = self.nHip2 = self.nGaia = len(epochs)
+        self.nTot = 6*self.nRV
+        self.epochs = np.asarray(list(epochs)*6)
         self.refep = refep
         self.ast_planetID = (np.ones(len(epochs))*iplanet).astype(np.int32)
+        self.rel_RV_planetID = (np.ones(len(epochs)) * iplanet).astype(np.int32)
 
 
 cdef class Model:
-
-    cdef public int nEA, nRV, nAst, nHip1, nHip2, nGaia
+    cdef public int nEA, nRV, n_rel_RV, nAst, nHip1, nHip2, nGaia
     cdef public double pmra_H, pmra_HG, pmra_G, pmdec_H, pmdec_HG, pmdec_G
     cdef public double accra_G, accdec_G, jerkra_G, jerkdec_G
     cdef public double pmra_G_B, pmdec_G_B
@@ -398,6 +422,7 @@ cdef class Model:
     cdef double *sinEA
     cdef double *cosEA
     cdef double *RV
+    cdef double *rel_RV
     cdef double *relsep
     cdef double *PA
     cdef double *rel_RA
@@ -414,6 +439,7 @@ cdef class Model:
     def __init__(self, Data data):
         self.nEA = data.nTot
         self.nRV = data.nRV
+        self.n_rel_RV = data.n_rel_RV
         self.nAst = data.nAst
         self.nHip1 = data.nHip1
         self.nHip2 = data.nHip2
@@ -432,11 +458,19 @@ cdef class Model:
         for i in range(self.nEA):
             self.EA[i] = self.cosEA[i] = self.sinEA[i] = 0
 
+        # RV
         self.RV = <double *> PyMem_Malloc((self.nRV+1) * sizeof(double))
         if not self.RV:
             raise MemoryError()
         for i in range(self.nRV):
             self.RV[i] = 0
+
+        # rel RV
+        self.rel_RV = <double *> PyMem_Malloc((self.n_rel_RV+1) * sizeof(double))
+        if not self.rel_RV:
+            raise MemoryError()
+        for i in range(self.n_rel_RV):
+            self.rel_RV[i] = 0
 
         self.relsep = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
         self.PA = <double *> PyMem_Malloc((self.nAst+1) * sizeof(double))
@@ -482,6 +516,13 @@ cdef class Model:
             RVs[i] = self.RV[i]
         return RVs
 
+    def return_relRVs(self):
+        cdef int i
+        relRVs = np.empty(self.n_rel_RV)
+        for i in range(self.n_rel_RV):
+            relRVs[i] = self.rel_RV[i]
+        return relRVs
+
     def return_dRA_dDec(self):
         cdef int i, j
         dRAs_G = np.empty(self.nGaia)
@@ -516,6 +557,12 @@ cdef class Model:
         for i in range(self.nRV):
             TAs[i] = 2*atan2(sqrt1pe*sin(self.EA[i]/2), sqrt1me*cos(self.EA[i]/2))
         return TAs
+
+    def return_EAs(self):
+        EAs = np.empty(self.nEA)
+        for i in range(self.nEA):
+            EAs[i] = self.EA[i]
+        return EAs
 
     def return_relsep(self):
         cdef int i
@@ -570,6 +617,7 @@ cdef class Model:
         PyMem_Free(self.dRA_G_B)
         PyMem_Free(self.dDec_G_B)
         PyMem_Free(self.RV)
+        PyMem_Free(self.rel_RV)
         PyMem_Free(self.EA)
         PyMem_Free(self.sinEA)
         PyMem_Free(self.cosEA)
@@ -579,11 +627,12 @@ cdef class Model:
         PyMem_Free(self.rel_Dec)
 
 cdef class Chisq_resids:
-    cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA
+    cdef public double chisq_H, chisq_HG, chisq_G, chisq_sep, chisq_PA, chisq_relRV
     cdef public double plx_best, pmra_best, pmdec_best
     def __init__(self):
         self.chisq_H = self.chisq_HG = self.chisq_G = 0
         self.chisq_sep = self.chisq_PA = 0
+        self.chisq_relRV = 0
 
 
 @cython.boundscheck(False)
@@ -1187,6 +1236,70 @@ def calc_RV(Data data, Params par, Model model):
 @cython.wraparound(False)
 @cython.nonecheck(False)
 
+#######################################################################
+# Compute the relative RVs.
+#######################################################################
+
+def calc_relRV(Data data, Params par, Model model, int iplanet=0):
+    # note that this same logic is used within calc_RV, however refactoring calc_RV so that
+    # it used a common function caused a slowdown by a factor of ~5 . So we are keeping it
+    # programmatically copied so that we keep our fast speed.
+
+    cdef extern from "math.h" nogil:
+        double sin(double _x)
+        double cos(double _x)
+        double fabs(double _x)
+        double sqrt(double _x)
+
+    cdef double pi = 3.14159265358979323846264338327950288
+    cdef double pi_d_2 = pi/2.
+
+    cdef double sqrt1pe = sqrt(1 + par.ecc)
+    cdef double sqrt1me = sqrt(1 - par.ecc)
+    cdef double RVampl = 2*pi*par.sau*sin(par.inc)/(par.per*sqrt1pe*sqrt1me)
+    RVampl *= 1731458.33*par.msec/(par.mpri + par.msec)
+
+    cdef double cosarg = par.cosarg
+    cdef double sinarg = par.sinarg
+    cdef double ecccosarg = par.ecc*cosarg
+    cdef double sqrt1pe_div_sqrt1me = sqrt1pe/sqrt1me
+    cdef double TA, ratio, fac, tanEAd2
+
+    cdef int i
+    cdef int j
+
+    cdef double one_d_24 = 1./24
+    cdef double one_d_240 = 1./240
+
+    cdef int i_rel_RV = data.nTot - data.n_rel_RV  # the starting index for the relative RV data.
+    cdef double conv = -1. * (par.msec + par.mpri) / par.msec
+    # conversion factor =conv from RV of the primary to delta RV = RVsecondary - RVprimary.
+    # Note that this method is not in detail correct for systems with 3 or more bodies. A future PR will resolve this.
+    for i in range(data.n_rel_RV):
+        j = i + i_rel_RV
+        if iplanet == data.rel_RV_planetID[i]:
+            if fabs(model.sinEA[j]) > 1.5e-2:
+                tanEAd2 = (1 - model.cosEA[j]) / model.sinEA[j]
+            elif model.EA[j] < -pi or model.EA[j] > pi:
+                raise ValueError("EA input to calc_RV must be betwen -pi and pi.")
+            elif fabs(model.EA[j]) < pi_d_2:
+                EA = model.EA[j]
+                tanEAd2 = EA * (0.5 + EA ** 2 * (one_d_24 + one_d_240 * EA ** 2))
+            elif model.sinEA[j] != 0:
+                tanEAd2 = (1 - model.cosEA[j]) / model.sinEA[j]
+            else:
+                tanEAd2 = 1e100
+
+            ratio = sqrt1pe_div_sqrt1me * tanEAd2
+            fac = 2 / (1 + ratio ** 2)
+            model.rel_RV[i] += conv * RVampl * (cosarg * (fac - 1) - sinarg * ratio * fac + ecccosarg)
+    return
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+
 ######################################################################
 # Compute the log likelihood from the RVs, relative separation,
 # position angle, and absolute astrometry, all of which should be in
@@ -1266,6 +1379,15 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     PyMem_Free(A)
     PyMem_Free(B)
     PyMem_Free(C)
+
+    ##################################################################
+    # Calculate the log likelyhood of the relative RV data
+    ##################################################################
+    cdef double chisq_relRV
+    chisq_relRV = 0
+    for i in range(data.n_rel_RV):
+        ivar = 1 / (data.rel_RV_err[i]**2)  # dont include jitter here.
+        chisq_relRV = (data.rel_RV[i] - model.rel_RV[i]) ** 2 * ivar
 
     ##################################################################
     # Ok, tricky part below.  We will take care of the mean proper
@@ -1501,7 +1623,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     chisq_plx = (data.plx - plx_best)**2/data.plx_err**2
 
     # adding all the log likelihood components together:
-    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx
+    lnL -= chisq_PA + chisq_sep + chisq_H + chisq_HG + chisq_G + chisq_plx + chisq_relRV
     lnL -= log(detM)
 
     if chisq_resids:
@@ -1514,6 +1636,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         chisq_struct.chisq_H = chisq_H
         chisq_struct.chisq_HG = chisq_HG
         chisq_struct.chisq_G = chisq_G
+        chisq_struct.chisq_relRV = chisq_relRV
         RVzero_np = np.zeros(data.nInst)
         for i in range(data.nInst):
             RVzero_np[i] = RVzero[i]

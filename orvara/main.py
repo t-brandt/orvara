@@ -128,13 +128,13 @@ def initialize_data(config, companion_gaia):
         raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
 
     RVFile = config.get('data_paths', 'RVFile', fallback='')
+    relRVFile = config.get('data_paths', 'relRVFile', fallback='')
     AstrometryFile = config.get('data_paths', 'AstrometryFile', fallback='')
     GaiaDataDir = config.get('data_paths', 'GaiaDataDir', fallback='')
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback='')
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
-
-    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, companion_gaia=companion_gaia,
+    data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, relRVFile=relRVFile, companion_gaia=companion_gaia,
                       gaia_mission_length_yrs=gaia_mission_length_yrs)
     if use_epoch_astrometry and data.use_abs_ast == 1:
         # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
@@ -158,7 +158,8 @@ def initialize_data(config, companion_gaia):
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
         # generate the data object.
         data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
-                          use_epoch_astrometry,
+                          use_epoch_astrometry=use_epoch_astrometry,
+                          relRVFile=relRVFile,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                           epochs_Gaia=Gaia_fitter.data.julian_day_epoch(),
@@ -213,6 +214,10 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
 
         orbit.calc_EA_RPP(data, params, model)
         orbit.calc_RV(data, params, model)
+        if data.n_rel_RV > 0:
+            # slightly more performant if we ignore the relative RV calculation call entirely if
+            # we do not have any relative RVs to calculate.
+            orbit.calc_relRV(data, params, model, i)
         orbit.calc_offsets(data, params, model, i)
 
         chisq_sec = (params.msec - priors[f'm_secondary{i}'])**2/priors[f'm_secondary{i}_sig']**2
@@ -369,7 +374,7 @@ def run():
         shape = sample0.lnprobability[0].shape
     else:
         shape = sample0.logprobability[0].shape
-    parfit = np.zeros((shape[0], shape[1], 8 + data.nInst))
+    parfit = np.zeros((shape[0], shape[1], 9 + data.nInst))
 
     loglkwargs['returninfo'] = True
     loglkwargs['RVoffsets'] = True
@@ -377,12 +382,12 @@ def run():
     for i in range(shape[0]):
         for j in range(shape[1]):
             res, RVoffsets = lnprob(sample0.chain[0][i, j], **loglkwargs)
-            parfit[i, j, :8] = [res.plx_best, res.pmra_best, res.pmdec_best,
+            parfit[i, j, :9] = [res.plx_best, res.pmra_best, res.pmdec_best,
                                 res.chisq_sep, res.chisq_PA,
-                                res.chisq_H, res.chisq_HG, res.chisq_G]
+                                res.chisq_H, res.chisq_HG, res.chisq_G, res.chisq_relRV]
             
             if data.nInst > 0:
-                parfit[i, j, 8:] = RVoffsets
+                parfit[i, j, 9:] = RVoffsets
 
     colnames = ['mpri']
     units = ['msun']
@@ -403,8 +408,8 @@ def run():
 
     colnames += ['lnp']
     colnames += ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 
-                 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
-    units += ['', 'arcsec', 'arcsec/yr', 'arcsec/yr', '', '', '', '', '']
+                 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G', 'chisq_relRV']
+    units += ['', 'arcsec', 'arcsec/yr', 'arcsec/yr', '', '', '', '', '', '']
     colnames += ['RV_ZP_%d_ML' % (i) for i in range(data.nInst)]
     units += ['m/s' for i in range(data.nInst)]
 

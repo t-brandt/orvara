@@ -1,13 +1,23 @@
-1.1.3 (2022-05-02)
+1.1.4 (2022-08-23)
 ------------------
 - Changed the internals of the astrometric prediction code to use the orvara internals. This is 
 more robust and works for more than just 2-body systems.
 - A position (ra, dec) and uncertainty is now printed to standard out with the astrometric plot. 
 
+1.1.3 (2022-05-24)
+------------------
+- Added the ability to constrain orbits with a relative RV measurement (e.g. that between beta pic A and beta
+pic b), by providing a relative RV file (`relRVFile=relative_rv_filename.dat`) in the config.ini. This is implemented
+programmatically so that it will work for multiple companions (3, 4 etc body fits), i.e., it won't crash.
+However the logic to compute the relative RV is technically only valid in detail for 2-body systems, or multi-planet
+systems where the primary is substantially more massive than any companion. See the note within `def calc_relRV` inside
+of orbit.pyx.
+- the chisquared of the relative RV fit is now saved (in the same way as the hipparcos/gaia chisquareds).
+
 1.1.2 (2022-04-28)
 ------------------
 - Bugfix for plotting proper motions. When the internals changed to mas/yr with 1.1.1, the plotting 
-was still done in units of mas/day. 
+was still done in units of mas/day.
 
 1.1.1 (2022-04-21)
 ------------------
