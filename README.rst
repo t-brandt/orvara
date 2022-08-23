@@ -190,6 +190,19 @@ You can access the help menu with the --help flag as follows.
 
     fit_orbit --help
 
+
+Input Data
+~~~~~~~~~~
+
+Orvara can fit orbits to a combination of input data. Accepted are (any combination of): relative radial velocities
+(the radial velocity of the planet minus the radial velocity of the star), radial velocities, relative astrometry.
+
+See orvara/tests/data for examples of these input data files. Be sure that the units are consistent
+with those presented in the examples.
+
+Orvara will automatically include absolute astrometric constraints when available. If the star is not inside of the
+Hipparcos Gaia Catalog of Accelerations, these data will be excluded in the fit.
+
 Output
 ~~~~~~
 The output of the MCMC is a .fits file contained within your given output
@@ -262,6 +275,8 @@ are not.
     'chisq_HG' : The chi squared for the two long-term Hipparcos-Gaia proper motions
 
     'chisq_G' : The chi squared for the two Gaia proper motions
+
+    'chisq_relRV' : The chi squared for the relative RV data (RV planet - RV star). This will be zero if no relative RV data is used.
 
     'RV_ZP_0_ML' : The ML zero point (barycenter RV) for instrument 0
 

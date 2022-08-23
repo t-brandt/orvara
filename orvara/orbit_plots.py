@@ -1276,7 +1276,7 @@ class OrbitPlots:
 
     def plot_chains(self,labels=None,thin=1,alpha=0.1):
         #labels=['Mpri','Msec','a',r'$\mathrm{\sqrt{e}\, sin\, \omega}$',r'$\mathrm{\sqrt{e}\, cos\, \omega}$','inc','asc','lam']
-        print("Generating diagnostic plots to check convergence")
+        print("Generating diagnostic plots to check convergence.")
 
         chain = fits.open(self.MCMCfile)[1].data
         chain = burnin_chain(chain.columns, self.burnin, reshape=False)
@@ -1310,7 +1310,8 @@ class OrbitPlots:
     def save_data(self):
     
         def print_best_chisq():
-            par_label = ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 'chisq_PA', 'chisq_H', 'chisq_HG', 'chisq_G']
+            par_label = ['plx_ML', 'pmra_ML', 'pmdec_ML', 'chisq_sep', 'chisq_PA', 'chisq_H',
+                         'chisq_HG', 'chisq_G', 'chisq_relRV']
             print("Saving beststep parameters to " + self.outputdir)
             text_file = open(os.path.join(self.outputdir, 'beststep_params_' + self.title) +'.txt', "w")
             indx = np.where(self.lnp == np.amax(self.lnp))[0][0]

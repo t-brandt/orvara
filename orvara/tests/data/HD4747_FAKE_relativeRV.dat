@@ -1,0 +1,8 @@
+# Instrument: Fake. These data are fake. They are from a REBOUND simulation of RV planet - RV star
+# using the maximum likelihood orvara-fit orbit of the system.
+# File format:
+# Epoch[JD]   RV[m/s] RV_err[m/s] PlanetID
+2456000 -886.690050  20  0
+2456050 -829.686055  20  0
+2456400 -432.581370  20  0
+2456450 -376.023257  20  0
