@@ -276,11 +276,15 @@ are not.
 
     'chisq_G' : The chi squared for the two Gaia proper motions
 
-    'chisq_relRV' : The chi squared for the relative RV data (RV planet - RV star). This will be zero if no relative RV data is used.
+    'chisq_relRV' : The chi squared for the relative RV data (RV planet - RV star). This will be zero if no relative RV data is used. It will be "None" if the chain you are plotting is from an older version of orvara which did not have relRV data support.
 
     'RV_ZP_0_ML' : The ML zero point (barycenter RV) for instrument 0
 
 There will be an 'RV_ZP_1_ML' for instrument 1, etc., up to the number of RV instruments.
+
+NOTE: chisq_RV, the chisquared of the fit to the RV data *is not saved*. This is for the following reason. Orvara
+uses a jitter term such that the reduced chisquared ( equal to (chisquared of RV fit)/(number of RV data points) ) is 1. So
+if you want chisq_RV, it is simply a value very close to the number of RV data points.
 
 If you want an overall absolute astrometric chi squared, you would add the
 values from items 'chisq_H', 'chisq_HG', and 'chisq_G' above. There are
@@ -371,6 +375,8 @@ Main plots orvara is configured to produce from the orbital fit
 5. Position angle between the two companions
 6. Astrometric acceleration or proper motion fit to Hipparcos-Gaia Astrometry
 7. A density plot showing the predicted position at a chosen epoch
+8. An on-sky predicted position of the planet, at any given epoch. A plot is produced, and the predicted ra, dec (in mas, with uncertainties) is printed to console.
+
 
 To generate any of these plots, simply set the corresponding parameters under
 the ``[plotting section]`` in the config.ini file to a boolean variable ``True``. If

@@ -1,3 +1,9 @@
+1.1.4 (2022-08-23)
+------------------
+- Changed the internals of the astrometric prediction code to use the orvara internals. This is 
+more robust and works for more than just 2-body systems.
+- A position (ra, dec) and uncertainty is now printed to standard out with the astrometric plot. 
+
 1.1.3 (2022-05-24)
 ------------------
 - Added the ability to constrain orbits with a relative RV measurement (e.g. that between beta pic A and beta
