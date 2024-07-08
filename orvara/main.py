@@ -83,8 +83,8 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
             par0[..., j][par0[..., j] < minval] = minval
             par0[..., j][par0[..., j] > maxval] = maxval
         else:
-            par0[..., j::7][par0[..., j::7] < minval] = minval
-            par0[..., j::7][par0[..., j::7] > maxval] = maxval
+            par0[..., j:-1:7][par0[..., j:-1:7] < minval] = minval
+            par0[..., j:-1:7][par0[..., j:-1:7] > maxval] = maxval
             
     # Eccentricity is a special case.  Cap at 0.99.
     ecc = par0[..., 4::7]**2 + par0[..., 5::7]**2

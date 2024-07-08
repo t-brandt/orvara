@@ -94,7 +94,7 @@ class OrbitPlots:
 
 ###################################### Initialize Class ############################################
 
-    def __init__(self):
+   def __init__(self):
         pass        
 
     def start(self):
