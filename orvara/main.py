@@ -28,7 +28,7 @@ _loglkwargs = {}
 def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
                            minjit=-20, maxjit=20):
     
-    par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))
+    par0 = np.ones((ntemps, nwalkers, 2 + 7 * nplanets + 1))
 
     if start_file.lower() == 'none':
         mpri = 1
@@ -40,11 +40,13 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
         asc = 1
         lam = 1
         msec = 0.1
+        Scorr = 0
 
-        sig = np.ones((ntemps, nwalkers, 2 + 7 * nplanets))*0.5    
+        sig = np.ones((ntemps, nwalkers, 2 + 7 * nplanets + 1))*0.5    
         init = [jit, mpri]
         for i in range(nplanets):
              init += [msec, sau, esino, ecoso, inc, asc, lam]
+        init += [Scorr]
         par0 *= np.asarray(init)
 
     else:
@@ -395,6 +397,9 @@ def run():
         colnames += [s + '%d' % (i) for s in ['msec', 'sau', 'esino', 'ecoso',
                                               'inc', 'asc', 'lam']]
         units += ['msun', 'au', '', '', 'radians', 'radians', 'radians']
+
+    colnames += ['Sindex_corr']
+    units += ['']
 
     if njit == 1:
         colnames += ['jitter']

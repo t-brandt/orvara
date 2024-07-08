@@ -11,8 +11,8 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 cdef class Params:
     cdef public double sau, esino, ecoso, inc, asc, lam, mpri, msec, jit, mpri_true
-    cdef public double ecc, per, arg, sinarg, cosarg, sqrt1pe, sqrt1me
-    cdef public int nplanets, ninst_jit, ninst_RV
+    cdef public double ecc, per, arg, sinarg, cosarg, sqrt1pe, sqrt1me, Scorr
+    cdef public int nplanets, ninst_jit, ninst_RV, iplanet
     
     # Array to hold the semimajor axes of all companions
 
@@ -32,7 +32,8 @@ cdef class Params:
 
         cdef int i
 
-        self.nplanets = nplanets 
+        self.nplanets = nplanets
+        self.iplanet = iplanet
         self.ninst_jit = ninst_jit
         self.ninst_RV = ninst_RV
         self.all_sau = <double *> PyMem_Malloc(self.nplanets*sizeof(double))
@@ -41,7 +42,8 @@ cdef class Params:
         if not self.all_sau or not self.all_jitsq or not self.all_jit:
             raise MemoryError()
         
-        self.jit = par[7*nplanets + 1]
+        self.Scorr = par[7*nplanets + 1]
+        self.jit = par[7*nplanets + 2]
 
         if ninst_jit == 1:
             for i in range(ninst_RV):
@@ -49,8 +51,8 @@ cdef class Params:
                 self.all_jitsq[i] = pow(10, self.jit)
         else:
             for i in range(ninst_RV):
-                self.all_jit[i] = par[7*nplanets + i + 1]
-                self.all_jitsq[i] = pow(10, self.all_jit[i])            
+                self.all_jit[i] = par[7*nplanets + i + 2]
+                self.all_jitsq[i] = pow(10, self.all_jit[i])
 
         self.mpri = par[0]
         self.mpri_true = par[0]
@@ -117,6 +119,7 @@ cdef class Data:
     cdef double [:] RV_err
     cdef double [:] rel_RV
     cdef double [:] rel_RV_err
+    cdef double [:] Sindex
     cdef int [:] RVinst
     cdef double [:] relsep
     cdef double [:] PA
@@ -172,7 +175,7 @@ cdef class Data:
             self.RV_err = rvdat[:, 2]
             self.nRV = rvdat.shape[0]
             if verbose:
-                print(f"Loadied {self.nRV} RV data points from file " + RVfile)
+                print(f"Loaded {self.nRV} RV data points from file " + RVfile)
         except:
             if verbose:
                 print("Unable to load RV data from file " + RVfile)
@@ -193,6 +196,16 @@ cdef class Data:
                     print("Assuming all data are from one instrument.")
                 self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
                 self.nInst = 1
+        try:
+            self.Sindex = (rvdat[:, 4]).astype(np.int32)
+            if verbose:
+                print("Loaded S indices from column 5." % (self.nInst))
+        except:
+            if self.nRV > 0:
+                if verbose:
+                    print("Unable to read S indices from fifth column.")
+                    print("Not using Ca II HK S indices.")
+                self.Sindex = rvdat[:, 2]*0
 
         try:
             try:
@@ -1207,6 +1220,9 @@ def calc_RV(Data data, Params par, Model model):
     cdef double one_d_240 = 1./240
 
     for i in range(data.nRV):
+
+        if par.iplanet == 0:
+            model.RV[i] += par.Scorr*data.Sindex[i]
 
         if fabs(model.sinEA[i]) > 1.5e-2:
             tanEAd2 = (1 - model.cosEA[i])/model.sinEA[i]
