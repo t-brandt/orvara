@@ -197,9 +197,9 @@ cdef class Data:
                 self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
                 self.nInst = 1
         try:
-            self.Sindex = (rvdat[:, 4]).astype(np.int32)
+            self.Sindex = rvdat[:, 4]
             if verbose:
-                print("Loaded S indices from column 5." % (self.nInst))
+                print("Loaded S indices from column 5.")
         except:
             if self.nRV > 0:
                 if verbose:
