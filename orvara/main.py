@@ -64,8 +64,8 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
     
     scatter = sig*np.random.randn(np.prod(par0.shape)).reshape(par0.shape)
     par0 += scatter
-    par0[..., 2::7] = (par0[..., 2::7] - scatter[..., 2::7])*np.exp(scatter[..., 2::7])
-    par0[..., 3::7] = (par0[..., 3::7] - scatter[..., 3::7])*np.exp(scatter[..., 3::7])
+    par0[..., 2:-1:7] = (par0[..., 2:-1:7] - scatter[..., 2:-1:7])*np.exp(scatter[..., 2:-1:7])
+    par0[..., 3:-1:7] = (par0[..., 3:-1:7] - scatter[..., 3:-1:7])*np.exp(scatter[..., 3:-1:7])
 
     # Ensure that values are within allowable ranges.
     
@@ -76,7 +76,7 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
               [6, 1e-5, np.pi],      # inclination (radians)
               [7, -np.pi, 3*np.pi],  # longitude of ascending node (rad)
               [8, -np.pi, 3*np.pi]]  # long at ref epoch (rad)
-        
+
     for i in range(len(bounds)):
         j, minval, maxval = bounds[i]
         if j <= 1:
