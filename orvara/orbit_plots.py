@@ -80,6 +80,11 @@ class Orbit:
             self.offset = OP.calc_RV_offset(step)
         except:
             self.offset = 0
+        try:
+            self.Sindex_corr = OP.chain['Sindex_corr'][step]
+        except:
+            self.Sindex_corr = 0
+            
         if OP.cmref == 'msec_solar':
             self.colorpar = self.par.msec
         elif OP.cmref == 'msec_jup':
@@ -110,7 +115,7 @@ class OrbitPlots:
 
         # load observed RV data
         try:
-            self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
+            self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic, self.Sindex_obs_dic = self.load_obsRV_data()
             self.have_RVdat = True
         except:
             self.have_RVdat = False
@@ -202,18 +207,26 @@ class OrbitPlots:
             self.multi_instr = False
             nInst = 1
             self.RVinst = (RV_obs*0).astype(int)
-    
+
+        try:
+            Sindex = rvdat[:, 4] - np.mean(rvdat[:, 4])
+        except:
+            Sindex = RV_obs*0
+            
         idx_dic = {}
         epoch_obs_dic = {}
         RV_obs_dic = {}
         RV_obs_err_dic = {}
+        Sindex_obs_dic = {}
         
         for i in range(nInst):
             idx_dic[i] = (np.where(self.RVinst == i)[0])
             epoch_obs_dic[i] = epoch_obs[idx_dic[i]]
             RV_obs_dic[i] = RV_obs[idx_dic[i]]
             RV_obs_err_dic[i] = RV_obs_err[idx_dic[i]]
-        return epoch_obs, RV_obs, RV_obs_err, nInst, epoch_obs_dic, RV_obs_dic, RV_obs_err_dic
+            Sindex_obs_dic[i] = Sindex[idx_dic[i]]
+            
+        return epoch_obs, RV_obs, RV_obs_err, nInst, epoch_obs_dic, RV_obs_dic, RV_obs_err_dic, Sindex_obs_dic
 
     def load_relAst_data(self, iplanet=None):
         """
@@ -509,9 +522,9 @@ class OrbitPlots:
             jit_ml = orb_ml.par.return_jitters()
         
             for i in range(self.nInst):
-                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
+                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - self.Sindex_corr*self.Sindex_obs_dic[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
                             fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
-                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - self.Sindex_corr*self.Sindex_obs_dic[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
            
         if self.set_limit:
             ax.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
