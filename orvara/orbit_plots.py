@@ -612,10 +612,10 @@ class OrbitPlots:
                 continue
             
             jit_ml = orb_ml.par.return_jitters()
-            ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
-            ax1.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], s=45, facecolors='none', edgecolors='k', zorder=200+i, alpha = 0.8)
+            ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - orb_ml.Sindex_corr*self.Sindex_obs_dic[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
+            ax1.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - orb_ml.Sindex_corr*self.Sindex_obs_dic[i], s=45, facecolors='none', edgecolors='k', zorder=200+i, alpha = 0.8)
             
-            OC = self.RV_obs_dic[i] + orb_ml_obs.offset[i] - orb_ml_obs.RV[self.RVinst == i]
+            OC = self.RV_obs_dic[i] + orb_ml_obs.offset[i] - orb_ml_obs.RV[self.RVinst == i] - orb_ml.Sindex_corr*self.Sindex_obs_dic[i]
             y_err = self.RV_obs_err_dic[i]
             all_OC += list(OC)
             all_OC_err += list(y_err)
