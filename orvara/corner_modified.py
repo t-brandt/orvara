@@ -272,8 +272,8 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
                 #fmt = "{{0:{0}}}".format(title_fmt).format
                 
                 # modified to keep 2 significant figures in the errors
-                idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
-                idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
+                idecimal_m = np.floor(np.log10(float('%.1g'%(q_m))))
+                idecimal_p = np.floor(np.log10(float('%.1g'%(q_p))))
 
                 if idecimal_m < 2:
                     fmt_m_e = "{{0:{0}}}".format(".%df"%(-idecimal_m + 1)).format
