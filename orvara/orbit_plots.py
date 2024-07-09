@@ -514,8 +514,8 @@ class OrbitPlots:
                 ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
            
         if self.set_limit:
-            ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+            ax.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+            ax.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
             
         ax.set_xlim(self.start_epoch, self.end_epoch)
         x0, x1 = ax.get_xlim()
@@ -640,8 +640,8 @@ class OrbitPlots:
         ax2.set_ylim(min_OC - range_OC/7., max_OC + range_OC/7.)
 
         if self.set_limit:
-            ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+            ax2.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+            ax1.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
             
         ax2.xaxis.set_minor_locator(AutoMinorLocator())
         ax2.yaxis.set_minor_locator(AutoMinorLocator())
@@ -735,8 +735,8 @@ class OrbitPlots:
                 ax2.set_ylim(min(dat_OC) - range_datOC, np.abs(min(dat_OC)) + range_datOC)
                 
             if self.set_limit:
-                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                ax2.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+                ax1.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
@@ -849,8 +849,8 @@ class OrbitPlots:
                 ax2.set_ylim(min(dat_OC) - range_datOC, np.abs(min(dat_OC)) + range_datOC)
                 
             if self.set_limit:
-                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                ax2.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+                ax1.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
                 
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
@@ -1001,8 +1001,8 @@ class OrbitPlots:
             
             if self.set_limit:
                 for ax in [ax1, ax3]:
-                    ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                    ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                    ax.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+                    ax.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
                     
             ax1.get_shared_x_axes().join(ax1, ax2)
             ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
@@ -1343,8 +1343,8 @@ class OrbitPlots:
             q_m, q_p = q_50-q_16, q_84-q_50
 
             # modified to keep 2 significant figures in the errors
-            idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
-            idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
+            idecimal_m = np.floor(np.log10(float('%.1g'%(q_m))))
+            idecimal_p = np.floor(np.log10(float('%.1g'%(q_p))))
 
             if idecimal_m < 2:
                 fmt_m_e = "{{0:{0}}}".format(".%df"%(-idecimal_m + 1)).format
