@@ -197,7 +197,7 @@ cdef class Data:
                 self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
                 self.nInst = 1
         try:
-            self.Sindex = rvdat[:, 4]
+            self.Sindex = rvdat[:, 4] - np.mean(rvdat[:, 4])
             if verbose:
                 print("Loaded S indices from column 5.")
         except:
@@ -1178,7 +1178,7 @@ def calc_PMs_no_epoch_astrometry(Data data, Model model):
 # runtime.
 #######################################################################
 
-def calc_RV(Data data, Params par, Model model):
+def calc_RV(Data data, Params par, Model model, int Scorr=1):
 
     cdef extern from "math.h" nogil:
         double sin(double _x)
@@ -1221,7 +1221,7 @@ def calc_RV(Data data, Params par, Model model):
 
     for i in range(data.nRV):
 
-        if par.iplanet == 0:
+        if par.iplanet == 0 and Scorr == 1:
             model.RV[i] += par.Scorr*data.Sindex[i]
 
         if fabs(model.sinEA[i]) > 1.5e-2:

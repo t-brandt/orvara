@@ -55,7 +55,7 @@ class Orbit:
                 self.par = par
             orbit.calc_EA_RPP(data, par, model)
             orbit.calc_offsets(data, par, model, i)
-            orbit.calc_RV(data, par, model)
+            orbit.calc_RV(data, par, model, Scorr=0)
             mu_RA, mu_Dec = model.return_proper_motions(par)
             if i == 0:
                 self.mu_RA = mu_RA
