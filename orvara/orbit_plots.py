@@ -522,9 +522,9 @@ class OrbitPlots:
             jit_ml = orb_ml.par.return_jitters()
         
             for i in range(self.nInst):
-                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - self.Sindex_corr*self.Sindex_obs_dic[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
+                ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - orb_ml.Sindex_corr*self.Sindex_obs_dic[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
                             fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
-                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - self.Sindex_corr*self.Sindex_obs_dic[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i] - orb_ml.Sindex_corr*self.Sindex_obs_dic[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
            
         if self.set_limit:
             ax.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
