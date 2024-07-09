@@ -583,14 +583,14 @@ class OrbitPlots:
 
         orb_ml_obs = Orbit(self, 'best', epochs='observed')
         
-        #if self.whichInst == np.str('All'):
+        #if self.whichInst == str('All'):
         #    print('You have chosen to plot RV for all the Instruments')
         all_OC = []
         all_OC_err = []
         
         for i in range(self.nInst):
             plot_this = True
-            if not self.whichInst == np.str('All'):
+            if not self.whichInst == str('All'):
                 plot_this = False
                 whichInst = np.int(self.whichInst)
                 if i + 1 == whichInst and i < self.nInst:
@@ -611,7 +611,7 @@ class OrbitPlots:
             ax2.scatter(rv_epoch_list[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
 
             #else:
-            #    print('ValueError: Please enter a valid instrument number between 1 and '+np.str(self.nInst)+ ' or enter All to plot the observed data points from all Instruments')
+            #    print('ValueError: Please enter a valid instrument number between 1 and '+str(self.nInst)+ ' or enter All to plot the observed data points from all Instruments')
             #    raise SystemExit
         
         # axes settings
@@ -672,7 +672,7 @@ class OrbitPlots:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
+            plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
