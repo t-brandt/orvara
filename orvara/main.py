@@ -374,20 +374,21 @@ def run():
         shape = sample0.lnprobability[0].shape
     else:
         shape = sample0.logprobability[0].shape
-    parfit = np.zeros((shape[0], shape[1], 9 + data.nInst))
+    parfit = np.zeros((shape[0], shape[1], 9 + data.nInst + 1))
 
     loglkwargs['returninfo'] = True
     loglkwargs['RVoffsets'] = True
     
     for i in range(shape[0]):
         for j in range(shape[1]):
-            res, RVoffsets = lnprob(sample0.chain[0][i, j], **loglkwargs)
+            res, RVoffsets, Scorr = lnprob(sample0.chain[0][i, j], **loglkwargs)
             parfit[i, j, :9] = [res.plx_best, res.pmra_best, res.pmdec_best,
                                 res.chisq_sep, res.chisq_PA,
                                 res.chisq_H, res.chisq_HG, res.chisq_G, res.chisq_relRV]
             
             if data.nInst > 0:
-                parfit[i, j, 9:] = RVoffsets
+                parfit[i, j, 9:-1] = RVoffsets
+                parfit[i, j, -1] = Scorr
 
     colnames = ['mpri']
     units = ['msun']
@@ -412,7 +413,9 @@ def run():
     units += ['', 'arcsec', 'arcsec/yr', 'arcsec/yr', '', '', '', '', '', '']
     colnames += ['RV_ZP_%d_ML' % (i) for i in range(data.nInst)]
     units += ['m/s' for i in range(data.nInst)]
-
+    colnames += ['Scorr']
+    units += ['']
+    
     out = fits.HDUList(fits.PrimaryHDU(None, header))
 
     if not use_ptemcee:

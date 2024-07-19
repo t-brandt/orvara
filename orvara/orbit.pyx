@@ -1,3 +1,4 @@
+# -*- python -*-
 from __future__ import print_function
 import cython
 from astropy.io import fits
@@ -117,6 +118,7 @@ cdef class Data:
     cdef double [:] RV_err
     cdef double [:] rel_RV
     cdef double [:] rel_RV_err
+    cdef double [:] Sindex
     cdef int [:] RVinst
     cdef double [:] relsep
     cdef double [:] PA
@@ -193,6 +195,17 @@ cdef class Data:
                     print("Assuming all data are from one instrument.")
                 self.RVinst = (rvdat[:, 2]*0).astype(np.int32)
                 self.nInst = 1
+
+        try:
+            self.Sindex = rvdat[:, 4] - np.mean(rvdat[:, 4])
+            if verbose:
+                print("Loaded S indices from column 5.")
+        except:
+            if self.nRV > 0:
+                if verbose:
+                    print("Unable to read S indices from fifth column.")
+                    print("Not using Ca II HK S indices.")
+                self.Sindex = rvdat[:, 2]*0
 
         try:
             try:
@@ -1343,25 +1356,56 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
     cdef double *B = <double *> PyMem_Malloc(data.nInst * sizeof(double))
     cdef double *C = <double *> PyMem_Malloc(data.nInst * sizeof(double))
     cdef double *RVzero = <double *> PyMem_Malloc(data.nInst * sizeof(double))
+    cdef double Scorr, _A, _As, _S, _Ss, _Sss, detC
+    
     if not A or not B or not C or not RVzero:
         raise MemoryError()
 
     for i in range(data.nInst):
         A[i] = B[i] = C[i] = RVzero[i] = 0
 
-    for i in range(data.nRV):
-        ivar = 1./(data.RV_err[i]**2 + par.all_jitsq[data.RVinst[i]])
-        dRV = data.RV[i] - model.RV[i]
-        rv_ivar *= ivar
+    if data.nInst == 1:
+        _A = _As = _S = _Ss = _Sss = 0
+        for i in range(data.nRV):
+            ivar = 1./(data.RV_err[i]**2 + par.all_jitsq[data.RVinst[i]])
+            dRV = data.RV[i] - model.RV[i]
+            _A += dRV*ivar
+            _As += dRV*ivar*data.Sindex[i]
+            _S += ivar
+            _Ss += ivar*data.Sindex[i]
+            _Sss += ivar*data.Sindex[i]**2
+            
+            rv_ivar *= ivar
+            
+            # prevent underflow
+            if rv_ivar < 1e-200:
+                lnL += log(rv_ivar)
+                rv_ivar = 1
 
-        # prevent underflow
-        if rv_ivar < 1e-200:
-            lnL += log(rv_ivar)
-            rv_ivar = 1
+        detC = 1/(_S*_Sss - _Ss**2)
+        RVzero[0] = (_A*_Sss - _As*_Ss)*detC
+        Scorr = (_A - _S*RVzero[0])/_Ss
+        
+        for i in range(data.nRV):
+            ivar = 1./(data.RV_err[i]**2 + par.all_jitsq[data.RVinst[i]])
+            dRV = data.RV[i] - model.RV[i] - Scorr*data.Sindex[i]
+            lnL -= dRV**2*ivar
+            lnL += np.log(detC)
+        
+    else:
+        for i in range(data.nRV):
+            ivar = 1./(data.RV_err[i]**2 + par.all_jitsq[data.RVinst[i]])
+            dRV = data.RV[i] - model.RV[i]
+            rv_ivar *= ivar
+            
+            # prevent underflow
+            if rv_ivar < 1e-200:
+                lnL += log(rv_ivar)
+                rv_ivar = 1
 
-        C[data.RVinst[i]] += dRV**2*ivar
-        B[data.RVinst[i]] -= 2*dRV*ivar
-        A[data.RVinst[i]] += ivar
+            C[data.RVinst[i]] += dRV**2*ivar
+            B[data.RVinst[i]] -= 2*dRV*ivar
+            A[data.RVinst[i]] += ivar
 
     ##################################################################
     # Marginalize out RV, and add the jitter component of the variance
@@ -1646,7 +1690,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
         par.free()
 
         if RVoffsets:
-            return chisq_struct, RVzero_np
+            return chisq_struct, RVzero_np, Scorr
         else:
             return chisq_struct
 
