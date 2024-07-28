@@ -1309,9 +1309,8 @@ def calc_relRV(Data data, Params par, Model model, int iplanet=0):
     return
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.nonecheck(False)
+n@cython.boundscheck(False)
+o@cython.wraparound(False)@cython.nonecheck(False)
 
 ######################################################################
 # Compute the log likelihood from the RVs, relative separation,
@@ -1390,7 +1389,7 @@ def calcL(Data data, Params par, Model model, bint freemodel=True,
             ivar = 1./(data.RV_err[i]**2 + par.all_jitsq[data.RVinst[i]])
             dRV = data.RV[i] - model.RV[i] - Scorr*data.Sindex[i]
             lnL -= dRV**2*ivar
-            lnL += np.log(detC)
+        lnL += log(detC)
         
     else:
         for i in range(data.nRV):
