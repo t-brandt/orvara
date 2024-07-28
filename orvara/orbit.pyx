@@ -1309,8 +1309,9 @@ def calc_relRV(Data data, Params par, Model model, int iplanet=0):
     return
 
 
-n@cython.boundscheck(False)
-o@cython.wraparound(False)@cython.nonecheck(False)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
 
 ######################################################################
 # Compute the log likelihood from the RVs, relative separation,
