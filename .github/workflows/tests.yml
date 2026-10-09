@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install htof
-        run: python -m pip install "htof @ git+https://github.com/Realaqe/HTOF@v1.2.0"
+        run: python -m pip install "htof @ git+https://github.com/Realaqe/HTOF@1.2.0"
       - name: Install orvara
         run: |
           python -m pip install --upgrade pip
