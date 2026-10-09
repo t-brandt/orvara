@@ -9,8 +9,9 @@ import numpy as np
 import os
 import time
 import emcee
-from ptemcee import Sampler as PTSampler
-from configparser import ConfigParser
+# ptemcee is bundled (orvara/_vendor/ptemcee); see that package's __init__
+# for why the PyPI release cannot be used with NumPy >= 1.24.
+from orvara._vendor.ptemcee import Sampler as PTSampler
 from astropy.io import fits
 from htof.main import Astrometry
 from astropy.time import Time
@@ -18,10 +19,11 @@ from astropy.coordinates import Angle
 import sys
 import re
 import random
+import warnings
 from orvara import orbit
-from orvara.config import parse_args
+from orvara.config import parse_args, load_config
 from orvara.format_fits import make_header, pack_cols
-import pkg_resources
+from orvara.gaia_accel.gen_fit import GAIA_BASELINE_YR as GAIA_NSS_BASELINE_YR
 
 _loglkwargs = {}
 
@@ -52,7 +54,7 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
         init[0] = max(2*np.log10(init[0]), minjit) # Convert from m/s to units used in code
         try:
             par0 *= init
-        except:
+        except Exception:
             raise ValueError('Starting file %s has the wrong format/length.' % (start_file))
 
     #######################################################################
@@ -69,7 +71,7 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
     
     bounds = [[0, minjit, maxjit],   # jitter
               [1, 1e-4, 1e3],        # mpri (Solar masses)
-              [2, 1e-4, 1e3],        # msec (Solar masses)
+              [2, 1e-5, 1e3],        # msec (Solar masses)
               [3, 1e-5, 2e5],        # semimajor axis (AU)
               [6, 1e-5, np.pi],      # inclination (radians)
               [7, -np.pi, 3*np.pi],  # longitude of ascending node (rad)
@@ -101,6 +103,92 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
     return par0_jitlast
 
 
+# Reference epochs of HIP 1 in the released HGCA catalogues.  These are the
+# fingerprints used to tell which Gaia data release an HGCA file was built from.
+_HGCA_EPOCH_SIGNATURES = (
+    # (epoch_ra_gaia of HIP 1, HGCA version label, effective Gaia baseline [yr])
+    (2015.60211565, 'GaiaDR2', 1.75),
+    (2015.92749023, 'GaiaeDR3', 2.76),
+)
+# A one-star file built by orvara.gaia_accel from a DR3 NSS acceleration
+# solution contains no HIP 1.  Its parameters are means over the observation
+# window the NSS model assumes, +/- 517.5 d about 2016.0 (Gaia DR3 documentation
+# Sect. 7.2.4), so the model has to average over that same window.
+_DEFAULT_HGCA_VERSION = 'GaiaeDR3'
+_NSS_GAIA_BASELINE_YRS = GAIA_NSS_BASELINE_YR          # 2 x 517.5 d = 2.834 yr
+_DEFAULT_GAIA_BASELINE_YRS = 2.76                      # plain HGCA_vEDR3 files
+
+
+def identify_hgca_version(HGCAFile):
+    """
+    Work out which Gaia data release an HGCA-style file corresponds to.
+
+    Returns
+    -------
+    (version, gaia_mission_length_yrs) : (str, float)
+        ``version`` is the label htof expects ('GaiaDR2' or 'GaiaeDR3');
+        ``gaia_mission_length_yrs`` is the effective astrometric baseline.
+
+    Notes
+    -----
+    The released HGCA catalogues are identified from the Gaia reference epoch of
+    HIP 1.  A one-star file produced by ``orvara.gaia_accel`` (a Gaia-only NSS
+    acceleration solution) contains no HIP 1 row; that is expected, not an
+    error, and such files are always on the DR3/eDR3 reference frame.
+    """
+    with fits.open(HGCAFile, memmap=False) as hdul:
+        data = hdul[1].data
+        names = list(data.names)
+        hip1 = data[data['hip_id'] == 1]
+
+    if len(hip1) == 0:
+        if 'gaia_npar' in names:
+            # A single-star Gaia NSS acceleration file. Expected; say so quietly.
+            print(f"No HIP 1 row in '{HGCAFile}'; treating it as a one-star Gaia "
+                  f"NSS file on the {_DEFAULT_HGCA_VERSION} reference frame "
+                  f"(NSS window {_NSS_GAIA_BASELINE_YRS:.3f} yr).")
+            return _DEFAULT_HGCA_VERSION, _NSS_GAIA_BASELINE_YRS
+        else:
+            warnings.warn(
+                f"HIP 1 is missing from the HGCA file '{HGCAFile}' and the file "
+                f"carries no 'gaia_npar' column, so the Gaia data release cannot "
+                f"be determined. Assuming {_DEFAULT_HGCA_VERSION} with a "
+                f"{_DEFAULT_GAIA_BASELINE_YRS} yr baseline. If you meant to use a "
+                f"full HGCA catalogue (HGCA_vEDR3.fits / HGCA_vDR2_corrected.fits) "
+                f"this indicates a setup problem.",
+                RuntimeWarning)
+        return _DEFAULT_HGCA_VERSION, _DEFAULT_GAIA_BASELINE_YRS
+
+    epoch_ra_gaia = float(hip1['epoch_ra_gaia'][0])
+    for reference_epoch, version, baseline in _HGCA_EPOCH_SIGNATURES:
+        if np.isclose(epoch_ra_gaia, reference_epoch):
+            return version, baseline
+
+    raise ValueError(
+        f"Cannot match '{HGCAFile}' to DR2, eDR3 or DR3: the Gaia RA epoch of "
+        f"HIP 1 is {epoch_ra_gaia}, which matches none of "
+        f"{[e for e, _, _ in _HGCA_EPOCH_SIGNATURES]}.")
+
+
+def _log_error_conventions(HGCAFile, AstrometryFile, relast_error_scale):
+    """Print the two error conventions that enter the likelihood, so that a
+    fit's log records them: the NSS acceleration/jerk error inflation written
+    into a one-star HGCA file by orvara-gaia-accel (header ERRINFL), and the
+    scaling applied to the relative-astrometry uncertainties."""
+    inflation = None
+    try:
+        with fits.open(HGCAFile) as hdul:
+            inflation = hdul[0].header.get('ERRINFL')
+    except Exception:
+        pass
+    if inflation is not None:
+        print('Gaia NSS acceleration/jerk uncertainties inflated by %s (from %s)'
+              % (inflation, os.path.basename(HGCAFile)))
+    if AstrometryFile:
+        print('Relative-astrometry uncertainties in %s scaled by %.4f'
+              % (os.path.basename(AstrometryFile), relast_error_scale))
+
+
 def initialize_data(config, companion_gaia):
     # load in items from the ConfigParser object
     HipID = config.getint('data_paths', 'HipID', fallback=0)
@@ -108,24 +196,7 @@ def initialize_data(config, companion_gaia):
     if not os.path.exists(HGCAFile):
         raise FileNotFoundError(f'No HGCA file found at {HGCAFile}')
 
-    try:
-        table = fits.open(HGCAFile)[1].data
-        epoch_ra_gaia = table[table['hip_id'] == 1]['epoch_ra_gaia']
-        if np.isclose(epoch_ra_gaia, 2015.60211565):
-            HGCAVersion = 'GaiaDR2'
-            gaia_mission_length_yrs = 1.75
-        elif np.isclose(epoch_ra_gaia, 2015.92749023):
-            HGCAVersion = 'GaiaeDR3'
-            gaia_mission_length_yrs = 2.76
-            if 'gaia_npar' in table.names:
-                # TODO change this to GaiaDR3 when HTOF has a 'GaiaDR3' parser.
-                #  right now for testing, gaiaedr3 works fine because the baseline of dr3 and edr3 will be the same.
-                HGCAVersion = 'GaiaeDR3'
-                gaia_mission_length_yrs = 2.76
-        else:
-            raise ValueError("Cannot match %s to either DR2 or eDR3, or DR3 based on RA epoch of Gaia" % (HGCAFile))
-    except:
-        raise ValueError("Cannot access HIP 1 in HGCA file" + HGCAFile)
+    HGCAVersion, gaia_mission_length_yrs = identify_hgca_version(HGCAFile)
 
     RVFile = config.get('data_paths', 'RVFile', fallback='')
     relRVFile = config.get('data_paths', 'relRVFile', fallback='')
@@ -134,10 +205,14 @@ def initialize_data(config, companion_gaia):
     Hip2DataDir = config.get('data_paths', 'Hip2DataDir', fallback='')
     Hip1DataDir = config.get('data_paths', 'Hip1DataDir', fallback='')
     use_epoch_astrometry = config.getboolean('mcmc_settings', 'use_epoch_astrometry', fallback=False)
+    relast_error_scale = config.getfloat('data_paths', 'relast_error_scale', fallback=1.0)
+    if relast_error_scale <= 0:
+        raise ValueError('[data_paths] relast_error_scale must be positive.')
+    _log_error_conventions(HGCAFile, AstrometryFile, relast_error_scale)
     data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, relRVFile=relRVFile, companion_gaia=companion_gaia,
-                      gaia_mission_length_yrs=gaia_mission_length_yrs)
+                      gaia_mission_length_yrs=gaia_mission_length_yrs,
+                      relast_error_scale=relast_error_scale)
     if use_epoch_astrometry and data.use_abs_ast == 1:
-        # five-parameter fit means a first order polynomial, 7-parameter means 2nd order polynomial etc..
         gaia_fit_degree = {5: 1, 7: 2, 9: 3}[data.gaia_npar]
         Gaia_fitter = Astrometry(HGCAVersion, '%06d' % (HipID), GaiaDataDir,
                                  central_epoch_ra=data.epRA_G,
@@ -152,18 +227,17 @@ def initialize_data(config, companion_gaia):
                                  central_epoch_ra=data.epRA_H,
                                  central_epoch_dec=data.epDec_H,
                                  format='jyear', use_parallax=True, use_catalog_parallax_factors=True)
-        # instantiate C versions of the astrometric fitter which are much faster than HTOF's Astrometry
         hip1_fast_fitter = orbit.AstrometricFitter(Hip1_fitter)
         hip2_fast_fitter = orbit.AstrometricFitter(Hip2_fitter)
         gaia_fast_fitter = orbit.AstrometricFitter(Gaia_fitter)
-        # generate the data object.
         data = orbit.Data(HipID, HGCAFile, RVFile, AstrometryFile, 
                           use_epoch_astrometry=use_epoch_astrometry,
                           relRVFile=relRVFile,
                           epochs_Hip1=Hip1_fitter.data.julian_day_epoch(),
                           epochs_Hip2=Hip2_fitter.data.julian_day_epoch(),
                           epochs_Gaia=Gaia_fitter.data.julian_day_epoch(),
-                          companion_gaia=companion_gaia, verbose=False)
+                          companion_gaia=companion_gaia, verbose=False,
+                          relast_error_scale=relast_error_scale)
     elif data.use_abs_ast == 1:
         hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter = None, None, None
     else:
@@ -171,15 +245,10 @@ def initialize_data(config, companion_gaia):
         try:
             data.plx = 1e-3*config.getfloat('priors_settings', 'parallax')
             data.plx_err = 1e-3*config.getfloat('priors_settings', 'parallax_error')
-        except:
+        except Exception:
             raise RuntimeError("Cannot load absolute astrometry. Please supply a prior "
                                "for parallax and parallax_error in the priors_settings area"
                                " of the configuration file.")
-    # If at any point, we implement jerk fitting to the calc_pms_no_epoch_astrometry(), this catch can be removed:
-    if data.gaia_npar == 9 and not use_epoch_astrometry:
-        raise RuntimeError("This is a 9-parameter source in Gaia, but you have set use_epoch_astrometry=False"
-                           " in the configuration file. Please enable use_epoch_astrometry=True for this source, and "
-                           "follow the directions in section 'Epoch Astrometry' of the readme.")
     return data, hip1_fast_fitter, hip2_fast_fitter, gaia_fast_fitter
 
 
@@ -291,12 +360,12 @@ def run():
     start_time = time.time()
 
     args = parse_args()
-    config = ConfigParser()
-    if not os.path.exists(args.config_file):
-        raise FileNotFoundError(f'No config file found at {args.config_file}')
     if not os.path.exists(args.output_dir):
         raise FileNotFoundError(f'No output_dir found at {args.output_dir}')
-    config.read(args.config_file)
+    # load_config raises a single ConfigError listing every problem it found,
+    # rather than letting a typo surface later as a silent default.
+    config = load_config(args.config_file, require_fit=True, strict=getattr(args, 'strict', False),
+                         validate=not getattr(args, 'no_validate', False))
 
     # set the mcmc parameters
     nwalkers = config.getint('mcmc_settings', 'nwalkers', fallback=100)
@@ -336,16 +405,20 @@ def run():
     _loglkwargs = loglkwargs
     # run sampler without feeding it loglkwargs directly, since loglkwargs contains non-picklable C objects.
 
-    try:
+    # emcee dropped PTSampler in 3.0; use it only on a legacy emcee 2 install,
+    # otherwise fall back to the bundled ptemcee.
+    legacy_pt = getattr(emcee, 'PTSampler', None)
+    if legacy_pt is not None:
         use_ptemcee = False
-        sample0 = emcee.PTSampler(ntemps, nwalkers, ndim, avoid_pickle_lnprob, return_one, threads=nthreads)
-        print('Using emcee.PTSampler.')
-    except:
+        sample0 = legacy_pt(ntemps, nwalkers, ndim, avoid_pickle_lnprob,
+                            return_one, threads=nthreads)
+        print('Using emcee.PTSampler (emcee %s).' % emcee.__version__)
+    else:
         use_ptemcee = True
         sample0 = PTSampler(ntemps=ntemps, nwalkers=nwalkers, dim=ndim,
                             logl=avoid_pickle_lnprob, logp=return_one,
                             threads=nthreads)
-        print('Using ptemcee.')
+        print('Using the bundled ptemcee sampler.')
 
     print("Running MCMC ... ")
     #sample0.run_mcmc(par0, nstep, **samplekwargs)
@@ -432,5 +505,11 @@ def run():
     return out
 
 
-if __name__ == "__main__":
+def main():
+    """Console entry point ``fit_orbit``: run the fit and exit 0 on success."""
     run()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

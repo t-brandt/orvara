@@ -202,7 +202,7 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
     else:
         try:
             axes = np.array(fig.axes).reshape((K, K))
-        except:
+        except Exception:
             raise ValueError("Provided figure has {0} axes, but data has "
                              "dimensions K={1}".format(len(fig.axes), K))
 
@@ -272,8 +272,8 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
                 #fmt = "{{0:{0}}}".format(title_fmt).format
                 
                 # modified to keep 2 significant figures in the errors
-                idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
-                idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
+                idecimal_m = np.floor(np.log10(float('%.1g'%(q_m))))
+                idecimal_p = np.floor(np.log10(float('%.1g'%(q_p))))
 
                 if idecimal_m < 2:
                     fmt_m_e = "{{0:{0}}}".format(".%df"%(-idecimal_m + 1)).format
@@ -572,7 +572,7 @@ def hist2d(x, y, bins=20, range=None, weights=None, levels=None, smooth=None,
         for i, v0 in enumerate(levels):
             try:
                 V[i] = Hflat[sm <= v0][-1]
-            except:
+            except Exception:
                 V[i] = Hflat[0]
         V.sort()
         m = np.diff(V) == 0

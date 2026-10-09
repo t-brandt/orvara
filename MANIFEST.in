@@ -1,0 +1,13 @@
+# Source distribution contents.  The Cython source and C headers must ship so
+# the extension can be rebuilt from the sdist; the generated orbit.c must not,
+# so that a build always cythonises the .pyx that is actually in the tree.
+include README.rst LICENCE CHANGES.md pyproject.toml setup.py
+include orvara/orbit.pyx
+include orvara/calcEA.h orvara/lstsq.h
+recursive-include orvara/gaia_accel/templates *.ini
+recursive-include orvara/_vendor/ptemcee LICENSE
+recursive-include orvara/tests *.ini *.dat *.txt *.fits *.csv *.d
+exclude orvara/orbit.c
+global-exclude *.so *.pyc *.pyo
+prune build
+prune orvara/tests/plots

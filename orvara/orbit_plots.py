@@ -1,3 +1,7 @@
+
+############### Original unchanged orbit_plot ##################
+
+
 import os
 import numpy as np
 from astropy.time import Time
@@ -19,7 +23,17 @@ from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 from orvara.format_fits import pull_chain_params, burnin_chain
 
+try:
+    # astropy re-exported ErfaWarning until 6.1; erfa is the real home.
+    from erfa import ErfaWarning
+except ImportError:                                    # pragma: no cover
+    from astropy.utils.exceptions import ErfaWarning
+
 rc('font',**{'size':11.5})
+
+#: Proper-motion errors at or above this (mas/yr) mark a placeholder row
+#: written by orvara.gaia_accel in gaia_only mode, not a measurement.
+SYNTHETIC_PM_ERROR = 1e6
 
 
 class Orbit:
@@ -78,7 +92,7 @@ class Orbit:
         self.mu_Dec = 1e3*self.mu_Dec*self.plx + self.mu_Dec_CM
         try:
             self.offset = OP.calc_RV_offset(step)
-        except:
+        except Exception:
             self.offset = 0
         if OP.cmref == 'msec_solar':
             self.colorpar = self.par.msec
@@ -112,13 +126,13 @@ class OrbitPlots:
         try:
             self.epoch_obs, self.RV_obs, self.RV_obs_err, self.nInst, self.epoch_obs_dic, self.RV_obs_dic, self.RV_obs_err_dic = self.load_obsRV_data()
             self.have_RVdat = True
-        except:
+        except Exception:
             self.have_RVdat = False
         # load relative astrometry data:
         try: #if os.access(self.relAstfile,os.R_OK):
             self.have_reldat = True
             self.ep_relAst_obs, self.relsep_obs, self.relsep_obs_err, self.PA_obs, self.PA_obs_err, self.ast_indx = self.load_relAst_data(self.iplanet)
-        except: #else:
+        except Exception: #else:
             self.have_reldat = False
         # load HGCA data:
         self.ep_mualp_obs, self.ep_mudec_obs, self.mualp_obs, self.mudec_obs, self.mualp_obs_err, self.mudec_obs_err = self.load_HGCA_data()        
@@ -151,12 +165,12 @@ class OrbitPlots:
 ###################################### Define Functions ############################################
     def JD_to_calendar(self, JD):
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=astropy.utils.exceptions.ErfaWarning)
+            warnings.simplefilter("ignore", category=ErfaWarning)
             return Time(JD, format='jd').decimalyear
 
     def calendar_to_JD(self, year):
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=astropy.utils.exceptions.ErfaWarning)
+            warnings.simplefilter("ignore", category=ErfaWarning)
             return Time(year, format='decimalyear').jd
 
     def define_epochs(self):
@@ -198,7 +212,7 @@ class OrbitPlots:
             nInst = int(np.amax(rvdat[:, 3]) + 1)
             
             self.multi_instr = True
-        except:
+        except Exception:
             self.multi_instr = False
             nInst = 1
             self.RVinst = (RV_obs*0).astype(int)
@@ -225,7 +239,7 @@ class OrbitPlots:
 
         try:
             icompanion = np.genfromtxt(self.relAstfile, usecols=(6)).astype(int)
-        except:
+        except Exception:
             icompanion = np.zeros(reldat.shape[0]).astype(int)
 
         indx = np.where(icompanion == iplanet)
@@ -252,23 +266,88 @@ class OrbitPlots:
     
     def load_HGCA_data(self):
         """
-            Function to load in the epoch astrometry data
+        Load proper motions, NSS astrometric acceleration (and jerk for Acc9)
+        from the one-star HGCA FITS file built by gaia_accel_gen_fit.
+
+        Sets on self:
+          self.gaia_npar          : 5, 7, or 9
+          self.ep_gaia_acc        : decimal year of Gaia central epoch (RA)
+          self.nss_accra,  _err   : NSS accel in RA  (mas/yr²)
+          self.nss_accdec, _err   : NSS accel in Dec (mas/yr²)
+          self.nss_jerkra, _err   : NSS jerk  in RA  (mas/yr³), None if npar<9
+          self.nss_jerkdec,_err   : NSS jerk  in Dec (mas/yr³), None if npar<9
         """
         t = fits.open(self.HGCAFile)[1].data
         try:
             self.have_pmdat = True
-            i = int(np.where(t['hip_id'] == self.Hip)[0])
-            ep_mualp_obs = np.array([t['epoch_ra_hip'][i], t['epoch_ra_gaia'][i]])
+            # np.where returns an array of indices; NumPy >= 2.0 refuses to
+            # convert a length-1 array to a Python int, and this whole block
+            # is inside a try/except, so getting it wrong silently drops the
+            # proper-motion panels instead of raising.
+            matches = np.where(t['hip_id'] == self.Hip)[0]
+            if len(matches) == 0:
+                raise KeyError(f'HIP {self.Hip} is not in {self.HGCAFile}')
+            i = int(matches[0])
+            ep_mualp_obs = np.array([t['epoch_ra_hip'][i],  t['epoch_ra_gaia'][i]])
             ep_mudec_obs = np.array([t['epoch_dec_hip'][i], t['epoch_dec_gaia'][i]])
-            mualp_obs = np.array([t['pmra_hip'][i], t['pmra_gaia'][i]])
+            mualp_obs     = np.array([t['pmra_hip'][i],       t['pmra_gaia'][i]])
             mualp_obs_err = np.array([t['pmra_hip_error'][i], t['pmra_gaia_error'][i]])
-            mudec_obs = np.array([t['pmdec_hip'][i], t['pmdec_gaia'][i]])
+            mudec_obs     = np.array([t['pmdec_hip'][i],       t['pmdec_gaia'][i]])
             mudec_obs_err = np.array([t['pmdec_hip_error'][i], t['pmdec_gaia_error'][i]])
-            for i in range(len(ep_mualp_obs)):
-                ep_mualp_obs[i] = self.calendar_to_JD(ep_mualp_obs[i])
-                ep_mudec_obs[i] = self.calendar_to_JD(ep_mudec_obs[i])
-        except:
-            self.have_pmdat = False
+            for k in range(len(ep_mualp_obs)):
+                ep_mualp_obs[k] = self.calendar_to_JD(ep_mualp_obs[k])
+                ep_mudec_obs[k] = self.calendar_to_JD(ep_mudec_obs[k])
+
+            # A Gaia-only NSS file (orvara.gaia_accel, mode = gaia_only) carries
+            # a placeholder Hipparcos row with 1e7 mas/yr errors so that it
+            # drops out of the likelihood.  Drop it from the plot too, or the
+            # error bar sets the y-range to +/- 1e7.
+            real = mualp_obs_err < SYNTHETIC_PM_ERROR
+            ep_mualp_obs, ep_mudec_obs = ep_mualp_obs[real], ep_mudec_obs[real]
+            mualp_obs, mualp_obs_err = mualp_obs[real], mualp_obs_err[real]
+            mudec_obs, mudec_obs_err = mudec_obs[real], mudec_obs_err[real]
+
+            # ── NSS acceleration / jerk (Acc7 or Acc9) ──────────────────────
+            col_names = t.names if hasattr(t, 'names') else t.dtype.names
+            self.gaia_npar = int(t['gaia_npar'][i]) if 'gaia_npar' in col_names else 5
+            # Central epoch of the Gaia window, per coordinate.  For an NSS
+            # file this is 2016.0 in both.
+            self.ep_gaia_acc = float(t['epoch_ra_gaia'][i])
+            self.ep_gaia_acc_dec = float(t['epoch_dec_gaia'][i])
+            # Window length: the NSS model's 2 x 517.5 d for a one-star NSS
+            # file, the HGCA's effective baseline otherwise.
+            try:
+                from orvara.main import identify_hgca_version
+                self.dt_gaia = identify_hgca_version(self.HGCAFile)[1]
+            except Exception:
+                self.dt_gaia = 2.76
+
+            if self.gaia_npar >= 7 and 'accra_gaia' in col_names:
+                self.nss_accra      = float(t['accra_gaia'][i])
+                self.nss_accra_err  = float(t['accra_gaia_error'][i])
+                self.nss_accdec     = float(t['accdec_gaia'][i])
+                self.nss_accdec_err = float(t['accdec_gaia_error'][i])
+                self.have_nss_acc   = True
+            else:
+                self.have_nss_acc   = False
+                self.nss_accra = self.nss_accra_err = None
+                self.nss_accdec = self.nss_accdec_err = None
+
+            if self.gaia_npar == 9 and 'jerkra_gaia' in col_names:
+                self.nss_jerkra      = float(t['jerkra_gaia'][i])
+                self.nss_jerkra_err  = float(t['jerkra_gaia_error'][i])
+                self.nss_jerkdec     = float(t['jerkdec_gaia'][i])
+                self.nss_jerkdec_err = float(t['jerkdec_gaia_error'][i])
+                self.have_nss_jerk   = True
+            else:
+                self.have_nss_jerk   = False
+                self.nss_jerkra = self.nss_jerkra_err = None
+                self.nss_jerkdec = self.nss_jerkdec_err = None
+
+        except Exception as e:
+            self.have_pmdat    = False
+            self.have_nss_acc  = False
+            self.have_nss_jerk = False
             return [None, None, None, None, None, None]
         return ep_mualp_obs, ep_mudec_obs, mualp_obs, mudec_obs, mualp_obs_err, mudec_obs_err
     
@@ -283,7 +362,7 @@ class OrbitPlots:
             for i in range(self.nInst):
                 offset = self.chain['RV_ZP_%d_ML' % (i)][step]
                 offset_dic[i] = offset
-        except:
+        except Exception:
             offset = offset_dic = [self.chain['RV_ZP_0_ML'][step]]
         return offset_dic
 
@@ -514,8 +593,8 @@ class OrbitPlots:
                 ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
            
         if self.set_limit:
-            ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+            ax.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+            ax.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
             
         ax.set_xlim(self.start_epoch, self.end_epoch)
         x0, x1 = ax.get_xlim()
@@ -583,16 +662,16 @@ class OrbitPlots:
 
         orb_ml_obs = Orbit(self, 'best', epochs='observed')
         
-        #if self.whichInst == np.str('All'):
+        #if self.whichInst == str('All'):
         #    print('You have chosen to plot RV for all the Instruments')
         all_OC = []
         all_OC_err = []
         
         for i in range(self.nInst):
             plot_this = True
-            if not self.whichInst == np.str('All'):
+            if not self.whichInst == str('All'):
                 plot_this = False
-                whichInst = np.int(self.whichInst)
+                whichInst = int(self.whichInst)
                 if i + 1 == whichInst and i < self.nInst:
                     plot_this = True
             if not plot_this:
@@ -611,12 +690,12 @@ class OrbitPlots:
             ax2.scatter(rv_epoch_list[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
 
             #else:
-            #    print('ValueError: Please enter a valid instrument number between 1 and '+np.str(self.nInst)+ ' or enter All to plot the observed data points from all Instruments')
+            #    print('ValueError: Please enter a valid instrument number between 1 and '+str(self.nInst)+ ' or enter All to plot the observed data points from all Instruments')
             #    raise SystemExit
         
         # axes settings
         # ax1
-        ax1.get_shared_x_axes().join(ax1, ax2)
+        ax2.sharex(ax1)
         range_ep_obs = max(all_RV_eps) - min(all_RV_eps)
         RV_obs_max = max([max(self.RV_obs_dic[i] + orb_ml.offset[i]) for i in range(self.nInst)])
         RV_obs_min = min([min(self.RV_obs_dic[i] + orb_ml.offset[i]) for i in range(self.nInst)])
@@ -640,8 +719,8 @@ class OrbitPlots:
         ax2.set_ylim(min_OC - range_OC/7., max_OC + range_OC/7.)
 
         if self.set_limit:
-            ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-            ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+            ax2.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+            ax1.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
             
         ax2.xaxis.set_minor_locator(AutoMinorLocator())
         ax2.yaxis.set_minor_locator(AutoMinorLocator())
@@ -667,12 +746,12 @@ class OrbitPlots:
         print("Plotting RV, your plot is generated at " + self.outputdir)
         try:
             self.align_ylabels(fig, [ax1, ax2])
-        except:
+        except Exception:
             pass                            
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + np.str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
+            plt.savefig(os.path.join(self.outputdir, 'RV_OC_' + self.title + '_Inst' + str(self.whichInst) +'.pdf'), transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
 
 
@@ -717,7 +796,7 @@ class OrbitPlots:
                 
             # axes settings
             # ax1
-            ax1.get_shared_x_axes().join(ax1, ax2)
+            ax2.sharex(ax1)
             range_eprA_obs = max(ep_relAst_obs_calendar) - min(ep_relAst_obs_calendar)
             range_relsep_obs = max(self.relsep_obs)  - min(self.relsep_obs)
             ax1.set_xlim(min(ep_relAst_obs_calendar) - range_eprA_obs/8., max(ep_relAst_obs_calendar) + range_eprA_obs/8.)
@@ -735,8 +814,8 @@ class OrbitPlots:
                 ax2.set_ylim(min(dat_OC) - range_datOC, np.abs(min(dat_OC)) + range_datOC)
                 
             if self.set_limit:
-                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                ax2.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+                ax1.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
             ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
@@ -784,7 +863,7 @@ class OrbitPlots:
             print("Plotting Separation, your plot is generated at " + self.outputdir)
             try:
                 self.align_ylabels(fig, [ax1, ax2])
-            except:
+            except Exception:
                 pass
             plt.savefig(os.path.join(self.outputdir, 'relsep_OC_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
 ################################################################################################
@@ -831,7 +910,7 @@ class OrbitPlots:
 
             # axes settings
             # ax1
-            ax1.get_shared_x_axes().join(ax1, ax2)
+            ax2.sharex(ax1)
             range_eprA_obs = max(ep_relAst_obs_calendar) - min(ep_relAst_obs_calendar)
             range_PA_obs = max(self.PA_obs)  - min(self.PA_obs)
             ax1.set_xlim(min(ep_relAst_obs_calendar) - range_eprA_obs/8., max(ep_relAst_obs_calendar) + range_eprA_obs/8.)
@@ -849,8 +928,8 @@ class OrbitPlots:
                 ax2.set_ylim(min(dat_OC) - range_datOC, np.abs(min(dat_OC)) + range_datOC)
                 
             if self.set_limit:
-                ax2.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
+                ax2.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+                ax1.set_ylim(float(self.user_ylim[0]),float(self.user_ylim[1]))
                 
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
@@ -897,7 +976,7 @@ class OrbitPlots:
             print("Plotting Position Angle, your plot is generated at " + self.outputdir)
             try:
                 self.align_ylabels(fig, [ax1, ax2])
-            except:
+            except Exception:
                 pass
             plt.savefig(os.path.join(self.outputdir,'PA_OC_' + self.title)+'.pdf',bbox_inches='tight', dpi=200, transparent=True)
 #############################################################################with warnings.catch_warnings():
@@ -912,218 +991,397 @@ class OrbitPlots:
     ################################################################################################
     ############### plot the proper motions, together or separately ###############
     
+    def _sky_path_offsets(self, step, epochs_decimalyear):
+        """
+        Reflex-motion offsets (dRA*, dDec) of the primary at the given epochs,
+        for one step of the chain, in orvara's internal units (multiply by the
+        parallax in arcsec x 1000 for mas).
+        """
+        epochs = np.array([self.calendar_to_JD(ep) for ep in epochs_decimalyear])
+        data = orbit.Data(self.Hip, self.HGCAFile, self.RVfile, self.relAstfile,
+                          verbose=False)
+        data.custom_epochs(epochs, iplanet=self.iplanet)
+        model = orbit.Model(data)
+        jit_per_inst = 'jitter0' in [col.name for col in self.chain.columns]
+        nj = data.nInst if jit_per_inst else 1
+        for i in range(self.nplanets):
+            par = orbit.Params(pull_chain_params(self.chain.columns, step),
+                               iplanet=i, nplanets=self.nplanets,
+                               ninst_RV=data.nInst, ninst_jit=nj)
+            orbit.calc_EA_RPP(data, par, model)
+            # calc_offsets is what actually writes dRA_G / dDec_G.  Calling
+            # calc_EA_RPP alone leaves them at the zeros set in Model.__init__,
+            # which made the model acceleration identically zero and the O-C
+            # equal to the full measured acceleration.
+            orbit.calc_offsets(data, par, model, i)
+            par.free()
+        dRA_G, dDec_G, _, _, _, _ = model.return_dRA_dDec()
+        model.free()
+        return np.asarray(dRA_G, dtype=float), np.asarray(dDec_G, dtype=float)
+
+    def model_accel_jerk(self, step, dt_gaia=None):
+        """
+        Model astrometric acceleration -- and, for a nine-parameter source, jerk
+        -- at the Gaia central epoch, for one step of the chain.
+
+        The sky path is sampled at the same epochs the likelihood uses in
+        ``orvara.orbit.calc_PMs_no_epoch_astrometry``, and reduced with the same
+        finite-difference coefficients, so this panel and chi^2_G describe the
+        same quantity:
+
+        * five- or seven-parameter source: three points at -T/2, 0, +T/2,
+          acceleration by the quadratic difference, no jerk;
+        * nine-parameter source: four points at -T/2, -T/6, +T/6, +T/2,
+          acceleration and jerk by the cubic differences.
+
+        :param step: index into the chain.
+        :param dt_gaia: Gaia window length in years; defaults to the value
+            identified from the HGCA file (the NSS model's 2 x 517.5 d for a
+            one-star NSS file).
+        :returns: (accra, accdec, jerkra, jerkdec); accelerations in mas/yr^2,
+            jerks in mas/yr^3, zero when the source has no jerk term.
+        """
+        if dt_gaia is None:
+            dt_gaia = getattr(self, 'dt_gaia', 2.76)
+        h = dt_gaia / 2.0
+        npar = getattr(self, 'gaia_npar', 5)
+        if npar == 9:
+            sample_offsets = np.array([-h, -h / 3.0, h / 3.0, h])
+        else:
+            sample_offsets = np.array([-h, 0.0, h])
+        ep_dec = getattr(self, 'ep_gaia_acc_dec', self.ep_gaia_acc)
+
+        # RA and Dec have their own central epochs in the HGCA convention, so
+        # the path is evaluated once per coordinate, as the likelihood does.
+        dRA_G = self._sky_path_offsets(step, self.ep_gaia_acc + sample_offsets)[0]
+        dDec_G = self._sky_path_offsets(step, ep_dec + sample_offsets)[1]
+        scale = 1e3 * self.chain['plx_ML'][step]        # AU/plx units -> mas
+        dRA_G = scale * np.asarray(dRA_G, dtype=float)
+        dDec_G = scale * np.asarray(dDec_G, dtype=float)
+
+        if npar == 9:
+            f0, f1, f2, f3 = dRA_G[:4]
+            g0, g1, g2, g3 = dDec_G[:4]
+            accra = (f0 - f1 - f2 + f3) * 9.0 / (8.0 * h * h)
+            accdec = (g0 - g1 - g2 + g3) * 9.0 / (8.0 * h * h)
+            jerkra = (-f0 + 3.0 * f1 - 3.0 * f2 + f3) * 27.0 / (8.0 * h ** 3)
+            jerkdec = (-g0 + 3.0 * g1 - 3.0 * g2 + g3) * 27.0 / (8.0 * h ** 3)
+        else:
+            f0, f1, f2 = dRA_G[:3]
+            g0, g1, g2 = dDec_G[:3]
+            accra = (f0 + f2 - 2.0 * f1) / (h * h)
+            accdec = (g0 + g2 - 2.0 * g1) / (h * h)
+            jerkra = jerkdec = 0.0
+        return accra, accdec, jerkra, jerkdec
+
     def proper_motions(self):
         if self.have_pmdat:
             if self.pm_separate:
-                fig = plt.figure(figsize=(4.7, 5.5))
-                ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
-                ax2 = fig.add_axes((0.15, 0.12, 0.8, 0.16)) # X, Y, width, height
-                fig1 = plt.figure(figsize=(4.7, 5.5))
-                ax3 = fig1.add_axes((0.15, 0.3, 0.8, 0.6))
-                ax4 = fig1.add_axes((0.15, 0.12, 0.8, 0.16)) # X, Y, width, height
+                fig = plt.figure(figsize=(4.7, 8.0))
+                ax1   = fig.add_axes((0.15, 0.55, 0.80, 0.38))
+                ax2   = fig.add_axes((0.15, 0.39, 0.80, 0.14))
+                ax_a1   = fig.add_axes((0.15, 0.21, 0.80, 0.14))
+                ax_a1oc = fig.add_axes((0.15, 0.06, 0.80, 0.12))
+                fig1 = plt.figure(figsize=(4.7, 8.0))
+                ax3   = fig1.add_axes((0.15, 0.55, 0.80, 0.38))
+                ax4   = fig1.add_axes((0.15, 0.39, 0.80, 0.14))
+                ax_a3   = fig1.add_axes((0.15, 0.21, 0.80, 0.14))
+                ax_a3oc = fig1.add_axes((0.15, 0.06, 0.80, 0.12))
             else:
-                fig = plt.figure(figsize=(11, 5.5))
-                ax1 = fig.add_axes((0.10, 0.30, 0.35, 0.60))
-                ax2 = fig.add_axes((0.10, 0.12, 0.35, 0.15))
-                ax3 = fig.add_axes((0.54, 0.30, 0.35, 0.60))
-                ax4 = fig.add_axes((0.54, 0.12, 0.35, 0.15))
+                fig = plt.figure(figsize=(13, 8.0))
+                ax1     = fig.add_axes((0.08, 0.55, 0.37, 0.38))
+                ax2     = fig.add_axes((0.08, 0.39, 0.37, 0.14))
+                ax_a1   = fig.add_axes((0.08, 0.21, 0.37, 0.14))
+                ax_a1oc = fig.add_axes((0.08, 0.06, 0.37, 0.12))
+                ax3     = fig.add_axes((0.55, 0.55, 0.37, 0.38))
+                ax4     = fig.add_axes((0.55, 0.39, 0.37, 0.14))
+                ax_a3   = fig.add_axes((0.55, 0.21, 0.37, 0.14))
+                ax_a3oc = fig.add_axes((0.55, 0.06, 0.37, 0.12))
 
-                
-            # set up the observed data points
-            mualpdatOC_list = []
-            mudecdatOC_list = []
+            # ── epoch arrays for observed data points ─────────────────────
             ep_mualp_obs_calendar = []
-            ep_mudec_obs_calendar = []
-
-            t_RA = np.asarray(self.ep_mualp_obs).flatten()
+            ep_mudec_obs_calendar  = []
+            t_RA  = np.asarray(self.ep_mualp_obs).flatten()
             t_Dec = np.asarray(self.ep_mudec_obs).flatten()
-            orb_ml_RA = Orbit(self, 'best', epochs=t_RA)
+            orb_ml_RA  = Orbit(self, 'best', epochs=t_RA)
             orb_ml_Dec = Orbit(self, 'best', epochs=t_Dec)
-                           
             for i in range(len(self.ep_mualp_obs)):
                 ep_mualp_obs_calendar.append(self.JD_to_calendar(self.ep_mualp_obs[i]))
             for i in range(len(self.ep_mudec_obs)):
                 ep_mudec_obs_calendar.append(self.JD_to_calendar(self.ep_mudec_obs[i]))
 
-
-            t1_RA = min(ep_mualp_obs_calendar)
-            t2_RA = max(ep_mualp_obs_calendar)
-            dt_RA = t2_RA - t1_RA
-            
-            t1_Dec = min(ep_mudec_obs_calendar)
-            t2_Dec = max(ep_mudec_obs_calendar)
+            t1_RA  = min(ep_mualp_obs_calendar);  t2_RA  = max(ep_mualp_obs_calendar)
+            dt_RA  = t2_RA - t1_RA
+            t1_Dec = min(ep_mudec_obs_calendar);  t2_Dec = max(ep_mudec_obs_calendar)
             dt_Dec = t2_Dec - t1_Dec
-            
-            ax1.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
-            ax3.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
-            ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
-            ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
-                            
+            # A Gaia-only source has a single proper-motion epoch, so span the
+            # Gaia window (plus margin) rather than a zero-width range.
+            if dt_RA == 0:
+                half = getattr(self, 'dt_gaia', 2.76)
+                t1_RA, t2_RA, dt_RA = t1_RA - half, t2_RA + half, 2 * half
+            if dt_Dec == 0:
+                half = getattr(self, 'dt_gaia', 2.76)
+                t1_Dec, t2_Dec, dt_Dec = t1_Dec - half, t2_Dec + half, 2 * half
+            xl_RA  = [t1_RA  - dt_RA /8., t2_RA  + dt_RA /8.]
+            xl_Dec = [t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.]
+            for ax in [ax1, ax2, ax_a1, ax_a1oc]:
+                ax.set_xlim(xl_RA)
+            for ax in [ax3, ax4, ax_a3, ax_a3oc]:
+                ax.set_xlim(xl_Dec)
+
             orb_ml = Orbit(self, 'best')
-
             minT = min(t1_RA - dt_RA/5., t1_Dec - dt_Dec/5.)
-            maxT = max(t2_RA + dt_RA/5., t2_Dec + dt_Dec/5.)            
-            T = np.asarray(self.epoch_calendar)
-            indx = (T > minT)*(T < maxT) > 0
-            
+            maxT = max(t2_RA + dt_RA/5., t2_Dec + dt_Dec/5.)
+            T    = np.asarray(self.epoch_calendar)
+            indx = (T > minT) * (T < maxT) > 0
+
+            # ── random orbit samples ──────────────────────────────────────
             for i in range(self.num_orbits):
+                orb = Orbit(self, step=self.rand_idx[i])
+                c   = self.colormap(self.normalize(orb.colorpar))
+                ax1.plot(T[indx], orb.mu_RA[indx],  color=c, alpha=0.3)
+                ax3.plot(T[indx], orb.mu_Dec[indx], color=c, alpha=0.3)
+                ax2.plot(T[indx], orb.mu_RA[indx]  - orb_ml.mu_RA[indx],  color=c, alpha=0.3)
+                ax4.plot(T[indx], orb.mu_Dec[indx] - orb_ml.mu_Dec[indx], color=c, alpha=0.3)
 
-                orb = Orbit(self, step=self.rand_idx[i]) 
-                
-                ax1.plot(T[indx], orb.mu_RA[indx], color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                ax3.plot(T[indx], orb.mu_Dec[indx], color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                ax2.plot(T[indx], orb.mu_RA[indx] - orb_ml.mu_RA[indx], color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                ax4.plot(T[indx], orb.mu_Dec[indx] - orb_ml.mu_Dec[indx], color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                
-            # plot the highest likelihood curve
-
-            ax1.plot(T[indx], orb_ml.mu_RA[indx], color='black')
-            ax2.plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
+            # ── best-fit curves ───────────────────────────────────────────
+            ax1.plot(T[indx], orb_ml.mu_RA[indx],  color='black')
             ax3.plot(T[indx], orb_ml.mu_Dec[indx], color='black')
+            ax2.plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
             ax4.plot(self.epoch_calendar, np.zeros(len(self.epoch_calendar)), 'k--', dashes=(5, 5))
-            
-            ax1.errorbar(ep_mualp_obs_calendar, self.mualp_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
-            ax1.scatter(ep_mualp_obs_calendar, self.mualp_obs, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
-            ax3.errorbar(ep_mudec_obs_calendar, self.mudec_obs, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
-            ax3.scatter(ep_mudec_obs_calendar, self.mudec_obs, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
-            
-            # plot the O-C for observed data points
-            dat_OC_RA = self.mualp_obs - orb_ml_RA.mu_RA
-            ax2.errorbar(ep_mualp_obs_calendar, dat_OC_RA, yerr=self.mualp_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
-            ax2.scatter(ep_mualp_obs_calendar, dat_OC_RA, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
 
+            # ── HGCA proper motion data points ────────────────────────────
+            ax1.errorbar(ep_mualp_obs_calendar, self.mualp_obs,
+                         yerr=self.mualp_obs_err, color=self.marker_color,
+                         fmt='o', ecolor='black', capsize=5, markersize=1, zorder=299)
+            ax1.scatter(ep_mualp_obs_calendar, self.mualp_obs, s=80,
+                        facecolors=self.marker_color, edgecolors='k', zorder=300,
+                        label='Hip / Gaia PM')
+            ax3.errorbar(ep_mudec_obs_calendar, self.mudec_obs,
+                         yerr=self.mudec_obs_err, color=self.marker_color,
+                         fmt='o', ecolor='black', capsize=5, markersize=1, zorder=299)
+            ax3.scatter(ep_mudec_obs_calendar, self.mudec_obs, s=80,
+                        facecolors=self.marker_color, edgecolors='k', zorder=300,
+                        label='Hip / Gaia PM')
+
+            # ── PM O-C ────────────────────────────────────────────────────
+            dat_OC_RA  = self.mualp_obs - orb_ml_RA.mu_RA
             dat_OC_Dec = self.mudec_obs - orb_ml_Dec.mu_Dec
-            ax4.errorbar(ep_mudec_obs_calendar, dat_OC_Dec, yerr=self.mudec_obs_err, color=self.marker_color, fmt='o', ecolor='black', capsize=5, markersize = 1, zorder = 299)
-            ax4.scatter(ep_mudec_obs_calendar, dat_OC_Dec, s=80, facecolors=self.marker_color, edgecolors='k', zorder = 300, alpha=1)
+            ax2.errorbar(ep_mualp_obs_calendar, dat_OC_RA,
+                         yerr=self.mualp_obs_err, color=self.marker_color,
+                         fmt='o', ecolor='black', capsize=5, markersize=1, zorder=299)
+            ax2.scatter(ep_mualp_obs_calendar, dat_OC_RA, s=80,
+                        facecolors=self.marker_color, edgecolors='k', zorder=300)
+            ax4.errorbar(ep_mudec_obs_calendar, dat_OC_Dec,
+                         yerr=self.mudec_obs_err, color=self.marker_color,
+                         fmt='o', ecolor='black', capsize=5, markersize=1, zorder=299)
+            ax4.scatter(ep_mudec_obs_calendar, dat_OC_Dec, s=80,
+                        facecolors=self.marker_color, edgecolors='k', zorder=300)
 
-            # axes settings
-            # ax1
-            
+            # ── NSS acceleration panel ────────────────────────────────────
+            # Model acceleration (and jerk) at the Gaia central epoch, sampled
+            # and reduced exactly as the likelihood does -- see
+            # OrbitPlots.model_accel_jerk.
+            acc_ep_cal = self.ep_gaia_acc   # decimal year
+
+            model_accra_samples, model_accdec_samples = [], []
+            model_jerkra_samples, model_jerkdec_samples = [], []
+            for idx in self.rand_idx:
+                accra, accdec, jerkra, jerkdec = self.model_accel_jerk(idx)
+                model_accra_samples.append(accra)
+                model_accdec_samples.append(accdec)
+                model_jerkra_samples.append(jerkra)
+                model_jerkdec_samples.append(jerkdec)
+
+            model_accra_samples = np.array(model_accra_samples)
+            model_accdec_samples = np.array(model_accdec_samples)
+            model_jerkra_samples = np.array(model_jerkra_samples)
+            model_jerkdec_samples = np.array(model_jerkdec_samples)
+
+            # maximum-likelihood model acceleration and jerk, for the O-C
+            best_step = int(np.where(
+                self.chain['lnp'] == np.amax(self.chain['lnp']))[0][0])
+            ml_accra, ml_accdec, ml_jerkra, ml_jerkdec = \
+                self.model_accel_jerk(best_step)
+
+            # draw model posterior band on acc panels
+            nss_color = '#1f77b4'
+            for ax_a, samples in [(ax_a1, model_accra_samples),
+                                   (ax_a3, model_accdec_samples)]:
+                p16, p50, p84 = np.percentile(samples, [16, 50, 84])
+                xlo, xhi = ax_a.get_xlim()
+                ax_a.fill_betweenx([p16, p84], xlo, xhi, color='grey', alpha=0.25)
+                ax_a.axhline(p50, color='black', lw=1.2, label='Model median')
+                ax_a.plot([], [], color='grey', alpha=0.5, lw=6, label='Model 1σ')
+
+            if self.have_nss_acc:
+                for ax_a, val, err in [
+                    (ax_a1, self.nss_accra,  self.nss_accra_err),
+                    (ax_a3, self.nss_accdec, self.nss_accdec_err)]:
+                    ax_a.errorbar([acc_ep_cal], [val], yerr=[err],
+                                  color=nss_color, fmt='D', ecolor='black',
+                                  capsize=5, markersize=7, zorder=300,
+                                  label='Gaia NSS (Acc%d)' % self.gaia_npar)
+
+                # acceleration O-C
+                oc_accra  = self.nss_accra  - ml_accra
+                oc_accdec = self.nss_accdec - ml_accdec
+                ax_a1oc.axhline(0, color='k', lw=1, ls='--', dashes=(5, 5))
+                ax_a3oc.axhline(0, color='k', lw=1, ls='--', dashes=(5, 5))
+                ax_a1oc.errorbar([acc_ep_cal], [oc_accra],  yerr=[self.nss_accra_err],
+                                 color=nss_color, fmt='D', ecolor='black',
+                                 capsize=5, markersize=7, zorder=300)
+                ax_a3oc.errorbar([acc_ep_cal], [oc_accdec], yerr=[self.nss_accdec_err],
+                                 color=nss_color, fmt='D', ecolor='black',
+                                 capsize=5, markersize=7, zorder=300)
+
+                # annotate measured and model jerk if Acc9
+                if self.have_nss_jerk:
+                    for ax_a, jval, jerr, jmod, lab in [
+                        (ax_a1, self.nss_jerkra,  self.nss_jerkra_err,
+                         ml_jerkra,  r'$j_{\alpha*}$'),
+                        (ax_a3, self.nss_jerkdec, self.nss_jerkdec_err,
+                         ml_jerkdec, r'$j_{\delta}$')]:
+                        ax_a.annotate(
+                            r'%s $= %.2f \pm %.2f$ (model %.2f) mas yr$^{-3}$'
+                            % (lab, jval, jerr, jmod),
+                            xy=(0.03, 0.07), xycoords='axes fraction',
+                            fontsize=9, color='#d62728')
+
+            # ── axis labels and formatting ─────────────────────────────────
             if self.set_limit:
                 for ax in [ax1, ax3]:
-                    ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
-                    ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
-                    
-            ax1.get_shared_x_axes().join(ax1, ax2)
-            ax2.set_xlim([t1_RA - dt_RA/8., t2_RA + dt_RA/8.])
+                    ax.set_xlim(float(self.user_xlim[0]), float(self.user_xlim[1]))
+                    ax.set_ylim(float(self.user_ylim[0]), float(self.user_ylim[1]))
 
-            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)', labelpad = 6, fontsize = 13)
-            # ax3
-            ax3.get_shared_x_axes().join(ax3, ax4)
-            ax4.set_xlim([t1_Dec - dt_Dec/8., t2_Dec + dt_Dec/8.])
-            range_mudec_obs = max(self.mudec_obs)  - min(self.mudec_obs)
-            ax3.set_ylabel(r'$\mu_{\delta}$ (mas/yr)', labelpad = 6, fontsize = 13)
-            for ax in [ax1, ax3]:
+            ax2.sharex(ax1)
+            ax_a1.sharex(ax1)
+            ax_a1oc.sharex(ax1)
+            ax4.sharex(ax3)
+            ax_a3.sharex(ax3)
+            ax_a3oc.sharex(ax3)
+            for ax in [ax2, ax_a1, ax_a1oc]:
+                ax.set_xlim(xl_RA)
+            for ax in [ax4, ax_a3, ax_a3oc]:
+                ax.set_xlim(xl_Dec)
+
+            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas yr$^{-1}$)',  labelpad=6, fontsize=13)
+            ax3.set_ylabel(r'$\mu_{\delta}$ (mas yr$^{-1}$)',   labelpad=6, fontsize=13)
+            ax2.set_ylabel('O-C (PM)',                           labelpad=6, fontsize=10)
+            ax4.set_ylabel('O-C (PM)',                           labelpad=6, fontsize=10)
+            ax_a1.set_ylabel(r'$\alpha_{\alpha*}$ (mas yr$^{-2}$)', labelpad=6, fontsize=11)
+            ax_a3.set_ylabel(r'$\alpha_{\delta}$ (mas yr$^{-2}$)',  labelpad=6, fontsize=11)
+            ax_a1oc.set_ylabel('O-C (acc)',                      labelpad=6, fontsize=10)
+            ax_a3oc.set_ylabel('O-C (acc)',                      labelpad=6, fontsize=10)
+
+            for ax in [ax1, ax3, ax2, ax4, ax_a1, ax_a3]:
                 ax.xaxis.set_major_formatter(NullFormatter())
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
-                ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            # ax2
-            
-            y1_RA = max(np.abs(dat_OC_RA) + max(self.mualp_obs_err))
-            y1_Dec = max(np.abs(dat_OC_Dec) + max(self.mudec_obs_err))
-            
-            ax2.set_ylim(-1.2*y1_RA, 1.2*y1_RA)
-            ax4.set_ylim(-1.2*y1_Dec, 1.2*y1_Dec)
-            
-            for ax in [ax2,ax4]:
+                ax.tick_params(direction='in', which='both',
+                               left=True, right=True, bottom=True, top=True)
+            for ax in [ax_a1oc, ax_a3oc]:
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
-                ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-                ax.set_xlabel('Epoch (year)', labelpad = 6, fontsize = 13)
-                ax.set_ylabel('O-C', labelpad = 6, fontsize = 13)
-                
-            # from advanced plotting settings in config.ini
+                ax.tick_params(direction='in', which='both',
+                               left=True, right=True, bottom=True, top=True)
+                ax.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
+
+            y1_RA  = max(np.abs(dat_OC_RA)  + max(self.mualp_obs_err))
+            y1_Dec = max(np.abs(dat_OC_Dec) + max(self.mudec_obs_err))
+            ax2.set_ylim(-1.2*y1_RA,  1.2*y1_RA)
+            ax4.set_ylim(-1.2*y1_Dec, 1.2*y1_Dec)
+
+            if self.have_nss_acc:
+                ax_a1.legend(fontsize=8, loc='upper left', framealpha=0.6)
+                ax_a3.legend(fontsize=8, loc='upper left', framealpha=0.6)
             if self.show_title:
                 ax1.set_title('Right Ascension vs. Epoch')
                 ax3.set_title('Declination vs. Epoch')
             if self.add_text:
-                for ax in [ax1,ax3]:
-                    ax.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax.transAxes,fontsize=15)
+                for ax in [ax1, ax3]:
+                    ax.text(self.x_text, self.y_text, self.text_name,
+                            horizontalalignment='left', verticalalignment='center',
+                            transform=ax.transAxes, fontsize=15)
+
             if self.usecolorbar:
                 if self.pm_separate:
-                    for figure, name in [[fig, 'RA_'], [fig1, 'Dec_']]:
+                    for figure, axes_list, name in [
+                        (fig,  [ax1, ax2, ax_a1, ax_a1oc], 'RA_'),
+                        (fig1, [ax3, ax4, ax_a3, ax_a3oc], 'Dec_')]:
                         cbar_ax = figure.add_axes([1.55, 0.16, 0.05, 0.7])
-                        cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                        cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                        cbar.ax.get_yaxis().labelpad=20
+                        cbar = figure.colorbar(self.sm, ax=cbar_ax, fraction=12)
+                        cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref],
+                                           rotation=270, fontsize=13)
+                        cbar.ax.get_yaxis().labelpad = 20
                         figure.delaxes(cbar_ax)
                         try:
-                            if name == 'RA_':
-                                self.align_ylabels(figure, [ax1, ax2], pad=0.02)
-                            else:
-                                self.align_ylabels(figure, [ax3, ax4], pad=0.02)
-                        except:
-                            pass                            
+                            self.align_ylabels(figure, axes_list, pad=0.02)
+                        except Exception:
+                            pass
                         with warnings.catch_warnings():
-                             warnings.simplefilter("ignore", category=UserWarning)
-                             figure.savefig(os.path.join(self.outputdir, 'ProperMotions_' + name + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+                            warnings.simplefilter("ignore", category=UserWarning)
+                            figure.savefig(
+                                os.path.join(self.outputdir,
+                                             'ProperMotions_' + name + self.title) + '.pdf',
+                                transparent=True, bbox_inches='tight', dpi=200)
                 else:
                     cbar_ax = fig.add_axes([1.46, 0.16, 0.05, 0.7])
                     cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
-                    cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
-                    cbar.ax.get_yaxis().labelpad=20
+                    cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref],
+                                       rotation=270, fontsize=13)
+                    cbar.ax.get_yaxis().labelpad = 20
                     fig.delaxes(cbar_ax)
-
                     try:
-                        self.align_ylabels(fig, [ax1, ax2], pad=0.02)
-                        self.align_ylabels(fig, [ax3, ax4], pad=0.02)
-                    except:
-                        pass                            
-                            
+                        self.align_ylabels(fig, [ax1, ax2, ax_a1, ax_a1oc], pad=0.02)
+                        self.align_ylabels(fig, [ax3, ax4, ax_a3, ax_a3oc], pad=0.02)
+                    except Exception:
+                        pass
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore", category=UserWarning)
-                        fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+                        fig.savefig(
+                            os.path.join(self.outputdir,
+                                         'Proper_Motions_' + self.title) + '.pdf',
+                            transparent=True, bbox_inches='tight', dpi=200)
         else:
             fig = plt.figure(figsize=(11, 5.5))
             ax1 = fig.add_axes((0.10, 0.1, 0.35, 0.77))
             ax2 = fig.add_axes((0.60, 0.1, 0.35, 0.77))
-
-            # plot the num_orbits randomly selected curves
             orb_ml = Orbit(self, 'best')
-            
             for i in range(self.num_orbits):
                 orb = Orbit(self, step=self.rand_idx[i])
-
-                ax1.plot(self.epoch_calendar, orb.mu_RA, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                ax2.plot(self.epoch_calendar, orb.mu_Dec, color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
-                
-            # plot the most likely one
-            ax1.plot(self.epoch_calendar, orb_ml.mu_RA, color='black')
+                ax1.plot(self.epoch_calendar, orb.mu_RA,
+                         color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
+                ax2.plot(self.epoch_calendar, orb.mu_Dec,
+                         color=self.colormap(self.normalize(orb.colorpar)), alpha=0.3)
+            ax1.plot(self.epoch_calendar, orb_ml.mu_RA,  color='black')
             ax2.plot(self.epoch_calendar, orb_ml.mu_Dec, color='black')
-
-            ax1.set_xlim(self.start_epoch, self.end_epoch)
-            ax1.xaxis.set_minor_locator(AutoMinorLocator())
-            ax1.yaxis.set_minor_locator(AutoMinorLocator())
-            ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            #ax1.set_title(self.title)
-            ax1.set_xlabel('date (yr)')
-            ax1.set_ylabel(r'$\mu_{\alpha*}$ (mas/yr)',labelpad = 6)
-
-            ax2.set_xlim(self.start_epoch, self.end_epoch)
-            ax2.xaxis.set_minor_locator(AutoMinorLocator())
-            ax2.yaxis.set_minor_locator(AutoMinorLocator())
-            ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            #ax2.set_title(self.title)
-            ax2.set_xlabel('date (yr)')
-            ax2.set_ylabel(r'$\mu_{\delta}$ (mas/yr)')
-            try:
-                self.align_ylabels(fig, [ax1, ax3])
-                self.align_ylabels(fig, [ax2, ax4])
-            except:
-                pass                            
+            for ax, ylabel in [(ax1, r'$\mu_{\alpha*}$ (mas yr$^{-1}$)'),
+                               (ax2, r'$\mu_{\delta}$ (mas yr$^{-1}$)')]:
+                ax.set_xlim(self.start_epoch, self.end_epoch)
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+                ax.yaxis.set_minor_locator(AutoMinorLocator())
+                ax.tick_params(direction='in', which='both',
+                               left=True, right=True, bottom=True, top=True)
+                ax.set_xlabel('date (yr)')
+                ax.set_ylabel(ylabel, labelpad=6)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             plt.tight_layout()
             print("Plotting Proper Motions, your plot is generated at " + self.outputdir)
-        
             if self.pm_separate and not self.usecolorbar:
-                fig.savefig(os.path.join(self.outputdir, 'ProperMotions_RA_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-                fig1.savefig(os.path.join(self.outputdir, 'ProperMotions_Dec_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
+                fig.savefig(os.path.join(self.outputdir,
+                                         'ProperMotions_RA_'  + self.title) + '.pdf',
+                            transparent=True, bbox_inches='tight', dpi=200)
+                fig1.savefig(os.path.join(self.outputdir,
+                                          'ProperMotions_Dec_' + self.title) + '.pdf',
+                             transparent=True, bbox_inches='tight', dpi=200)
             elif not self.usecolorbar:
-                fig.savefig(os.path.join(self.outputdir, 'Proper_Motions_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200)
-            
+                fig.savefig(os.path.join(self.outputdir,
+                                         'Proper_Motions_' + self.title) + '.pdf',
+                            transparent=True, bbox_inches='tight', dpi=200)
+
 ################################################################################################
 
 #astrometric prediction plot
@@ -1157,10 +1415,13 @@ class OrbitPlots:
         levels = [cdf_func(p) for p in [1 - 0.9973, 1 - 0.954, 1 - 0.683]]
         # plotting the contours and density plot.
         ax.contour(xi, yi, zi, levels=levels, colors=['k', 'C0', 'b'])
-        cnt = ax.contourf(xi, yi, zi, levels=100, cmap=cm.hot_r)
-        # Get rid of the white level lines on the contour map.
-        for c in cnt.collections:
-            c.set_edgecolor("face")
+        # antialiased=False removes the faint white seams between filled levels.
+        # (ContourSet.collections was removed in Matplotlib 3.10; before that
+        # the seams were hidden by setting each collection's edgecolor.)
+        cnt = ax.contourf(xi, yi, zi, levels=100, cmap=cm.hot_r, antialiased=False)
+        if hasattr(cnt, 'collections'):          # Matplotlib < 3.10
+            for c in cnt.collections:
+                c.set_edgecolor("face")
         #
 
         # Mark the central star if (0, 0) is within the axis limits
@@ -1254,9 +1515,10 @@ class OrbitPlots:
         Inc = chain['inc' + npl]
         
         chain = np.vstack([Mpri, Msec, Semimajor, Ecc, Inc * 180/np.pi]).T
-
+        
         # in corner_modified, the error is modified to keep 2 significant figures
-        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
+        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True,
+                                        title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf', transparent=True)
@@ -1334,7 +1596,7 @@ class OrbitPlots:
                     text_file.write('RV_ZP_%d_ML' % (i))
                     text_file.write("  %.10g" % (offset))
                     text_file.write("\n")
-                except:
+                except Exception:
                     break
             text_file.close()
         
@@ -1343,8 +1605,8 @@ class OrbitPlots:
             q_m, q_p = q_50-q_16, q_84-q_50
 
             # modified to keep 2 significant figures in the errors
-            idecimal_m = np.floor(np.log10(np.float('%.1g'%(q_m))))
-            idecimal_p = np.floor(np.log10(np.float('%.1g'%(q_p))))
+            idecimal_m = np.floor(np.log10(float('%.1g'%(q_m))))
+            idecimal_p = np.floor(np.log10(float('%.1g'%(q_p))))
 
             if idecimal_m < 2:
                 fmt_m_e = "{{0:{0}}}".format(".%df"%(-idecimal_m + 1)).format

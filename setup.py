@@ -1,15 +1,36 @@
-from distutils.core import setup
-from distutils.extension import Extension
+"""
+Build script for orvara's Cython extension.
+
+All project metadata lives in pyproject.toml; this file exists only because the
+``orvara.orbit`` extension module has to be cythonised and compiled.
+"""
+import os
+from setuptools import setup, Extension
+
+# Cython is a build-time requirement declared in pyproject.toml, so it is always
+# importable here when pip/uv builds the project.
 from Cython.Build import cythonize
 
-source_files = ['orvara/orbit.pyx']
-modules = [Extension("orvara.orbit", source_files, extra_compile_args=['-O3'])]
+EXTRA_COMPILE_ARGS = ['-O3']
+if os.name == 'nt':                       # MSVC does not understand -O3
+    EXTRA_COMPILE_ARGS = ['/O2']
 
-setup(name='orvara',
-      ext_modules=cythonize(modules),
-      version='1.1.4',
-      python_requires='>=3.5',
-      package_dir={'orvara': 'orvara'},
-      install_requires=['numpy>=1.13', 'htof>=1.1.5', 'emcee', 'ptemcee',
-                        'Cython', 'pandas', 'astropy', 'pytest', 'mock'],
-      entry_points={'console_scripts': ['fit_orbit=orvara.main:run', 'plot_orbit=orvara.main_plotting:run']})
+extensions = [
+    Extension(
+        'orvara.orbit',
+        sources=[os.path.join('orvara', 'orbit.pyx')],
+        extra_compile_args=EXTRA_COMPILE_ARGS,
+    )
+]
+
+setup(
+    # Only language_level is set globally.  orbit.pyx applies
+    # @cython.boundscheck(False) / @cython.wraparound(False) per function,
+    # where the author established they are safe -- turning them on (or
+    # cdivision) for the whole module changes the fitted results.
+    ext_modules=cythonize(
+        extensions,
+        language_level='3',
+        compiler_directives={'language_level': '3'},
+    ),
+)

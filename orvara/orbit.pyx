@@ -120,8 +120,8 @@ cdef class Data:
     cdef int [:] RVinst
     cdef double [:] relsep
     cdef double [:] PA
-    cdef double [:] relsep_err
-    cdef double [:] PA_err
+    cdef public double [:] relsep_err
+    cdef public double [:] PA_err
     cdef double [:] relsep_pa_corr
     cdef int [:] ast_planetID
     cdef int [:] rel_RV_planetID
@@ -134,10 +134,13 @@ cdef class Data:
     cdef double [:, :] Cinv_H
     cdef double [:, :] Cinv_HG
     cdef double [:, :] Cinv_G
-    cdef double [:, :] Cinv_G_acc_terms
-    cdef double [:, :] Cinv_G_jerk_terms
+    # public so that the acceleration and jerk weighting can be inspected from
+    # Python (and asserted on in the tests): zero means "no constraint".
+    cdef public double [:, :] Cinv_G_acc_terms
+    cdef public double [:, :] Cinv_G_jerk_terms
     cdef double [:, :] Cinv_G_B
     cdef public double refep, gaia_mission_length_yrs
+    cdef public double relast_error_scale
     cdef public double epRA_H, epDec_H, epRA_G, epDec_G, dt_H, dt_G
     cdef public int use_abs_ast
 
@@ -145,7 +148,14 @@ cdef class Data:
                  use_epoch_astrometry=False,
                  epochs_Hip1=None, epochs_Hip2=None, epochs_Gaia=None,
                  refep=2455197.5000, companion_gaia=None, verbose=True,
-                 gaia_mission_length_yrs=2.76):
+                 gaia_mission_length_yrs=2.76, relast_error_scale=1.0):
+        # relast_error_scale multiplies every separation and position-angle
+        # uncertainty in relAstfile (the [data_paths] relast_error_scale key).
+        # Set it to sqrt(chi2_rel / 2 N_rel) of a previous fit and re-fit to
+        # bring the relative-astrometry residuals to unit variance.
+        if relast_error_scale <= 0:
+            raise ValueError('relast_error_scale must be positive, got %r' % (relast_error_scale,))
+        self.relast_error_scale = float(relast_error_scale)
         try:
             rel_rvdat = np.genfromtxt(relRVFile)
             if len(rel_rvdat.shape) == 1:
@@ -160,7 +170,7 @@ cdef class Data:
             self.rel_RV_planetID = (rel_rvdat[:, 3]).astype(np.int32)
             if verbose:
                 print(f"Loaded {self.n_rel_RV } relative RV data points for {len(set(self.rel_RV_planetID))} planets")
-        except:
+        except Exception:
             if verbose:
                 print(f"Unable to load relative RV data from file {relRVFile}")
             self.n_rel_RV = 0
@@ -173,7 +183,7 @@ cdef class Data:
             self.nRV = rvdat.shape[0]
             if verbose:
                 print(f"Loadied {self.nRV} RV data points from file " + RVfile)
-        except:
+        except Exception:
             if verbose:
                 print("Unable to load RV data from file " + RVfile)
             self.nRV = 0
@@ -186,7 +196,7 @@ cdef class Data:
             self.nInst = np.amax(rvdat[:, 3]) + 1
             if verbose:
                 print("Loaded data from %d RV instruments." % (self.nInst))
-        except:
+        except Exception:
             if self.nRV > 0:
                 if verbose:
                     print("Unable to read RV instruments from fourth column.")
@@ -197,10 +207,10 @@ cdef class Data:
         try:
             try:
                 reldat = np.genfromtxt(relAstfile, usecols=(0,1,2,3,4,5,6))
-            except:
+            except Exception:
                 try:
                     reldat = np.genfromtxt(relAstfile, usecols=(0,1,2,3,4,5))
-                except:
+                except Exception:
                     reldat = np.genfromtxt(relAstfile, usecols=(0,1,2,3,4))
             if len(reldat.shape) == 1:
                 reldat = np.reshape(reldat, (1, -1))
@@ -212,14 +222,16 @@ cdef class Data:
             else:
                 relep = reldat[:, 0]
             self.relsep = reldat[:, 1]
-            self.relsep_err = reldat[:, 2]
+            self.relsep_err = reldat[:, 2]*self.relast_error_scale
             self.PA = reldat[:, 3]*np.pi/180
-            self.PA_err = reldat[:, 4]*np.pi/180
+            self.PA_err = reldat[:, 4]*np.pi/180*self.relast_error_scale
+            if verbose and self.relast_error_scale != 1:
+                print("Relative-astrometry uncertainties scaled by %.4f" % self.relast_error_scale)
             self.nAst = reldat.shape[0]
             # Relative separation/PA correlation \in (-1, 1)
             try:
                 self.relsep_pa_corr = reldat[:, 5]
-            except:
+            except Exception:
                 self.relsep_pa_corr = reldat[:, 0]*0
 
             try:
@@ -227,33 +239,40 @@ cdef class Data:
                 assert np.all(self.ast_planetID == reldat[:, 6])
                 if verbose:
                     print("Loading astrometric data for %d planets" % (np.amax(self.ast_planetID) + 1))
-            except:
+            except Exception:
                 self.ast_planetID = (reldat[:, 0]*0).astype(np.int32)
                 if verbose:
                     print("Loading astrometric data for 1 planet")
             if verbose:
                 print("Loaded %d relative astrometric data points from file " % (self.nAst) + relAstfile)
-        except:
+        except Exception:
             if verbose:
                 print("Unable to load relative astrometry data from file " + relAstfile)
             self.nAst = 0
             relep = []
 
         try:
-            t = fits.open(HGCAfile)[1].data
-            t = t[np.where(t['hip_id'] == Hip)]
-            assert len(t) > 0
+            with fits.open(HGCAfile, memmap=False) as _hdul:
+                _data = _hdul[1].data
+                _names = list(_data.names)
+                _rows = _data[_data['hip_id'] == Hip]
+            assert len(_rows) > 0
+            # Take the single matching row.  A FITS_record yields NumPy scalars
+            # for t['colname'], whereas a one-row FITS_rec yields length-1
+            # arrays.  NumPy >= 2.0 refuses to convert a length-1 array to a
+            # Python float/int, so this step is required, not cosmetic.
+            t = _rows[0]
             self.use_abs_ast = 1
-            if 'gaia_npar' in t.names:
+            if 'gaia_npar' in _names:
                 # get the number of parameters used in the gaia fit.
-                self.gaia_npar = t['gaia_npar']
+                self.gaia_npar = int(t['gaia_npar'])
             else:
                 # assume the fit is a 5 parameter fit.
                 self.gaia_npar = 5
             if verbose:
                 print("Loading absolute astrometry data for Hip %d" % (Hip))
                 print(f"Recognized a {self.gaia_npar}-parameter fit in Gaia for Hip {Hip}")
-        except:
+        except Exception:
             if verbose:
                 print("Unable to load HGCA absolute astrometry data for Hip %d" % (Hip))
             self.use_abs_ast = 0
@@ -286,6 +305,11 @@ cdef class Data:
             self.nHip1 = self.nHip2 = self.nGaia = 0
             return
 
+        if self.gaia_npar not in (5, 7, 9):
+            raise ValueError(
+                "gaia_npar = %d in %s is not one of the supported Gaia "
+                "solution types (5, 7 or 9)." % (self.gaia_npar, HGCAfile))
+
         self.plx = 1e-3*t['parallax_gaia']
         self.plx_err = 1e-3*t['parallax_gaia_error']
         self.pmra_H = 1e-3*t['pmra_hip']
@@ -308,7 +332,7 @@ cdef class Data:
             self.jerkdec_G = 1e-3 * t['jerkdec_gaia']
 
         if not use_epoch_astrometry:
-            self.nHip1 = self.nHip2 = self.nGaia = 6
+            self.nHip1 = self.nHip2 = 6
             self.dt_H = 3.36
             self.dt_G = gaia_mission_length_yrs
             ep_2010 = 2455197.5000
@@ -318,18 +342,37 @@ cdef class Data:
             dmurG_epc = (self.epRA_G - 2010.0)*365.25 + ep_2010
             dmudG_epc = (self.epDec_G - 2010.0)*365.25 + ep_2010
 
-            absasteps = np.asarray([dmurH_epc - self.dt_H*0.5*365.25, dmurH_epc,
-                                    dmurH_epc + self.dt_H*0.5*365.25,
-                                    dmudH_epc - self.dt_H*0.5*365.25, dmudH_epc,
-                                    dmudH_epc + self.dt_H*0.5*365.25,
-                                    dmurH_epc - self.dt_H*0.5*365.25, dmurH_epc,
-                                    dmurH_epc + self.dt_H*0.5*365.25,
-                                    dmudH_epc - self.dt_H*0.5*365.25, dmudH_epc,
-                                    dmudH_epc + self.dt_H*0.5*365.25,
-                                    dmurG_epc - self.dt_G*0.5*365.25, dmurG_epc,
-                                    dmurG_epc + self.dt_G*0.5*365.25,
-                                    dmudG_epc - self.dt_G*0.5*365.25, dmudG_epc,
-                                    dmudG_epc + self.dt_G*0.5*365.25])
+            # Hip sample points (3 per coordinate = 6 total): unchanged
+            hip_steps = [dmurH_epc - self.dt_H*0.5*365.25, dmurH_epc,
+                         dmurH_epc + self.dt_H*0.5*365.25,
+                         dmudH_epc - self.dt_H*0.5*365.25, dmudH_epc,
+                         dmudH_epc + self.dt_H*0.5*365.25,
+                         dmurH_epc - self.dt_H*0.5*365.25, dmurH_epc,
+                         dmurH_epc + self.dt_H*0.5*365.25,
+                         dmudH_epc - self.dt_H*0.5*365.25, dmudH_epc,
+                         dmudH_epc + self.dt_H*0.5*365.25]
+
+            if self.gaia_npar == 9:
+                # For a 9-parameter (PM + acc + jerk) fit we need 4 sample points per
+                # coordinate to extract PM, acceleration, AND jerk via cubic finite
+                # differences.  Points are placed at -T/2, -T/6, +T/6, +T/2 around the
+                # Gaia central epoch (T = gaia_mission_length_yrs), giving nGaia = 8.
+                self.nGaia = 8
+                h = self.dt_G * 365.25 / 2.0   # half-baseline in days
+                gaia_ra_steps  = [dmurG_epc - h, dmurG_epc - h/3.0,
+                                  dmurG_epc + h/3.0, dmurG_epc + h]
+                gaia_dec_steps = [dmudG_epc - h, dmudG_epc - h/3.0,
+                                  dmudG_epc + h/3.0, dmudG_epc + h]
+            else:
+                # For 5- or 7-parameter fits: 3 sample points per coordinate = 6 total.
+                # Points at -T/2, 0, +T/2 around the Gaia central epoch.
+                self.nGaia = 6
+                gaia_ra_steps  = [dmurG_epc - self.dt_G*0.5*365.25, dmurG_epc,
+                                  dmurG_epc + self.dt_G*0.5*365.25]
+                gaia_dec_steps = [dmudG_epc - self.dt_G*0.5*365.25, dmudG_epc,
+                                  dmudG_epc + self.dt_G*0.5*365.25]
+
+            absasteps = np.asarray(hip_steps + gaia_ra_steps + gaia_dec_steps)
         else:
             self.nHip1 = epochs_Hip1.shape[0]
             self.nHip2 = epochs_Hip2.shape[0]
@@ -396,7 +439,7 @@ cdef class Data:
                 self.companion_ID = companion_gaia['ID']
                 if verbose:
                     print("Using companion proper motion from Gaia.")
-            except:
+            except Exception:
                 self.Cinv_G_B = np.zeros((2, 2)).astype(float)
                 self.pmra_G_B = self.pmdec_G_B = 0
                 self.companion_ID = -1
@@ -522,6 +565,38 @@ cdef class Model:
         for i in range(self.n_rel_RV):
             relRVs[i] = self.rel_RV[i]
         return relRVs
+
+    def set_dRA_dDec(self, dRA_G=None, dDec_G=None, dRA_H1=None, dDec_H1=None):
+        """
+        Set the simulated sky-path offsets directly.
+
+        This exists so the finite-difference formulas in
+        :func:`calc_PMs_no_epoch_astrometry` can be tested against an analytic
+        polynomial without running a whole orbit integration.  Each argument, if
+        given, must have the matching length (``nGaia`` for the Gaia arrays,
+        ``nHip1`` for the Hipparcos ones).
+        """
+        cdef int i
+        if dRA_G is not None:
+            if len(dRA_G) != self.nGaia:
+                raise ValueError('dRA_G must have length nGaia = %d' % self.nGaia)
+            for i in range(self.nGaia):
+                self.dRA_G[i] = dRA_G[i]
+        if dDec_G is not None:
+            if len(dDec_G) != self.nGaia:
+                raise ValueError('dDec_G must have length nGaia = %d' % self.nGaia)
+            for i in range(self.nGaia):
+                self.dDec_G[i] = dDec_G[i]
+        if dRA_H1 is not None:
+            if len(dRA_H1) != self.nHip1:
+                raise ValueError('dRA_H1 must have length nHip1 = %d' % self.nHip1)
+            for i in range(self.nHip1):
+                self.dRA_H1[i] = dRA_H1[i]
+        if dDec_H1 is not None:
+            if len(dDec_H1) != self.nHip1:
+                raise ValueError('dDec_H1 must have length nHip1 = %d' % self.nHip1)
+            for i in range(self.nHip1):
+                self.dDec_H1[i] = dDec_H1[i]
 
     def return_dRA_dDec(self):
         cdef int i, j
@@ -1114,43 +1189,147 @@ def calc_PMs_epoch_astrometry(Data data, Model model, AstrometricFitter Hip1,
 
 def calc_PMs_no_epoch_astrometry(Data data, Model model):
     """
-    Calculates the proper motions and positions assuming you do not have the Gaia/Hipparcos IAD.
-    Note that this works only up to second order (i.e, acceleration terms, 7 parameter fits))
-    Sources with a third order (i.e., 9 parameter fit) Gaia solution, are not supported under this method
-    because it would require more sample points.
+    Calculates the proper motions, accelerations, and (for gaia_npar==9) jerks
+    from sampled orbit positions, without requiring Gaia/Hipparcos scan-level IAD.
 
-    It is recommended regardless, that if your gaia object has a 7 or 9 parameter fit, to simply use
-    the full epoch astrometry method anyway.
+    For gaia_npar <= 7 (5- or 7-parameter Gaia solution):
+        3 Gaia sample points per coordinate at t = [-T/2, 0, +T/2].
+        Indices: RA -> dRA_G[0,1,2],  Dec -> dDec_G[3,4,5]
+        Extracts: pmra_G (linear), accra_G (quadratic) via finite differences.
+
+    For gaia_npar == 9 (9-parameter Gaia solution, acceleration + jerk):
+        4 Gaia sample points per coordinate at t = [-T/2, -T/6, +T/6, +T/2].
+        Indices: RA -> dRA_G[0,1,2,3],  Dec -> dDec_G[4,5,6,7]
+        Extracts: pmra_G as the mean proper motion over the window,
+        accra_G as the acceleration at the central epoch, and jerkra_G as the
+        (constant) jerk -- the quantities the DR3 NSS Acceleration9 model
+        reports (Gaia DR3 documentation Sect. 7.2.4).  The acceleration and
+        jerk stencils are exact for a cubic; the mean proper motion is exact
+        for any path.
+
+    In both cases the window is [-T/2, +T/2] about data.epRA_G / data.epDec_G.
+    For a file built from an NSS solution that epoch must be 2016.0 and T the
+    span the NSS model assumes (2 x 517.5 d); orvara.gaia_accel writes the
+    epoch and orvara.main.identify_hgca_version supplies T.
+
+    The Hipparcos sample layout (3 points per coordinate, indices 0-5) is
+    unchanged in both cases.
     """
     cdef double RA_H, Dec_H, RA_G, Dec_G
+    cdef double h, h3
+    cdef double f0, f1, f2, f3   # four sample values for cubic case
+    cdef double g0, g1, g2, g3
 
-    RA_H = (4*model.dRA_H1[1] + model.dRA_H1[0] + model.dRA_H1[2])/6
-    Dec_H = (4*model.dDec_H1[4] + model.dDec_H1[3] + model.dDec_H1[5])/6
+    # ── Hipparcos: unchanged (3-point Simpson centroid and finite difference) ──
+    RA_H  = (4*model.dRA_H1[1]  + model.dRA_H1[0]  + model.dRA_H1[2]) / 6
+    Dec_H = (4*model.dDec_H1[4] + model.dDec_H1[3] + model.dDec_H1[5]) / 6
 
-    RA_G = (4*model.dRA_G[1] + model.dRA_G[0] + model.dRA_G[2])/6
-    Dec_G = (4*model.dDec_G[4] + model.dDec_G[3] + model.dDec_G[5])/6
+    model.pmra_H  = (model.dRA_H1[2]  - model.dRA_H1[0])  / data.dt_H
+    model.pmdec_H = (model.dDec_H1[5] - model.dDec_H1[3]) / data.dt_H
 
-    model.pmra_HG = (RA_G - RA_H)/(data.epRA_G - data.epRA_H)
-    model.pmdec_HG = (Dec_G - Dec_H)/(data.epDec_G - data.epDec_H)
+    if data.gaia_npar == 9:
+        # ── 4-point cubic scheme ──────────────────────────────────────────────
+        # Sample times relative to central epoch: -T/2, -T/6, +T/6, +T/2
+        # where T = dt_G (the full Gaia mission baseline, in years).
+        # h = T/2 so the four times are: -h, -h/3, +h/3, +h.
+        #
+        # For a cubic f(t) = p + v*t + (a/2)*t^2 + (j/6)*t^3 evaluated at
+        # t in {-h, -h/3, h/3, h}:
+        #
+        #   Mean position over the baseline (Simpson's 3/8 rule):
+        #     <f> = (f0 + 3*f1 + 3*f2 + f3) / 8 = p + (a/2)*h^2/3
+        #     -- the same quantity the 3-point branch gets from Simpson's rule.
+        #
+        #   Mean proper motion over the window (the DR3 NSS definition):
+        #     <f'> = (f3 - f0) / (2h)                        [exact for any f]
+        #
+        #   Acceleration (2nd derivative at t=0):
+        #     a = 9 (f0 - f1 - f2 + f3) / (8 h^2)             [exact for a cubic]
+        #
+        #   Jerk (3rd derivative, constant for a cubic):
+        #     j = 27 (-f0 + 3 f1 - 3 f2 + f3) / (8 h^3)       [exact for a cubic]
+        #
+        #   Gaia's accel_ra is d(pmra)/dt and deriv_accel_ra is its derivative,
+        #   i.e. the raw 2nd and 3rd derivatives -- the same convention as
+        #   res_Gaia[5..8] in calc_PMs_epoch_astrometry.
+        #
+        # The acceleration and jerk stencils come from inverting the 4x4
+        # Vandermonde system for t in {-h, -h/3, +h/3, +h} (uniform step 2h/3).
+        h = data.dt_G / 2.0     # half-baseline in years
 
-    model.pmra_H = (model.dRA_H1[2] - model.dRA_H1[0])/data.dt_H
-    model.pmdec_H = (model.dDec_H1[5] - model.dDec_H1[3])/data.dt_H
+        # RA: indices 0,1,2,3
+        f0 = model.dRA_G[0];  f1 = model.dRA_G[1]
+        f2 = model.dRA_G[2];  f3 = model.dRA_G[3]
 
-    model.pmra_G = (model.dRA_G[2] - model.dRA_G[0])/data.dt_G
-    model.pmdec_G = (model.dDec_G[5] - model.dDec_G[3])/data.dt_G
+        # Mean position over the mission.  pmra_HG below is a positional
+        # difference divided by a ~25 yr baseline, so RA_G has to be the same
+        # quantity the 3-point branch computes with Simpson's rule: the
+        # time-average of the path over the Gaia baseline, not the plain mean
+        # of the samples.  For the four points at -h, -h/3, +h/3, +h that is
+        # Simpson's 3/8 rule, which is exact for a cubic.  (A plain mean would
+        # weight the acceleration term by 5h^2/9 instead of the correct h^2/3.)
+        RA_G = (f0 + 3.0*f1 + 3.0*f2 + f3) / 8.0
 
-    model.pmra_G_B = (model.dRA_G_B[2] - model.dRA_G_B[0])/data.dt_G
-    model.pmdec_G_B = (model.dDec_G_B[5] - model.dDec_G_B[3])/data.dt_G
+        # Proper motion: the DR3 NSS model defines pmra as the *mean* proper
+        # motion over the observation window (Gaia DR3 documentation Sect.
+        # 7.2.4, Eq. 7.5: the cubic term is written (t^2 - DeltaT^2) t / 6 so
+        # that its derivative averages to zero).  The mean of f' over [-h, h]
+        # is (f(h) - f(-h)) / 2h exactly, for any f -- not the derivative at
+        # t = 0, which would differ by j h^2 / 6.
+        model.pmra_G   = (f3 - f0) / (2.0 * h)
+        # Acceleration at t = 0 and the (constant) jerk: 4-point stencils that
+        # are exact for a cubic.
+        model.accra_G  = (f0 - f1 - f2 + f3) * 9.0 / (8.0 * h * h)
+        model.jerkra_G = (-f0 + 3.0*f1 - 3.0*f2 + f3) * 27.0 / (8.0 * h * h * h)
 
-    # just a linear fit, 0 and 2 are the end points of ra. (so 0, 1, 2 are the three ra points)
-    # and 3, 4, 5 are the points in dec. The three points have times: [-dt_G*0.5, 0, dt_G*0.5], respectively
-    # around the central epoch.
-    model.pmra_G = (model.dRA_G[2] - model.dRA_G[0])/data.dt_G
-    model.pmdec_G = (model.dDec_G[5] - model.dDec_G[3])/data.dt_G
+        # Dec: indices 4,5,6,7
+        g0 = model.dDec_G[4];  g1 = model.dDec_G[5]
+        g2 = model.dDec_G[6];  g3 = model.dDec_G[7]
 
-    # quadratic fit to the simulated gaia data
-    model.accra_G = (model.dRA_G[0] + model.dRA_G[2] - 2 * model.dRA_G[1]) / (data.dt_G/2) ** 2
-    model.accdec_G = (model.dDec_G[3] + model.dDec_G[5] - 2 * model.dDec_G[4]) / (data.dt_G/2) ** 2
+        Dec_G = (g0 + 3.0*g1 + 3.0*g2 + g3) / 8.0
+
+        model.pmdec_G   = (g3 - g0) / (2.0 * h)
+        model.accdec_G  = (g0 - g1 - g2 + g3) * 9.0 / (8.0 * h * h)
+        model.jerkdec_G = (-g0 + 3.0*g1 - 3.0*g2 + g3) * 27.0 / (8.0 * h * h * h)
+
+        # Companion PM (if used): same mean-velocity definition
+        model.pmra_G_B  = (model.dRA_G_B[3]  - model.dRA_G_B[0])  / (2.0 * h)
+        model.pmdec_G_B = (model.dDec_G_B[7] - model.dDec_G_B[4]) / (2.0 * h)
+
+    else:
+        # ── 3-point quadratic scheme (gaia_npar == 5 or 7) ───────────────────
+        # Sample times: -T/2, 0, +T/2.  Indices: RA -> 0,1,2   Dec -> 3,4,5
+        #
+        # Mean position (Simpson centroid):
+        #   <f> = (f0 + 4*f1 + f2) / 6
+        # Velocity:
+        #   v = (f2 - f0) / T
+        # Acceleration:
+        #   a = (f0 - 2*f1 + f2) / (T/2)^2
+        # Jerk is zero for a 3-point scheme (no cubic term recoverable).
+
+        h = data.dt_G / 2.0   # half-baseline in years
+
+        RA_G  = (4*model.dRA_G[1]  + model.dRA_G[0]  + model.dRA_G[2])  / 6.0
+        Dec_G = (4*model.dDec_G[4] + model.dDec_G[3] + model.dDec_G[5]) / 6.0
+
+        model.pmra_G  = (model.dRA_G[2]  - model.dRA_G[0])  / data.dt_G
+        model.pmdec_G = (model.dDec_G[5] - model.dDec_G[3]) / data.dt_G
+
+        # Acceleration (quadratic finite difference)
+        model.accra_G  = (model.dRA_G[0]  + model.dRA_G[2]  - 2*model.dRA_G[1])  / (h * h)
+        model.accdec_G = (model.dDec_G[3] + model.dDec_G[5] - 2*model.dDec_G[4]) / (h * h)
+
+        # Jerk: not recoverable from 3 points; stays zero (set in Model.__init__)
+        # data.Cinv_G_jerk_terms is already zeros for gaia_npar < 9, so
+        # the zero model jerk incurs no penalty in calcL.
+
+        model.pmra_G_B  = (model.dRA_G_B[2]  - model.dRA_G_B[0])  / data.dt_G
+        model.pmdec_G_B = (model.dDec_G_B[5] - model.dDec_G_B[3]) / data.dt_G
+
+    # ── HG long-baseline PM from centroid positions ───────────────────────────
+    model.pmra_HG  = (RA_G  - RA_H)  / (data.epRA_G  - data.epRA_H)
+    model.pmdec_HG = (Dec_G - Dec_H) / (data.epDec_G - data.epDec_H)
 
     return
 
