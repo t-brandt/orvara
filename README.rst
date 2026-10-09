@@ -6,18 +6,39 @@ their faint companions (exoplanets, brown dwarfs, white dwarfs, and low-mass
 stars).
 
 
+This build additionally supports Gaia DR3 non-single-star (NSS) astrometric
+acceleration solutions -- both 7-parameter (acceleration) and 9-parameter
+(acceleration + jerk) -- with or without epoch astrometry. See
+`Gaia NSS acceleration sources`_ below.
+
+Requirements
+============
+Python 3.10-3.13, NumPy >= 1.24 (NumPy 2.x supported), SciPy >= 1.9,
+Astropy >= 5.1, pandas >= 1.5, Matplotlib >= 3.6, emcee >= 3.1 and
+`htof <https://github.com/gmbrandt/HTOF>`_ >= 1.2.0.
+
+ptemcee is **not** a dependency: a patched copy is bundled in
+``orvara/_vendor/ptemcee`` because the PyPI release calls ``np.float``, which
+NumPy removed in 1.24. See that package's docstring.
+
+This repository is a fork of https://github.com/t-brandt/orvara at commit 66349265, maintained at https://github.com/Realaqe/orvara.
+
 Installation
 ============
-NOTE: you must have Cython installed prior to installing orvara. The following
-instructions will git clone the repo, then install Cython, and then install orvara:
+Cython is declared as a build requirement, so a modern pip or uv installs it
+automatically:
 
 .. code-block:: bash
 
-    git clone https://github.com/t-brandt/orvara
+    git clone <this repo>
     cd orvara
-    pip install cython
-    pip install -e .
+    pip install -e ".[test]"
 
+If you use an older pip that does not honour ``pyproject.toml`` build
+requirements, install Cython first (``pip install "cython>=3"``).
+
+htof must be installed too; if you are using the matching modernised htof, do
+``pip install -e ../htof`` before installing orvara.
 
 Verifying
 ---------
@@ -27,11 +48,148 @@ cd to the root directory of the repo (if you are not already there). Run:
 
     pytest -sv
 
-This will run a small suite of tests. This should take about 5 minutes. If any
-of the tests fail, something is wrong with the install. Maybe you recently
-switched branches? Try deleting the two compiled c files (orbit.c and orbit.cpython-38...)
-and then run ``pip install -e .`` again. If the issue
-persists, please submit an issue ticket on github!
+This runs the full suite: unit tests plus end-to-end MCMC fits. Expect roughly
+10-20 minutes, most of it in the ``e2e`` fits. To skip those and get a fast
+check of the install (about 30 seconds):
+
+.. code-block:: bash
+
+    pytest -sv -m "not e2e"
+
+To run just the Gaia-acceleration and configuration tests:
+
+.. code-block:: bash
+
+    pytest -sv orvara/tests/test_gaia_accel.py orvara/tests/test_config.py \
+              orvara/tests/test_finite_differences.py
+
+If any test fails, something is wrong with the install. If you recently switched
+branches, delete the generated ``orvara/orbit.c`` and the compiled
+``orvara/orbit.*.so`` and run ``pip install -e .`` again. If the issue persists,
+please submit an issue ticket on github!
+
+You can also check a configuration file without running anything:
+
+.. code-block:: bash
+
+    orvara-config --check my_target.ini
+
+Gaia NSS acceleration sources
+=============================
+Gaia DR3 publishes ``gaiadr3.nss_acceleration_astro`` solutions for stars whose
+astrometry is not consistent with uniform motion. They come in two flavours:
+
+- **Acceleration7** (``npar = 7``): position, parallax, proper motion,
+  acceleration.
+- **Acceleration9** (``npar = 9``): the above plus the derivative of the
+  acceleration, i.e. jerk.
+
+orvara reads absolute astrometry from an HGCA-format table, so the workflow is
+to turn one NSS solution into a one-star HGCA-format FITS file.
+
+Everything lives in a single config file. Start from a template:
+
+.. code-block:: bash
+
+    orvara-config --template acc9 -o my_target.ini    # or acc7, hip_and_gaia
+
+Fill in the ``[gaia_accel]`` section with the values from the archive, set
+``[data_paths] HGCAFile`` to the same path as ``[gaia_accel] output_fits``, then:
+
+.. code-block:: bash
+
+    orvara-gaia-accel my_target.ini    # writes the one-star FITS
+    fit_orbit my_target.ini            # fits the orbit
+    plot_orbit my_target.ini           # makes the plots
+
+Two modes
+---------
+``mode = gaia_only``
+    The star has no Hipparcos data. The Hipparcos and Hipparcos-Gaia rows are
+    filled with the Gaia proper motion and given errors of 1e7 mas/yr, so they
+    contribute nothing to chi-squared and only the NSS acceleration (and jerk)
+    constrains the fit. ``hip_id`` is a synthetic integer of your choosing;
+    200000 and above is safe, since real Hipparcos IDs stop at 120404.
+
+``mode = hip_and_gaia``
+    The star *is* in the HGCA. Its real Hipparcos and Hipparcos-Gaia proper
+    motions are copied from ``hgca_template`` and the NSS acceleration and jerk
+    terms are attached to that same row, so the long Hipparcos-Gaia baseline and
+    the within-Gaia curvature constrain the orbit together. ``hip_id`` is the
+    star's real Hipparcos number.
+
+What the generator writes
+-------------------------
+The output table carries the 35 standard HGCA columns plus:
+
+===========================  =========  ==================================
+Column                       npar       Meaning
+===========================  =========  ==================================
+``gaia_npar``                7, 9       Which NSS solution this is
+``accra_gaia``               7, 9       RA acceleration, mas/yr^2
+``accdec_gaia``              7, 9       Dec acceleration, mas/yr^2
+``accra_gaia_error``         7, 9       ...and its inflated 1-sigma error
+``accdec_gaia_error``        7, 9
+``accra_accdec_gaia``        7, 9       Their correlation, from ``corr_vec``
+``jerkra_gaia``              9          RA jerk, mas/yr^3
+``jerkdec_gaia``             9          Dec jerk, mas/yr^3
+``jerkra_gaia_error``        9
+``jerkdec_gaia_error``       9
+``jerkra_jerkdec_gaia``      9          Their correlation
+===========================  =========  ==================================
+
+``epoch_ra_gaia`` and ``epoch_dec_gaia`` are written as **2016.0**, the NSS
+reference epoch. The DR3 acceleration model is written in ``t = epoch - 2016.0``
+and its position and proper-motion parameters are *means* over the observation
+window ``2016.0 +/- 517.5 d`` (Gaia DR3 documentation, Sect. 7.2.4, Eq. 7.5), so
+that is the window orvara has to average over. The HGCA's convention for
+5-parameter sources -- placing the Gaia epoch where position and proper motion
+decorrelate, ``2016 - corr(ra, pmra) sigma_ra / sigma_pmra`` -- must **not** be
+used for an NSS source: shifting the window by ``dt`` biases the model proper
+motion by ``acc * dt``, tens of sigma for a typical accelerator. A Gaia-only fit
+absorbs that into the free barycentric proper motion; a ``hip_and_gaia`` fit,
+where Hipparcos pins the barycentric motion, cannot.
+
+``error_inflation_factor`` (default 2 in the templates) multiplies the NSS
+acceleration and jerk errors only; the Gaia proper-motion errors are left as
+published.
+
+Epoch astrometry, or not
+------------------------
+With ``use_epoch_astrometry = True`` the Gaia intermediate astrometry is fitted
+with htof, at polynomial degree 1, 2 or 3 for ``npar`` 5, 7 or 9.
+
+With ``use_epoch_astrometry = False`` orvara simulates the Gaia solution by
+sampling the model sky path over a window of length ``T`` centred on
+``epoch_ra_gaia`` / ``epoch_dec_gaia``. For a one-star NSS file ``T`` is the NSS
+model's own ``2 x 517.5 d = 2.834 yr`` (34 months); for a full HGCA catalogue it
+is the 2.76 yr the HGCA assumes.
+
+- ``npar`` 5 or 7: three points per coordinate at ``-T/2, 0, +T/2``. The
+  proper motion is ``(f(+T/2) - f(-T/2)) / T`` -- the mean proper motion over
+  the window, exactly what the NSS model reports -- and the acceleration is the
+  quadratic difference. Jerk stays zero and carries no penalty.
+- ``npar`` 9: four points per coordinate at ``-T/2, -T/6, +T/6, +T/2``. The
+  proper motion is again the mean over the window, ``(f(+T/2) - f(-T/2)) / T``
+  (the NSS ``pmra`` for an Acceleration9 solution is defined as the mean, not the
+  value at 2016.0; the two differ by ``jerk * (T/2)^2 / 6``); the acceleration at
+  2016.0 and the jerk come from four-point stencils exact for a cubic. The
+  Gaia-side position that enters the Hipparcos-Gaia proper motion is Simpson's
+  3/8 rule over the four points, the time-average of the path, matching the
+  Simpson-rule average the three-point scheme uses.
+
+Earlier versions raised a ``RuntimeError`` for 9-parameter sources with
+``use_epoch_astrometry = False``. That restriction is gone.
+
+corr_vec
+--------
+``corr_vec`` must have 21 entries for ``npar = 7`` and 36 for ``npar = 9``,
+comma- or whitespace-separated. Gaia stores the off-diagonal correlations once,
+in the order ``(0,1), (0,2), (1,2), (0,3), ...`` -- the upper triangle read
+column by column. The archive column is zero-padded to a fixed length; a longer
+vector is truncated to the first ``npar*(npar-1)/2`` entries. A shorter one is
+an error, and ``orvara-config --check`` will tell you so before you run anything.
+
 
 Orbit fitting
 =============
@@ -40,7 +198,27 @@ Configuration
 -------------
 First, assign the appropriate file directories and settings inside of a
 config.ini file. Example configuration files can be found in
-``orvara/tests/`` e.g. ``orvara/tests/config.ini``.
+``orvara/tests/`` e.g. ``orvara/tests/config.ini``, and annotated blank
+templates come from ``orvara-config --template fit``.
+
+One file holds everything for a target: the fit settings and, for a Gaia NSS
+source, the ``[gaia_accel]`` block described above. ``fit_orbit``,
+``plot_orbit`` and ``orvara-gaia-accel`` all read the same file.
+
+The file is validated before anything runs. A wrong type, an unusable
+combination (``use_epoch_astrometry = True`` with no IAD directories), a missing
+required key, or an ``output_fits`` that does not match ``HGCAFile`` are all
+reported together, up front, naming the section and key -- rather than surfacing
+as a ``KeyError`` or a silently-applied default some way into a run. A key that
+is not recognised gets a warning with a "did you mean" suggestion, since it is
+almost always a typo. To check a file without running a fit:
+
+.. code-block:: bash
+
+    orvara-config --check my_target.ini
+
+``fit_orbit`` and ``plot_orbit`` accept ``--strict`` (unknown sections and keys
+become errors) and ``--no-validate`` (skip the checks entirely).
 
 Epoch Astrometry
 ~~~~~~~~~~~~~~~~

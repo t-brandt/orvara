@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=77", "wheel", "Cython>=3.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orvara"
+version = "1.2.1"
+description = "Orbits from Radial Velocity, Absolute, and/or Relative Astrometry -- with Gaia DR3 NSS acceleration (7-par) and acceleration+jerk (9-par) support."
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = "BSD-3-Clause"
+license-files = ["LICENCE"]
+requires-python = ">=3.10"
+authors = [
+    {name = "Timothy D. Brandt"},
+    {name = "Trent J. Dupuy"},
+    {name = "Yiting Li"},
+    {name = "G. Mirek Brandt"},
+]
+keywords = ["astronomy", "orbit fitting", "astrometry", "radial velocity", "Gaia", "Hipparcos"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Cython",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.9",
+    "astropy>=5.1",
+    "pandas>=1.5",
+    "matplotlib>=3.6",
+    "emcee>=3.1",
+    "htof>=1.2.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0", "pytest-cov>=4.0", "mock>=4.0"]
+
+[project.scripts]
+fit_orbit = "orvara.main:main"
+plot_orbit = "orvara.main_plotting:main"
+orvara-gaia-accel = "orvara.gaia_accel.gen_fit:main"
+orvara-config = "orvara.config:template_cli"
+
+[project.urls]
+Homepage = "https://github.com/t-brandt/orvara"
+Documentation = "https://orvara.readthedocs.io"
+
+[tool.setuptools.packages.find]
+include = ["orvara*"]
+
+[tool.setuptools.package-data]
+"orvara.gaia_accel" = ["templates/*.ini"]
+"orvara._vendor.ptemcee" = ["LICENSE"]
+"orvara.tests" = [
+    "*.ini",
+    "*.dat",
+    "data/*",
+    "data/**/*",
+    "chains/*.fits",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["orvara/tests"]
+markers = [
+    "e2e: mark a test as end-to-end",
+    "integration: mark a test as integration",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.report]
+omit = ["*/tests/*", "*__init__*", "*/dev_utils/*"]
+exclude_lines = ["pragma: no cover"]
