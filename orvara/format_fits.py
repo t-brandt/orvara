@@ -1,35 +1,51 @@
 import numpy as np
 from astropy.io import fits
-import re
-import pkg_resources
 import warnings
+
+from orvara import __version__
+
+
+#: A FITS card is 80 characters; HIERARCH and CONTINUE cards cannot be combined,
+#: so a long key plus a long value has to be truncated rather than continued.
+_CARD_LENGTH = 80
+_CARD_OVERHEAD = 13
 
 
 def make_header(config_file):
+    """
+    Record the configuration file in the primary header of the chain file.
 
-    warnings.filterwarnings(action='ignore', 
+    Long values are truncated to fit an 80-character card.  With the unified
+    config this matters more than it used to: ``corr_vec`` alone is several
+    hundred characters.
+    """
+    warnings.filterwarnings(action='ignore',
                             category=fits.verify.VerifyWarning,
                             module=r'astropy.io.fits')
 
     header = fits.PrimaryHDU().header
-    
-    version = pkg_resources.get_distribution("orvara").version
-    header.append(('version', version, 'Code version'))
-    for line in open(config_file):
-        line = line[:-1]
-        try:
-            if '=' in line and not line.startswith('#'):
-                keys = re.split('[ ]*=[ ]*', line)
-                # hierarch and continue cards are incompatible.  Hacky fix.     
-                if len(keys[0]) > 8 and len(keys[0]) + len(keys[1]) + 13 > 80:
-                    n_over = len(keys[0]) + len(keys[1]) + 13 - 80
-                    header.append((keys[0], keys[1][:-n_over]), end=True)
+    header.append(('version', __version__, 'Code version'))
+
+    with open(config_file) as handle:
+        for line in handle:
+            line = line.rstrip('\n')
+            stripped = line.strip()
+            if not stripped or stripped.startswith(('#', ';')):
+                continue
+            try:
+                if '=' in line:
+                    key, _, value = line.partition('=')
+                    key, value = key.strip(), value.strip()
+                    budget = _CARD_LENGTH - len(key) - _CARD_OVERHEAD
+                    if budget < 1:
+                        # the key alone will not fit; keep it as a comment
+                        header.append(('comment', line[:_CARD_LENGTH]), end=True)
+                    else:
+                        header.append((key, value[:budget]), end=True)
                 else:
-                    header.append((keys[0], keys[1]), end=True)
-            elif not line.startswith('#'):
-                header.append(('comment', line[:80]), end=True)
-        except:
-            continue
+                    header.append(('comment', line[:_CARD_LENGTH]), end=True)
+            except Exception:
+                continue
     return header
 
 
@@ -63,7 +79,11 @@ def pull_chain_params(columns, step=0, lnp_name='lnp'):
     for i in range(len(columns)):
         if columns[i].name == lnp_name:
             break
-        params += [float(columns[i].array[step])]
+        value = np.asarray(columns[i].array[step])
+        # `step` may be a plain index into a flattened chain (0-d result) or,
+        # as in plot_chains, a fancy index into the 2-D chain that returns a
+        # length-1 array; NumPy >= 2 refuses float() on the latter.
+        params += [float(value.reshape(-1)[0])]
 
     return params
 

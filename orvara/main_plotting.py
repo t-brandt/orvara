@@ -27,12 +27,10 @@ import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
-from configparser import ConfigParser
 from htof.main import Astrometry
 from orvara import orbit
-from orvara.config import parse_args_plotting
+from orvara.config import parse_args_plotting, load_config
 import argparse
-from configparser import ConfigParser
 from orvara import orbit_plots         # import orbit_plots plotting package
 
 
@@ -83,8 +81,15 @@ def initialize_plot_options(config):
     
     # plot axes settings
     OP.set_limit = config.getboolean('plotting', 'set_limit', fallback=False)
-    OP.user_xlim = config.get('plotting', 'xlim', fallback=None).split(",")
-    OP.user_ylim = config.get('plotting', 'ylim', fallback=None).split(",")
+    # xlim/ylim are only read when set_limit is True, but they were parsed
+    # unconditionally with fallback=None, so plot_orbit crashed with
+    # "'NoneType' object has no attribute 'split'" on any config that omits
+    # them.  Default to an empty pair instead.
+    OP.user_xlim = config.get('plotting', 'xlim', fallback='').split(",")
+    OP.user_ylim = config.get('plotting', 'ylim', fallback='').split(",")
+    if OP.set_limit and (len(OP.user_xlim) != 2 or len(OP.user_ylim) != 2):
+        raise ValueError("[plotting] set_limit = True requires xlim and ylim to "
+                         "each be two comma-separated numbers.")
     
     # show or not show title, add a text on the plot
     OP.show_title = config.getboolean('plotting', 'show_title', fallback=False)
@@ -122,8 +127,8 @@ def run():
     start_time = time.time()
    
     args = parse_args_plotting()
-    config = ConfigParser()
-    config.read(args.config_file)
+    config = load_config(args.config_file, require_fit=True, strict=getattr(args, 'strict', False),
+                         validate=not getattr(args, 'no_validate', False))
     
     # initialize the OP class object
     OPs = initialize_plot_options(config)
@@ -164,5 +169,11 @@ def run():
         OPs.save_data()
 
     
-if __name__ == "__main__":
+def main():
+    """Console entry point ``plot_orbit``: make the plots and exit 0 on success."""
     run()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

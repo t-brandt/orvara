@@ -134,3 +134,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.DS_Store
+orvara/tests/chains/
+orvara/tests/plots/
+
+# CI configuration (kept out of the repository at the maintainer's request)
+.github/
